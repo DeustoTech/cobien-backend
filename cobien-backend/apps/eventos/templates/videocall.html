@@ -1,0 +1,838 @@
+{% load static %}
+{% load i18n %}
+<!doctype html>
+<html lang="en">
+<head>
+    <title>{% block titulo %}Videollamada{% endblock %}</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <script src="https://sdk.twilio.com/js/video/releases/2.18.0/twilio-video.min.js"></script>
+    
+    <!-- ========== MULTI-PARTICIPANT RESPONSIVE LAYOUT ========== -->
+    <style>
+        /* ✅ MASQUER HEADER ET H1 PENDANT L'APPEL */
+        body.in-call header,
+        body.in-call h1 {
+            display: none;
+        }
+
+        body.in-call {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Container vidéo : VRAI plein écran avec Grid */
+        #video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+            z-index: 999;
+            display: grid;
+            gap: 4px;
+        }
+
+        /* ✅ LAYOUTS DYNAMIQUES selon nombre de participants */
+        
+        /* 1 participant : Plein écran */
+        #video-container.participants-1 {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        /* 2 participants : 2 colonnes */
+        #video-container.participants-2 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        /* 3-4 participants : Grille 2x2 */
+        #video-container.participants-3,
+        #video-container.participants-4 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        /* 5-6 participants : Grille 2x3 */
+        #video-container.participants-5,
+        #video-container.participants-6 {
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        /* 7-9 participants : Grille 3x3 */
+        #video-container.participants-7,
+        #video-container.participants-8,
+        #video-container.participants-9 {
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+        }
+
+        /* 10+ participants : Grille 4x3 */
+        #video-container.participants-10,
+        #video-container.participants-11,
+        #video-container.participants-12 {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+        }
+
+        /* ✅ VIDÉO PARTICIPANTS : S'adapte au conteneur Grid */
+        .video-box.remote-participant {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-box.remote-participant video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Remplit l'espace sans déformation */
+        }
+
+        /* ✅ VIDÉO LOCALE (retour utilisateur) : TOUJOURS en overlay bas gauche */
+        .video-box#local-video {
+            position: fixed !important; /* Force overlay même avec Grid */
+            bottom: 80px;
+            left: 20px;
+            width: 240px;
+            height: 180px;
+            background: #000;
+            border: 3px solid white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            z-index: 1001; /* Au-dessus de tout */
+        }
+
+        .video-box#local-video video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Label pour identifier les vidéos */
+        .video-box::after {
+            content: attr(data-label);
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 5;
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .video-box#local-video::after {
+            font-size: 11px;
+            padding: 4px 8px;
+            top: 8px;
+            left: 8px;
+        }
+
+        /* ✅ BOUTONS : En bas au centre, par-dessus tout */
+        .video-buttons {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1002; /* Au-dessus de la vidéo locale */
+        }
+
+        .video-buttons button {
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        #leave-room {
+            background: #dc3545;
+            color: white;
+        }
+
+        #leave-room:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+
+        #mute-button {
+            background: #007bff;
+            color: white;
+            min-width: 60px;
+        }
+
+        #mute-button.muted {
+            background: #6c757d;
+        }
+
+        #mute-button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        /* ✅ RESPONSIVE : Adaptations mobile/tablette */
+        
+        /* Tablette portrait : Forcer 2 colonnes max */
+        @media (max-width: 1024px) and (orientation: portrait) {
+            #video-container.participants-5,
+            #video-container.participants-6,
+            #video-container.participants-7,
+            #video-container.participants-8,
+            #video-container.participants-9 {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto;
+            }
+        }
+
+        /* Mobile : Empiler verticalement */
+        @media (max-width: 768px) {
+            #video-container {
+                grid-template-columns: 1fr !important;
+                grid-template-rows: auto !important;
+                overflow-y: auto;
+            }
+
+            .video-box#local-video {
+                width: 120px;
+                height: 90px;
+                bottom: 70px;
+                left: 10px;
+                border-width: 2px;
+            }
+
+            .video-buttons button {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+
+            .video-box::after {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+
+            .video-box#local-video::after {
+                font-size: 9px;
+                padding: 3px 6px;
+            }
+        }
+
+        /* Mobile paysage : 2 colonnes */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #video-container {
+                grid-template-columns: 1fr 1fr !important;
+                grid-template-rows: auto !important;
+            }
+        }
+
+        /* Très grand écran : Limiter taille labels */
+        @media (min-width: 1920px) {
+            .video-box::after {
+                font-size: 18px;
+                padding: 8px 16px;
+            }
+        }
+
+        /* Modal de confirmation */
+        #confirmFaceModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        #confirmFaceModal > div {
+            background: #fff;
+            max-width: 320px;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        #confirmFaceModal img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        #confirmFaceModal button {
+            margin: 4px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #confirmFaceYes {
+            background: #28a745;
+            color: #fff;
+        }
+
+        #confirmFaceNo {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        #confirmFaceCancel {
+            background: #6c757d;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="coBienLogo">
+          <a id="logo" href="{% url 'home' %}">
+            <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image" style="height: 35px;">
+          </a>
+        </div>
+        <button class="menu-toggle" aria-label="Abrir menú">☰</button>      
+        <nav class="main-nav">                
+          <a href="{% url 'lista_eventos' %}">
+            {% blocktrans %}Eventos{% endblocktrans %}
+          </a>
+          <a href="{% url 'videocall' %}">
+            {% blocktrans %}Videollamadas{% endblocktrans %}
+          </a>
+          <a href="{% url 'pizarra_home' %}">
+            {% blocktrans %}Pizarra{% endblocktrans %}
+          </a>
+          {% if user.is_authenticated %}
+            <span class="saludo">Hola, {{ user.username }} —</span>
+            <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
+          {% else %}
+            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
+            <a href="{% url 'signup' %}"  class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
+          {% endif %}           
+        </nav>
+        <div class="language-switcher">
+          <form action="{% url 'set_language' %}" method="post">
+            {% csrf_token %}
+            <select name="language" onchange="this.form.submit();">
+                <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
+                <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
+            </select>
+        </form>
+      </div>
+    </header>
+    
+    {% if messages %}
+        <ul class="alert-list">
+            {% for m in messages %}
+                <li class="alert">{{ m }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    
+    <h1>{% blocktrans %}Videollamada{% endblocktrans %}</h1>
+    
+    <div class="video-wrapper">
+        <div id="video-container"></div>
+        <div class="video-buttons">
+            <button id="leave-room">{% blocktrans %}Salir{% endblocktrans %}</button>
+            <button id="mute-button" class="btn-icon" aria-label="Silenciar micrófono">
+                <i class="fa-solid fa-microphone"></i>
+            </button>        
+        </div>
+    </div>
+    
+    <div id="confirmFaceModal">
+      <div>
+        <h3>{% blocktrans %}¿Es esta la persona mayor?{% endblocktrans %}</h3>
+        <img id="facePreviewImg" src="" alt="Preview de cara">
+        <div>
+          <button id="confirmFaceYes">{% blocktrans %}Sí, es correcta{% endblocktrans %}</button>
+          <button id="confirmFaceNo">{% blocktrans %}No, mostrar otra{% endblocktrans %}</button>
+          <button id="confirmFaceCancel">{% blocktrans %}Cancelar{% endblocktrans %}</button>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+        let emotionDetectionEnabled = false;
+        let emotionIntervalId = null;
+        let selectingFace = false;
+        let currentROI = null;
+        let roomName = null;
+        let identity = null;
+
+        function captureCurrentFrame() {
+            const localDiv = document.getElementById('local-video');
+            if (!localDiv) return null;
+            const videoEl = localDiv.querySelector('video');
+            if (!videoEl || videoEl.readyState < 2) return null;
+            const w = videoEl.videoWidth, h = videoEl.videoHeight;
+            if (!w || !h) return null;
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            
+            // ✅ Capture with 180° rotation ONLY if CoBien device
+            if (identity && identity.toLowerCase().includes('cobien')) {
+                ctx.save();
+                ctx.translate(w / 2, h / 2);
+                ctx.rotate(Math.PI);
+                ctx.drawImage(videoEl, -w / 2, -h / 2, w, h);
+                ctx.restore();
+            } else {
+                ctx.drawImage(videoEl, 0, 0, w, h);
+            }
+            
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        async function requestSelectFace() {
+            const dataURL = captureCurrentFrame();
+            if (!dataURL) {
+                console.warn("No hay frame disponible para seleccionar rostro.");
+                return;
+            }
+            try {
+                const respuesta = await fetch('/api/emociones/seleccionar/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        image_base64: dataURL,
+                        room: roomName
+                    })
+                });
+                const json = await respuesta.json();
+                if (!respuesta.ok) {
+                    console.warn("Error de selección de rostro:", json.error || json);
+                    if (respuesta.status === 400) return;
+                    setTimeout(() => {
+                        if (emotionDetectionEnabled) requestSelectFace();
+                    }, 1000);
+                    return;
+                }
+                const modal = document.getElementById('confirmFaceModal');
+                const imgPreview = document.getElementById('facePreviewImg');
+                imgPreview.src = json.face_base64;
+                modal.style.display = 'flex';
+                selectingFace = true;
+
+                document.getElementById('confirmFaceYes').onclick = () => {
+                    currentROI = json.roi;
+                    selectingFace = false;
+                    modal.style.display = 'none';
+                    startEmotionLoop();
+                };
+                document.getElementById('confirmFaceNo').onclick = () => {
+                    modal.style.display = 'none';
+                    alert("La persona mayor, acérquese a la cámara por favor.");
+                    if (emotionDetectionEnabled) {
+                        setTimeout(() => {
+                            requestSelectFace();
+                        }, 2000);
+                    } else {
+                        selectingFace = false;
+                    }
+                };
+                document.getElementById('confirmFaceCancel').onclick = () => {
+                    modal.style.display = 'none';
+                    selectingFace = false;
+                    currentROI = null;
+                    if (emotionDetectionEnabled) {
+                        emotionDetectionEnabled = false;
+                        stopEmotionLoop();
+                        const btn = document.getElementById('toggle-emotion-detection');
+                        if (btn) {
+                            btn.innerText = "Activar Detección Emocional";
+                            btn.classList.remove('active');
+                        }
+                    }
+                };
+            }
+            catch (err) {
+                console.error("Excepción al llamar a seleccionar rostro:", err);
+                setTimeout(() => {
+                    if (emotionDetectionEnabled) requestSelectFace();
+                }, 1000);
+            }
+        }
+
+        async function startEmotionLoop() {
+            if (!currentROI) {
+                console.warn("No hay ROI definida. No se inicia detección de emoción.");
+                return;
+            }
+            if (emotionIntervalId) clearInterval(emotionIntervalId);
+            emotionIntervalId = setInterval(async () => {
+                const dataURL = captureCurrentFrame();
+                if (!dataURL) return;
+                try {
+                    const resp = await fetch('/api/emociones/detectar/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            image_base64: dataURL,
+                            room: roomName
+                        })
+                    });
+                    const js = await resp.json();
+                    if (resp.ok) {
+                        console.log(`Emoción: ${js.emocion} (confianza: ${js.confianza})`);
+                    } else {
+                        console.warn("Error detectando emoción:", js.error || js);
+                    }
+                }
+                catch (e) {
+                    console.error("Excepción en /api/emociones/detectar/:", e);
+                }
+            }, 3000);
+        }
+
+        async function stopEmotionLoop() {
+            if (emotionIntervalId) {
+                clearInterval(emotionIntervalId);
+                emotionIntervalId = null;
+            }
+            try {
+                const resp = await fetch('/api/emociones/finalizar/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        room: roomName,
+                        identity: identity
+                    })
+                });
+                const js = await resp.json();
+                if (!resp.ok) {
+                    console.warn("Error al finalizar sesión:", js.error || js);
+                    return;
+                }
+                if (js.success) {
+                    alert("Resumen emocional subido correctamente.");
+                } else {
+                    alert("Error subiendo resumen: " + (js.error || JSON.stringify(js)));
+                }
+            }
+            catch (e) {
+                console.error("Excepción en /api/emociones/finalizar/:", e);
+                alert("Excepción al finalizar detección emocional.");
+            }
+        }
+    </script>     
+    
+    <script>
+        const HOME_URL = "{% url 'home' %}";
+
+        // ✅ CHECK IF USER IS COBIEN DEVICE
+        function isCoBienDevice(username) {
+            const cobienNames = ['cobien', 'cobien1', 'cobien2'];
+            return username && cobienNames.some(name => 
+                username.toLowerCase().includes(name.toLowerCase())
+            );
+        }
+
+        // ✅ UPDATE GRID LAYOUT based on participant count
+        function updateGridLayout() {
+            const videoContainer = document.getElementById('video-container');
+            const remoteParticipants = document.querySelectorAll('.video-box.remote-participant');
+            const count = remoteParticipants.length;
+            
+            // Remove all participant classes
+            videoContainer.className = '';
+            
+            // Add appropriate class based on count
+            if (count > 0) {
+                const layoutClass = `participants-${Math.min(count, 12)}`;
+                videoContainer.classList.add(layoutClass);
+                console.log(`📐 Layout updated: ${count} participant(s) → ${layoutClass}`);
+            }
+        }
+
+        // ========== CREATE VIDEO TRACK (WITH ROTATION FOR COBIEN) ==========
+        async function createVideoTrack(shouldRotate) {
+            console.log(`🎥 Creating video track (rotation: ${shouldRotate})...`);
+            
+            // Get original media stream
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 1280, height: 720 },
+                audio: true
+            });
+
+            const originalVideoTrack = stream.getVideoTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
+
+            // ✅ If NOT CoBien device, return original track
+            if (!shouldRotate) {
+                console.log("✅ Using original video (no rotation)");
+                return {
+                    videoTrack: new Twilio.Video.LocalVideoTrack(originalVideoTrack),
+                    audioTrack: new Twilio.Video.LocalAudioTrack(audioTrack),
+                    cleanup: () => {
+                        originalVideoTrack.stop();
+                    }
+                };
+            }
+
+            // ✅ If CoBien device, apply 180° rotation to the STREAM
+            console.log("✅ Applying 180° rotation to stream for CoBien device");
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext('2d');
+
+            const hiddenVideo = document.createElement('video');
+            hiddenVideo.srcObject = new MediaStream([originalVideoTrack]);
+            hiddenVideo.autoplay = true;
+            hiddenVideo.muted = true;
+
+            await new Promise((resolve) => {
+                hiddenVideo.onloadedmetadata = () => {
+                    hiddenVideo.play();
+                    resolve();
+                };
+            });
+
+            let animationFrameId;
+            function rotateFrame() {
+                if (hiddenVideo.readyState >= hiddenVideo.HAVE_CURRENT_DATA) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.save();
+                    // 180° rotation
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.rotate(Math.PI);
+                    ctx.drawImage(hiddenVideo, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+                    ctx.restore();
+                }
+                animationFrameId = requestAnimationFrame(rotateFrame);
+            }
+            rotateFrame();
+
+            const rotatedStream = canvas.captureStream(30);
+            const rotatedVideoTrack = rotatedStream.getVideoTracks()[0];
+
+            console.log("✅ Rotated stream created and will be sent to ALL participants");
+
+            return {
+                videoTrack: new Twilio.Video.LocalVideoTrack(rotatedVideoTrack),
+                audioTrack: new Twilio.Video.LocalAudioTrack(audioTrack),
+                cleanup: () => {
+                    cancelAnimationFrame(animationFrameId);
+                    originalVideoTrack.stop();
+                }
+            };
+        }
+
+        // ========== START VIDEO CALL ==========
+        async function startVideoCall() {
+            identity = "{{ identity|escapejs }}";
+            if (!identity || !identity.trim()) {
+                window.location.href = HOME_URL;
+                return;
+            }
+            
+            roomName = prompt(
+                "Ingresa el nombre de la sala:",
+                "{{ default_room|escapejs }}"       
+            );
+            if (!roomName || !roomName.trim()) {
+                window.location.href = HOME_URL;
+                return;
+            }
+
+            try {
+                // ✅ MASQUER HEADER/H1 une fois connecté
+                document.body.classList.add('in-call');
+
+                const response = await fetch(`/api/generate-token/${identity}/${roomName}/`);
+                if (!response.ok) throw new Error("No se pudo obtener el token");
+                const { token, room_name } = await response.json();
+
+                window.identity = identity;
+                window.roomName = room_name;
+
+                // ✅ Check if this is a CoBien device
+                const shouldRotate = isCoBienDevice(identity);
+                console.log(`🔍 User: ${identity}, CoBien device: ${shouldRotate}`);
+
+                // Create video track (with or without rotation)
+                const { videoTrack, audioTrack, cleanup } = await createVideoTrack(shouldRotate);
+
+                // Connect to Twilio
+                const room = await Twilio.Video.connect(token, { 
+                    name: room_name,
+                    tracks: [videoTrack, audioTrack]
+                });
+                
+                console.log(`✅ Connected to room: ${room.name}`);
+
+                // ========== MUTE BUTTON ==========
+                const muteButton = document.getElementById('mute-button');
+                let micMuted = false;
+                muteButton.onclick = () => {
+                    room.localParticipant.audioTracks.forEach(pub => {
+                        const track = pub.track;
+                        if (track.kind === 'audio') {
+                            if (!micMuted) {
+                                track.disable();
+                                muteButton.classList.add('muted');
+                                muteButton.querySelector('i').classList.replace('fa-microphone','fa-microphone-slash');
+                            } else {
+                                track.enable();
+                                muteButton.classList.remove('muted');
+                                muteButton.querySelector('i').classList.replace('fa-microphone-slash','fa-microphone');
+                            }
+                            micMuted = !micMuted;
+                        }
+                    });
+                };
+
+                // ========== DISPLAY LOCAL VIDEO (PETIT EN BAS À GAUCHE - OVERLAY) ==========
+                const videoContainer = document.getElementById('video-container');
+                const localDiv = document.createElement('div');
+                localDiv.id = 'local-video';
+                localDiv.classList.add('video-box');
+                
+                localDiv.setAttribute('data-label', shouldRotate ? '🎥 CoBien' : `🎥 ${identity}`);
+                document.body.appendChild(localDiv); // ✅ Append to BODY for true overlay
+
+                // ✅ Attach rotated video track (NO CSS rotation needed)
+                const localVideoElement = videoTrack.attach();
+                localDiv.appendChild(localVideoElement);
+
+                console.log(`✅ Local video displayed (stream ${shouldRotate ? 'already rotated' : 'normal'})`);
+
+                // ========== REMOTE PARTICIPANTS (RESPONSIVE GRID) ==========
+                function addParticipantVideo(participant) {
+                    const participantDiv = document.createElement('div');
+                    participantDiv.id = `participant-${participant.identity}`;
+                    participantDiv.classList.add('video-box', 'remote-participant');
+                    participantDiv.setAttribute('data-label', `👤 ${participant.identity}`);
+                    videoContainer.appendChild(participantDiv);
+
+                    participant.on('trackSubscribed', track => {
+                        if (track.kind === 'video') {
+                            const videoElement = track.attach();
+                            videoElement.classList.add('participant-video');
+                            participantDiv.appendChild(videoElement);
+                            console.log(`✅ Vidéo affichée pour ${participant.identity}`);
+                            
+                            // ✅ Update grid layout
+                            updateGridLayout();
+                        }
+                    });
+
+                    participant.on('trackUnsubscribed', track => {
+                        track.detach().forEach(element => element.remove());
+                        console.log(`❌ Track supprimée pour ${participant.identity}`);
+                    });
+
+                    // ✅ Update grid layout when participant added
+                    updateGridLayout();
+                }
+
+                room.participants.forEach(addParticipantVideo);
+                room.on('participantConnected', addParticipantVideo);
+                
+                room.on('participantDisconnected', participant => {
+                    console.log(`Participante desconectado: ${participant.identity}`);
+                    const participantDiv = document.getElementById(`participant-${participant.identity}`);
+                    if (participantDiv) {
+                        participantDiv.remove();
+                        // ✅ Update grid layout when participant removed
+                        updateGridLayout();
+                    }
+                });
+
+                // ✅ Initial grid layout update
+                updateGridLayout();
+
+                // ✅ RESPONSIVE: Update layout on window resize
+                window.addEventListener('resize', () => {
+                    console.log('📐 Window resized, updating layout...');
+                    updateGridLayout();
+                });
+
+                // ========== LEAVE BUTTON ==========
+                document.getElementById('leave-room').onclick = () => {
+                    cleanup();
+                    room.disconnect();
+                    console.log("Desconectado de la sala");
+                    window.location.href = HOME_URL;
+                };
+
+            } catch (error) {
+                console.error("❌ Error en la videollamada:", error);
+                let mensaje = error.message.includes("Failed to get access to local camera")
+                    ? "No se puede acceder a la cámara o micrófono. Por favor otorga permisos al navegador."
+                    : "Ocurrió un error al iniciar la videollamada: " + error.message;
+                alert(mensaje);
+                window.location.href = HOME_URL;
+            }
+        }
+        
+        // Start video call on page load
+        startVideoCall();
+    </script>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.querySelector('.menu-toggle');
+        const nav       = document.querySelector('.main-nav');
+        if (!toggleBtn || !nav) {
+          console.warn('No se encontró .menu-toggle o .main-nav');
+          return;
+        }
+        toggleBtn.addEventListener('click', function() {
+          nav.classList.toggle('active');
+        });
+      });
+    </script>
+    
+    <footer>
+        <div class="footer-icons">
+            <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
+            </a>
+            <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
+            </a>
+            <a href="https://www.linkedin.com/company/co-bien" target="_blank">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/LinkedIn_logo_initials.png/640px-LinkedIn_logo_initials.png" alt="LinkedIn" style="height: 40px;">
+            </a>
+        </div>
+        <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
+    </footer>   
+</body>
+</html>

@@ -1,0 +1,1507 @@
+/* CSS VARIABLES */
+:root {
+    --primary: #2596be;
+    --light: #F3F3F3;
+    --dark: #686868;
+    --accent:  #ffbc44;   
+}
+  
+  html, body {
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    height: 100%;
+    padding: 0;
+    background-color: var(--primary);
+    color: var(--light);
+    font-family: Arial, Helvetica, sans-serif;
+    box-sizing: border-box;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: var(--primary);
+  color: var(--light);
+}
+  
+  img {
+    max-width: 100%;
+  }
+  
+  h1 {
+    padding-top: 60px;  
+  }
+  
+  .wrapper {
+    flex: 1;
+    background-color: #2596be;
+    display: flex;
+    flex-direction: column;
+}
+  
+  /* HEADER */
+
+  header {
+    padding: 10px;
+    position: fixed;
+    top: 0;
+    display: flex;
+    align-items: center;
+    background-color: var(--primary);
+    width: 100%;
+    z-index: 1000;
+    height: 70px; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+
+  
+  /* LOGO */
+  .coBienLogo {
+    display: flex;
+    align-items: center; 
+    margin-left:3%;
+  }
+
+  .coBienLogo img {
+    height: 50%; 
+  }
+  
+  #logo {
+    color: #E50914;  
+    margin: 0; 
+    padding: 0; 
+  }
+  
+  
+  .main-nav {
+    gap: 30%; 
+    margin-left: 2%;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 20px;
+    row-gap: 10px;
+  }
+
+  .saludo {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .main-nav a {
+    color: var(--light);
+    text-decoration: none;
+    font-size: 16px;
+    transition: color 0.3s ease;
+  }
+  
+  .main-nav a:hover {
+    color: var(--dark);
+  }
+  
+  .sub-nav {
+    grid-area: sb;
+    padding: 0 40px 0 40px;
+  }
+  
+  .sub-nav a {
+    color: var(--light);
+    text-decoration: none;
+    margin: 5px;
+  }
+  
+  .sub-nav a:hover {
+    color: var(--dark);
+  }
+  
+  
+  /* MAIN CONTIANER */
+  #home{
+      background-color: #2596be;
+  }
+  
+  
+  .main-container {
+    background-color: var(--primary);
+    flex: 1;
+    padding: 20px;
+    margin-top: 70px; 
+    text-align: center;
+  }
+
+/* Estilo del calendario */
+  #calendar {
+    margin: 20px auto;
+    max-width: 900px;
+    background-color: var(--light);
+    color: var(--dark);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 100px; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .box {
+    display: grid;
+    grid-gap: 20px;
+    grid-template-columns: repeat(6, minmax(100px, 1fr));
+  }
+  
+  .box a {
+    transition: transform .3s;  
+  }
+  
+  .box a:hover {
+    transition: transform .3s;
+    -ms-transform: scale(1.4);
+    -webkit-transform: scale(1.4);  
+    transform: scale(1.4);
+  }
+  
+  .box img {
+    border-radius: 2px;
+  }
+
+  .fc-toolbar {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center; 
+  }
+
+  .fc-toolbar .fc-button-group, 
+  .fc-toolbar-title, 
+  .fc-toolbar-chunk {
+      margin: 0 20px; 
+  }
+
+  .calendar-wrapper{
+    position: relative;       
+    padding-top: 50px;        
+  }
+  @media (min-width: 768px) {
+    .calendar-wrapper {
+      padding-left: 40px;   
+      padding-right: 40px;
+    }
+  }
+
+/* hace que los tres “trozos” se repartan y salten de línea con gracia */
+  .fc-header-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+/* En pantallas pequeñas, cada chunk ocupa el 100 % y se centra */
+  @media (max-width: 600px) {
+    .fc-header-toolbar .fc-toolbar-chunk {
+      flex: 1 1 100%;
+      display: flex;
+      justify-content: center;
+    }
+  }
+
+  
+  /* LINKS */
+  .link {
+    padding: 50px;
+  }
+  
+  .sub-links ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .sub-links a {
+    color: var(--dark);
+    text-decoration: none;
+  }
+  
+  .sub-links a:hover {
+    color: var(--dark);
+    text-decoration: underline;
+  }
+  
+  .logos a{
+    padding: 10px;
+  }
+  
+  .logo {
+    color: var(--dark);
+  }
+  
+  
+  /* FOOTER */
+  footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color:  #ffbc44;
+    color: white;
+    padding: 20px;
+    margin-top: auto;
+    text-align: center;
+    }
+
+    .footer-icons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    footer p {
+        margin: 0;
+    }
+  
+ 
+
+  /* BOTÓN DE CAMBIO DE IDIOMA */
+  .language-switcher {
+    display: flex;
+    align-items: center; 
+    margin-right: 3%; 
+    margin-left: auto;
+  }
+
+  .language-switcher select {
+    background-color: var(--light);
+    color: var(--primary);
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .language-switcher select:hover {
+    background-color: var(--primary);
+    color: var(--light);
+  }
+
+/* Estilo para el modal */
+
+.modal-header {
+  background-color: var(--primary); 
+  color: var(--light); 
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.modal-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  padding: 20px;
+}
+
+.modal-body p {
+  margin-bottom: 10px;
+}
+
+.modal-footer {
+  background-color: var(--light);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* VIDEOCALL HTML*/
+.video-wrapper{
+  padding: 0 16px;           
+  max-width: 1200px;         
+  margin: 0 auto;           
+}
+
+#video-container {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(
+        auto-fit,
+        minmax(clamp(340px,45vw,500px), 1fr)
+  );
+}
+
+.video-box {
+  position: relative;
+  aspect-ratio: 16/9;        
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;               
+  align-items: center;
+  justify-content: center;
+}
+
+.video-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#leave-room {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 18px;
+  background-color: red;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 150px;
+  text-align: center;
+}
+
+#leave-room:hover {
+  background-color: darkred;
+}
+
+/* Estilos para el chat */
+#chat-container {
+  width: 50%;
+  margin: auto;
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 100px; 
+  position: relative;
+  z-index: 10; 
+}
+
+#chat-messages {
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.chat-message {
+  padding: 5px;
+  margin: 5px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+#chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#message-text {
+  resize: none;
+  width: 100%;
+  height: 50px;
+}
+
+#chat-form button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#chat-form button:hover {
+  background-color: #1d7a99;
+}
+
+/* BOTONES */
+.video-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.video-buttons button{
+  font-size: .9rem;
+  padding: .5rem 1rem;
+  max-width: 160px;
+  flex: 1 1 120px;             
+  border-radius: 6px;
+}
+
+@media (min-width: 600px){
+  .video-buttons button{
+    flex: 0 0 auto;          
+  }
+}
+
+/* Deja siempre un poco de “aire” entre header fijo y contenido */
+h1 + .video-wrapper{
+  margin-top: 90px;          
+}
+
+/* ajuste extra para pantallas muy estrechas */
+@media (max-width: 430px){
+  .video-buttons button{
+    font-size: .8rem;
+    padding: .4rem .75rem;
+  }
+}
+
+/* el icono del micro un pelín más compacto */
+#mute-button i{
+  font-size: 1rem;
+}
+
+#toggle-emotion-detection {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: darkblue;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#toggle-emotion-detection:hover {
+  background-color: blue;
+}
+
+#toggle-emotion-detection.active {
+  background-color: green;
+}
+
+/* BOTÓN DE SILENCIAR MICRÓFONO (ICONO) */
+
+#mute-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 10px;       
+  padding: 10px 20px;      
+  font-size: 18px;         
+  width: 150px;            
+  background: transparent;  
+  border: none;
+  border-radius: 5px;      
+  cursor: pointer;
+}
+
+#mute-button i {
+  font-size: 1.2rem;       
+  color: white;           
+  transition: color 0.2s ease;
+}
+
+#mute-button.muted i {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* styles.css – al final */
+.bottom-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .75rem;
+  margin: 1.5rem 0;
+}
+
+.bottom-action-bar .btn {
+  min-width: 140px;
+  flex: 1 1 auto;
+  max-width: 220px;
+}
+
+/* Encabezado que indica la región actual */
+#currentRegion{
+  position: static;       
+  color: white;           
+  font-weight: 600;
+  margin: .5rem 0 1rem;   
+}
+
+/* MENU HAMBURGUESA */
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  color: var(--light);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .main-nav {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    width: 100%;
+    background: var(--primary);
+    padding: 10px 0;
+  }
+
+  .menu-toggle {
+    display: block;
+    margin-left: auto;  
+  }
+
+  header {
+    justify-content: space-between;
+  }
+
+  .main-nav.active {
+    display: flex;           
+  }
+
+  .main-nav a {
+    padding: 10px 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+  }
+}
+
+
+/* ────────────────────────────────────────────────
+   AUTH PAGES  (login / signup)
+   ────────────────────────────────────────────────*/
+
+/* 1. Área que ocupa toda la pantalla menos el header
+      y centra la tarjeta en ambas direcciones.          */
+.auth-page{
+    flex: 1 0 auto;              /* ocupa el espacio disponible, pero permite que el footer viva debajo */
+    display: flex;
+    align-items: center;         /* centra vertical */
+    justify-content: center;     /* centra horizontal */
+    padding: 40px 24px;          /* aire para pantallas pequeñas */
+    box-sizing: border-box;
+}
+
+/* 2. Tarjeta */
+.auth-container{
+    width: 100%;
+    max-width: 420px;
+    background-color: var(--accent);  /* naranja */
+    color: var(--dark);               /* texto gris oscuro */
+    padding: 32px;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+
+/* Título */
+.auth-container h2{
+    text-align: center;
+    margin-bottom: 24px;
+    color: var(--primary);
+}
+
+/* Campos del formulario */
+.auth-container form p{ margin-bottom: 16px; }
+
+.auth-container input[type="text"],
+.auth-container input[type="email"],
+.auth-container input[type="password"]{
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--dark);
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* Botón */
+.auth-container button{
+    width: 100%;
+    padding: 10px;
+    background-color: var(--primary);
+    color: var(--light);
+    border: none;
+    border-radius: 6px;
+    font-size: 17px;
+    cursor: pointer;
+    transition: background-color .3s;
+}
+.auth-container button:hover{ background-color: #1d7a99; }
+
+/* Links inferiores */
+.auth-container p{ margin-top: 18px; text-align:center; }
+.auth-container a{ color: var(--light); }
+.auth-container a:hover{ text-decoration: underline; }
+
+/* Alertas */
+.alert-list{ list-style:none; padding:0; margin-bottom:18px; }
+.alert{
+    background:#f44336;
+    color:#fff; text-align:center;
+    padding:10px; border-radius:6px;
+}
+
+.pwd-field-wrap{
+    position: relative;
+    width: 100%;
+}
+
+/* Botón Mostrar/Ocultar — pequeño, a la derecha, SIN width:100% */
+.pwd-toggle-auto{
+    position: absolute;
+    right: 0.5%;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .75rem;
+    line-height: 1;
+    padding: 2px 6px;
+    background: #f1f1f1;
+    border: 1px solid #888;
+    border-radius: 4px;
+    cursor: pointer;
+    width: auto !important;          /* ⚑ fuerza a ignorar la regla global */
+}
+
+/* Deja hueco dentro del input para que el botón no pise el texto */
+.pwd-field-wrap input{
+    padding-right: 70px;             /* ajusta si el botón es más grande */
+}
+
+/* ────────────────────────────────────────────────
+   EVENTOS – Panel de filtros
+   ────────────────────────────────────────────────*/
+.view-filter{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .5rem;
+}
+
+.view-filter__label{
+  margin: 0;
+  font-size: .9rem;
+  letter-spacing: .02em;
+  opacity: .8;
+}
+
+/* Segmented control Global/Personal */
+.segmented{
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(2px);
+}
+.segmented .sgmt-input{ position: absolute; opacity: 0; pointer-events: none; }
+.segmented .sgmt{
+  padding: .35rem .7rem;
+  font-size: .9rem;
+  line-height: 1;
+  border-radius: 8px;
+  color: var(--light);
+  opacity: .85;
+  cursor: pointer;
+  user-select: none;
+  transition: all .18s ease;
+}
+.segmented .sgmt:hover{ opacity: 1; }
+.segmented .sgmt-input:checked + .sgmt{
+  background: var(--accent);
+  color: #1b1b1b;
+  box-shadow: 0 2px 6px rgba(0,0,0,.18);
+  opacity: 1;
+}
+
+/* Tarjeta con el listado de destinatarios */
+.target-card{
+  width: min(260px, 70vw);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  box-shadow: 0 2px 10px rgba(0,0,0,.08);
+}
+
+/* Fila "Todas" y lista de checks */
+.check{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .25rem .35rem;
+  border-radius: 8px;
+  transition: background .15s ease;
+}
+.check:hover{ background: rgba(255,255,255,.06); }
+.check input{ accent-color: var(--accent); transform: scale(.95); }
+
+.check--all{ margin-bottom: .25rem; }
+.check--all span{ font-weight: 600; }
+
+/* Lista vertical compacta */
+.target-list{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  max-height: 180px;
+  overflow: auto;
+}
+
+/* Píldoras de leyenda con punto de color */
+.legend{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.legend-badge{
+  position: relative;
+  padding: .2rem .55rem .2rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.15);
+  color: var(--light);
+  font-size: .8rem;
+  line-height: 1.1;
+}
+.legend-badge::before{
+  content: "";
+  position: absolute;
+  left: .45rem; top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+}
+
+/* Mini-ajustes responsive */
+@media (max-width: 520px){
+  .view-filter{ align-items: stretch; }
+  .target-card{ width: 100%; }
+}
+
+/* ────────────────────────────────────────────────
+   Barra y controles
+   ────────────────────────────────────────────────*/
+.filters-bar{
+  display:flex; align-items:center; justify-content:flex-end;
+  gap:.5rem; margin-bottom:.5rem;
+}
+
+/* Segmented (reutiliza lo que ya tenías; añado contraste) */
+.segmented{
+  display:inline-flex; gap:4px; padding:4px; border-radius:12px;
+  background: rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.22);
+  backdrop-filter: blur(2px);
+}
+.segmented .sgmt-input{ position:absolute; opacity:0; pointer-events:none; }
+.segmented .sgmt{
+  padding:.33rem .65rem; font-size:.9rem; line-height:1;
+  border-radius:8px; color:var(--light); opacity:.9; cursor:pointer; transition:.18s;
+}
+.segmented .sgmt-input:checked + .sgmt{
+  background: var(--accent); color:#151515; box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+
+/* ────────────────────────────────────────────────
+   Desplegable multiselección
+   ────────────────────────────────────────────────*/
+.droplist{ position:relative; }
+.multi-select-btn{
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.35rem .6rem; border-radius:10px; border:1px solid rgba(255,255,255,.22);
+  background: rgba(15,16,22,.35); /* MÁS contraste con fondo */
+  color:var(--light); font-size:.9rem; line-height:1;
+  backdrop-filter: blur(3px);
+}
+.multi-select-btn:hover{ filter: brightness(1.05); }
+.multi-select-btn svg{ opacity:.8; }
+
+.droplist-panel{
+  position:absolute; right:0; top:110%; z-index:30;
+  width:min(280px, 80vw);
+  background: rgba(20,22,30,.85); /* panel oscuro semitransparente */
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:12px; padding:8px; box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+.droplist-head{ padding:4px 4px 6px; }
+.droplist-search{
+  width:100%; border-radius:8px; padding:.4rem .6rem;
+  border:1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.08); color:var(--light);
+}
+
+.check{ display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:8px; }
+.check:hover{ background: rgba(255,255,255,.06); }
+.check input{ accent-color: var(--accent); transform: scale(.95); }
+.check--all{ margin:6px 2px; font-weight:600; }
+
+.target-list{
+  list-style:none; margin:4px 0 8px; padding:0;
+  display:flex; flex-direction:column; gap:.25rem;
+  max-height:190px; overflow:auto;
+}
+.swatch{ width:8px; height:8px; border-radius:50%; display:inline-block; box-shadow:0 0 0 1px rgba(0,0,0,.2) inset; }
+
+/* Acciones del dropdown */
+.droplist-actions{ display:flex; justify-content:space-between; gap:.5rem; }
+.btn-ghost{
+  padding:.35rem .6rem; border-radius:8px; border:1px solid rgba(255,255,255,.18);
+  background:transparent; color:var(--light);
+}
+.btn-primary{
+  padding:.35rem .7rem; border-radius:8px; border:none;
+  background: var(--accent); color:#151515; font-weight:600;
+}
+
+/* Leyenda (del mensaje anterior) */
+.legend{ display:flex; flex-wrap:wrap; gap:.35rem; }
+.legend-badge{
+  position:relative; padding:.2rem .55rem .2rem 1.1rem;
+  border-radius:999px; background: rgba(255,255,255,.15);
+  color:var(--light); font-size:.8rem; line-height:1.1;
+}
+.legend-badge::before{
+  content:""; position:absolute; left:.45rem; top:50%; transform:translateY(-50%);
+  width:8px; height:8px; border-radius:50%; background:var(--swatch);
+  box-shadow:0 0 0 1px rgba(0,0,0,.15) inset;
+}
+
+@media (max-width: 520px){
+  .filters-bar{ justify-content:stretch; }
+}
+
+/* Contenedor apilado: barra arriba, leyenda debajo */
+.filters-area{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* barra a la derecha; cambia a center si la quieres centrada */
+  gap: .5rem;
+}
+
+/* La leyenda ocupa todo el ancho y va en su propia fila */
+.legend{
+  align-self: stretch;      /* <-- fuerza a ocupar todo el ancho disponible */
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem .5rem;        /* fila “estirada” con salto cuando sea necesario */
+  margin-top: .15rem;
+  padding-top: .25rem;
+  border-top: 1px dashed rgba(255,255,255,.18); /* separador suave */
+  justify-content: flex-start;
+}
+
+/* Chips algo más “alargados” */
+.legend-badge{
+  padding: .24rem .72rem .24rem 1.25rem;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.16);
+}
+.legend-badge::before{
+  left: .55rem; width: 9px; height: 9px;
+}
+
+/* ────────────────────────────────────────────────
+   PIZARRA (selector de contacto + modal)
+   ────────────────────────────────────────────────*/
+.pz-wrap{
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.pz-card{
+  background: var(--light);
+  color: var(--dark);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  overflow: hidden;               /* UPDATED: recorta brillos/sombras */
+}
+
+/* Chips de contactos */
+.chips{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.chip{
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: .35rem .7rem;
+  background: #f8fafc;
+  color: #1f2937;
+  font-size: .9rem;
+  line-height: 1;
+}
+
+/* Botón principal oscuro (coherente con cabecera) */
+.btn-main{
+  background: #111827;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  cursor: pointer;
+  transition: filter .2s ease;
+}
+.btn-main:hover{ filter: brightness(1.05); }
+
+/* Texto aclaratorio */
+.muted{ color: rgba(0,0,0,.55); }
+
+/* Título compacto dentro de tarjeta */
+.pz-h2{ font-size: 1.1rem; margin: .15rem 0; }
+
+/* ── Modal accesible sin dependencias ───────────*/
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1100;            /* por encima del header (1000) */
+}
+.modal-overlay.active{ display: flex; }
+
+.modal-card{
+  background: var(--light);
+  color: var(--dark);
+  border-radius: 12px;
+  max-width: 560px;
+  width: 100%;
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(0,0,0,.25);
+}
+.modal-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .5rem;
+}
+.modal-title{
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+.btn-close{
+  border: 0;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--dark);
+}
+
+/* Lista de contactos dentro del modal */
+.list{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  max-height: 300px;
+  overflow: auto;
+}
+.list li{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem .8rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.list li:last-child{ border-bottom: 0; }
+
+/* Botón de borde (neutro) */
+.btn-outline{
+  border: 1px solid #1f2937;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: .35rem .7rem;
+  cursor: pointer;
+  transition: filter .2s ease;
+}
+.btn-outline:hover{ filter: brightness(1.05); }
+
+/* Fila “añadir contacto” */
+.input-row{
+  display: flex;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+.input-row input{
+  flex: 1;
+  padding: .55rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+}
+
+/* ────────────────────────────────────────────────
+   PIZARRA
+   ────────────────────────────────────────────────*/
+.pz-wrap{ max-width: 900px; margin: 0 auto; text-align: left; }
+
+.pz-card{
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.20);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+  overflow: hidden;               /* UPDATED: recorta “glow” interior */
+}
+
+.pz-h2{ margin: .25rem 0 0; font-size: 1.65rem; }
+.h5{ font-size: 1.05rem; margin: .25rem 0 .5rem; }
+
+.mb-1{ margin-bottom: .35rem; }
+.mt-2{ margin-top: .75rem; }
+.muted{ opacity: .85; font-size: .95rem; }
+
+.chips{ display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip{
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .2rem .6rem; border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: var(--light); font-size: .9rem; line-height: 1;
+}
+
+.btn-main{
+  display: inline-block;
+  padding: .45rem .85rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #151515;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.btn-outline{
+  padding: .3rem .6rem;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  color: var(--light);
+  cursor: pointer;
+}
+.btn-outline:hover{ background: rgba(255,255,255,0.10); }
+
+.post-card{ border-top:1px solid #e5e7eb; padding:.75rem 0; }
+
+/* Modal genérico (reutilizable) */
+.modal-overlay{
+  position: fixed; inset: 0; z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+}
+.modal-overlay.active{ display: flex; }
+.modal-card{
+  width: min(520px, 92vw);
+  background: #ffffff;
+  color: #151515;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+.modal-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.75rem 1rem; background:#f3f4f6; border-bottom:1px solid #e5e7eb;
+}
+.modal-title{ margin:0; font-size:1.1rem; font-weight:700; color:#111827; }
+.btn-close{
+  appearance:none; border:0; background:transparent;
+  font-size:1.5rem; line-height:1; color:#6b7280; cursor:pointer;
+}
+.modal-body{ padding:1rem; color:#111827; }
+.form-label{ display:block; font-weight:600; font-size:.95rem; margin:.35rem 0; }
+
+.input-row{ display:flex; gap:.5rem; }
+.input-row input{
+  flex:1; padding:.45rem .6rem; border-radius:8px; border:1px solid #d1d5db; font-size:1rem;
+}
+
+.list{ list-style:none; margin:.25rem 0 .5rem; padding:0; }
+.list li{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.75rem; padding:.5rem .35rem; border-radius:8px;
+}
+.list li:hover{ background:#f3f4f6; }
+
+/* =========================================================
+   PIZARRA — Overrides finales
+   ========================================================= */
+
+/* 1) Wrapper de Pizarra: mismo ancho para cabecera e histórico,
+      centrado perfecto y texto a la izquierda */
+.main-container.pizarra{
+  max-width: 980px;        /* mismo ancho para ambos bloques */
+  margin: 0 auto;          /* centrado */
+  padding-left: 18px;
+  padding-right: 18px;
+  text-align: left;
+  color: var(--light);      /* texto blanco */
+}
+
+/* Asegura que las tarjetas dentro del wrapper no introduzcan desalineados */
+.main-container.pizarra .pz-card{
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.10);
+  color: var(--light);
+  position: relative;      /* UPDATED */
+  z-index: 0;              /* UPDATED */
+  overflow: hidden;        /* UPDATED: evita invadir el aside */
+}
+
+/* Títulos y utilidades */
+.pz-h2{ margin:.2rem 0 .4rem; font-size:1.6rem; font-weight:800; letter-spacing:.2px; }
+.h5{ font-size:1.05rem; margin:.25rem 0 .6rem; }
+.mb-1{ margin-bottom:.35rem; }
+.mt-2{ margin-top:.75rem; }
+.mt-3{ margin-top: .9rem; }
+.mt-4{ margin-top: 1.25rem; }
+.muted{ opacity:.88; }
+
+/* Separador entre contenido e histórico */
+.section-sep{
+  height: 1px;
+  background: rgba(255,255,255,.25);
+  margin: 14px 0 6px;
+}
+
+/* Chips (contactos) acordes con fondo oscuro */
+.chips{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.chip{
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding:.24rem .65rem; border-radius:999px;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.20);
+  color: var(--light); font-size:.9rem; line-height:1;
+}
+
+/* 2) Histórico en columna con tarjetas elegantes y ancho moderado */
+.history-list{ display:flex; flex-direction:column; gap:.85rem; }
+
+.post-card{
+  background: rgba(0,0,0,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 12px;
+  padding: .85rem 1rem;
+  box-shadow: 0 6px 16px rgba(0,0,0,.08);
+}
+
+.post-meta{ font-size:.9rem; opacity:.85; margin-bottom:.25rem; }
+
+/* 3) Texto + Imagen: bloque centrado con imagen pegada a la derecha del texto */
+.post-card .post-content{
+  max-width: 720px;     /* controla dónde cae el centro visual del conjunto */
+  margin: 0 auto;       /* centra texto+imagen dentro de la tarjeta */
+}
+.post-card.has-media .post-content{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 26vw, 260px); /* texto | imagen */
+  column-gap: .6rem;    /* separación pequeña: “pegados” */
+  align-items: start;
+}
+
+/* Imagen compacta y redondeada */
+.post-card.has-media .post-img{
+  width: clamp(220px, 26vw, 260px);
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+/* Por si quedó alguna regla vieja de flex activa */
+.post-card.has-media .post-text{ flex: initial; }
+
+/* En móvil apila vertical */
+@media (max-width: 720px){
+  .post-card .post-content{ max-width: 100%; }
+  .post-card.has-media .post-content{ grid-template-columns: 1fr; }
+  .post-card.has-media .post-img{ width: 100%; max-height: 320px; }
+}
+
+/* 4) Botones en color de marca (ámbar) y centrado del CTA final */
+:root{
+  /* ajusta si tu tono exacto es diferente */
+  --brand-amber: var(--accent);
+  --brand-amber-hover: #e59f1a;
+}
+
+.btn-main{
+  display: inline-block;
+  background: var(--brand-amber);
+  color: #111;
+  font-weight: 700;
+  border: 0;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn-main:hover{
+  background: var(--brand-amber-hover);
+  box-shadow: 0 8px 18px rgba(0,0,0,.25);
+  transform: translateY(-1px);
+}
+.btn-main:active{ transform: translateY(0); }
+
+/* Contenedor del botón “Nuevo mensaje” totalmente centrado */
+.newpost-cta{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: .9rem 0 1.1rem;
+}
+
+/* ===========================
+   PIZARRA – ajustes visuales
+   =========================== */
+
+/* 1) Más separación con el header fijo */
+.main-container.pizarra{
+  margin-top: 96px;                /* antes eran ~70px */
+}
+
+/* 2) Quitar la línea blanca entre contenedores,
+      pero conservar el espacio vertical */
+.section-sep{
+  height: 14px;                    /* solo espacio */
+  background: transparent;         /* sin línea */
+  margin: 14px 0 6px;
+}
+
+/* 3) Inputs/textarea estilo “glass” sobre fondo turquesa */
+.main-container.pizarra .form-label{
+  color: rgba(255,255,255,.95);
+  font-weight: 600;
+}
+
+.main-container.pizarra input[type="text"],
+.main-container.pizarra textarea{
+  width: 100%;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.28);
+  color: var(--light);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+.main-container.pizarra textarea{
+  min-height: 100px;
+  resize: vertical;
+}
+
+.main-container.pizarra input[type="text"]::placeholder,
+.main-container.pizarra textarea::placeholder{
+  color: rgba(255,255,255,0.70);
+}
+
+.main-container.pizarra input[type="text"]:focus,
+.main-container.pizarra textarea:focus{
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255,188,68,.25);
+  background: rgba(255,255,255,0.16);
+}
+
+/* 4) File input con botón bonito */
+.main-container.pizarra input[type="file"]{
+  display: block;
+  width: 100%;
+  border: 1px dashed rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.10);
+  color: var(--light);
+  border-radius: 10px;
+  padding: .55rem;
+}
+
+.main-container.pizarra input[type="file"]::file-selector-button{
+  background: var(--accent);
+  color: #151515;
+  font-weight: 600;
+  border: 0;
+  border-radius: 8px;
+  padding: .4rem .7rem;
+  margin-right: .6rem;
+  cursor: pointer;
+  transition: filter .2s ease;
+}
+.main-container.pizarra input[type="file"]::file-selector-button:hover{
+  filter: brightness(0.95);
+}
+
+/* 5) Vista previa de imagen coherente con las tarjetas */
+#preview.post-img{
+  margin-top: .5rem;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 10px;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+/* === Grid 2 columnas para Pizarra === */
+.pz-grid{
+  display: grid;
+  grid-template-columns: minmax(520px, 0.9fr) 360px;  /* UPDATED: main + aside */
+  gap: 28px;                                           /* UPDATED: más separación */
+  align-items: start;
+  margin-top: 16px;                                    /* UPDATED */
+}
+.pz-main{
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0;                                        /* UPDATED: evita overflow */
+}
+.pz-notifs{
+  position: sticky; top: 96px;
+  z-index: 2;                                          /* UPDATED: por encima del main */
+}
+
+/* Responsive: en “medias” y móvil apila/ajusta */
+@media (max-width: 1200px){
+  .pz-grid{
+    grid-template-columns: 1fr 340px;                  /* UPDATED */
+    gap: 24px;                                         /* UPDATED */
+  }
+}
+@media (max-width: 960px){
+  .pz-grid{ grid-template-columns: 1fr; gap: 14px; }   /* UPDATED */
+  .pz-notifs{ position: static; order: -1; }           /* buzón arriba en móvil */
+}
+
+/* Opcional: hace “Nuevo mensaje” un pelín más estrecho visualmente */
+.pz-main > .pz-card:first-child{
+  max-width: 980px;                                    /* UPDATED: ajusta 900–1040px si quieres */
+}
+
+/* === Buzón de notificaciones === */
+.notifs-head{
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .35rem;
+}
+.badge{
+  display: inline-block; min-width: 22px; text-align: center;
+  padding: .1rem .45rem; border-radius: 999px;
+  background: var(--accent); color: #151515; font-weight: 700; font-size: .85rem;
+}
+
+.notif-list{
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: .6rem;
+}
+.notif-item{
+  background: rgba(0,0,0,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 10px;
+  padding: .6rem .6rem .55rem;
+  display: grid; grid-template-columns: 1fr auto; gap: .65rem;
+}
+.notif-title{ font-weight: 700; }
+.notif-sub{ font-size: .9rem; opacity: .85; }
+.notif-message{ margin-top: .2rem; }
+
+.notif-actions{
+  display: flex; flex-direction: column; gap: .4rem;
+  align-items: flex-end; justify-content: center;
+}
+.notif-actions .btn-main{ padding: .45rem .75rem; }
+.notif-actions .btn-outline{ padding: .35rem .6rem; }
+
+/* === Pizarra: dejar el buzón fijo y más aire entre columnas === */
+
+/* 1) El aside deja de ser sticky */
+.pz-notifs{
+  position: static !important;
+  top: auto !important;
+  z-index: 0 !important;      /* evita que se superponga */
+}
+
+/* 2) Más separación horizontal entre main y aside */
+.pz-grid{
+  grid-template-columns: minmax(560px, 1fr) 380px;  /* main un pelín más estrecho */
+  gap: 36px;                                        /* más hueco entre columnas */
+  margin-top: 22px;                                 /* aire con el header */
+}
+
+/* 3) Prevenir desbordes que “empujan” el grid */
+.pz-grid > *{ min-width: 0; }
+.pz-main{ padding-right: 4px; }                     /* un pelín de margen interno */
+
+/* 4) (Opcional) Haz el card de “Nuevo mensaje” visualmente más estrecho */
+.pz-main > .pz-card:first-child{
+  max-width: 920px;                                  /* prueba 900–960px a tu gusto */
+}
+
+/* 5) Responsivo (mantén buen hueco en pantallas medias y apila en móvil) */
+@media (max-width: 1200px){
+  .pz-grid{
+    grid-template-columns: 1fr 340px;
+    gap: 28px;
+  }
+}
+@media (max-width: 960px){
+  .pz-grid{
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .pz-notifs{ position: static !important; order: -1; } /* buzón arriba en móvil */
+}
+
+/* === Pizarra: aire a la derecha dentro del card de “Nuevo mensaje” === */
+
+/* Añade relleno a la derecha solo al primer card (Nuevo mensaje) */
+.pz-main > .pz-card:first-child{
+  padding-right: 26px;          /* ajusta 22–28px a tu gusto */
+}
+
+/* El propio formulario añade un pelín más de colchón */
+#pizarra-form{
+  padding-right: 10px;          /* suma al padding del card */
+}
+
+/* Asegura que los campos no “invaden” el borde derecho */
+#pizarra-form input[type="text"],
+#pizarra-form textarea,
+#pizarra-form input[type="file"]{
+  width: 100%;
+  box-sizing: border-box;       /* evita desbordes al 100% de ancho */
+  margin-right: 0;              /* sin márgenes que rompan el layout */
+}
+
+
+

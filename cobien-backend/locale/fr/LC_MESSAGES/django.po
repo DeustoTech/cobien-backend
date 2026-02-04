@@ -1,0 +1,611 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-31 10:03+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: .\apps\accounts\forms.py:19 .\apps\accounts\forms.py:79
+msgid "Correo electrónico"
+msgstr "E-mail"
+
+#: .\apps\accounts\forms.py:21
+msgid "Necesario para recuperar la cuenta."
+msgstr "Nécessaire pour récupérer le compte."
+
+#: .\apps\accounts\forms.py:25
+msgid "ID de sala por defecto (opcional)"
+msgstr "ID de salle par défaut (facultatif)"
+
+#: .\apps\accounts\forms.py:28
+msgid "Si ya conoces el nombre de tu sala, introdúcelo aquí."
+msgstr "Si vous connaissez déjà le nom de votre chambre, indiquez-le ici."
+
+#: .\apps\accounts\forms.py:31 .\cobien\settings.py:157
+msgid "Español"
+msgstr "Espagnol"
+
+#: .\apps\accounts\forms.py:32 .\cobien\settings.py:158
+msgid "Français"
+msgstr "Français"
+
+#: .\apps\accounts\forms.py:36
+msgid "Idioma preferido"
+msgstr "Langue préférée"
+
+#: .\apps\accounts\forms.py:39
+msgid "Selecciona el idioma por defecto para tu cuenta."
+msgstr "Sélectionnez la langue par défaut de votre compte."
+
+#: .\apps\accounts\templates\registration\activation_email.html:6
+msgid "¡Bienvenido/a a "
+msgstr "Bienvenue à"
+
+#: .\apps\accounts\templates\registration\activation_email.html:7
+#: .\apps\accounts\templates\registration\password_reset_email.html:13
+msgid "Hola"
+msgstr "Bonjour"
+
+#: .\apps\accounts\templates\registration\activation_email.html:8
+msgid "Para activar tu cuenta, haz clic en el siguiente botón:"
+msgstr "Pour activer votre compte, cliquez sur le bouton ci-dessous:"
+
+#: .\apps\accounts\templates\registration\activation_email.html:13
+msgid "Activar mi cuenta"
+msgstr "Créer un compte"
+
+#: .\apps\accounts\templates\registration\activation_email.html:16
+msgid "Si no has solicitado esta cuenta, puedes ignorar este correo."
+msgstr "Si vous n'avez pas demandé ce compte, vous pouvez ignorer cet e-mail."
+
+#: .\apps\accounts\templates\registration\login.html:12
+#: .\apps\accounts\templates\registration\password_reset_complete.html:18
+msgid "Iniciar sesión"
+msgstr "Changer de région"
+
+#: .\apps\accounts\templates\registration\login.html:34
+#: .\apps\eventos\templates\eventos.html:40
+#: .\apps\eventos\templates\home.html:45
+#: .\apps\eventos\templates\videocall.html:34
+#: .\apps\pizarra\templates\pizarra\pizarra.html:36
+msgid "Entrar"
+msgstr "Entrer"
+
+#: .\apps\accounts\templates\registration\login.html:38
+msgid "¿Olvidaste tu contraseña?"
+msgstr "Mot de passe oublié?"
+
+#: .\apps\accounts\templates\registration\login.html:41
+msgid "¿Aún no tienes cuenta?"
+msgstr "Vous n'avez pas encore de compte ?"
+
+#: .\apps\accounts\templates\registration\login.html:42
+msgid "Regístrate"
+msgstr "Registre"
+
+#: .\apps\accounts\templates\registration\login.html:61
+#: .\apps\accounts\templates\registration\signup.html:68
+#: .\apps\asociacion\templates\asociacion.html:195
+#: .\apps\eventos\templates\app2.html:33
+#: .\apps\eventos\templates\eventos.html:628
+#: .\apps\eventos\templates\home.html:98
+#: .\apps\eventos\templates\videocall.html:497
+#: .\apps\pizarra\templates\pizarra\pizarra.html:230
+msgid "Todos los derechos reservados."
+msgstr "Tous droits réservés."
+
+#: .\apps\accounts\templates\registration\password_reset_complete.html:8
+msgid "Contraseña cambiada"
+msgstr "Mot de passe modifié"
+
+#: .\apps\accounts\templates\registration\password_reset_complete.html:16
+msgid "¡Listo!"
+msgstr "Prêt!"
+
+#: .\apps\accounts\templates\registration\password_reset_complete.html:17
+msgid "Tu contraseña se ha cambiado correctamente."
+msgstr "Votre mot de passe a été modifié avec succès."
+
+#: .\apps\accounts\templates\registration\password_reset_confirm.html:8
+#: .\apps\accounts\templates\registration\password_reset_confirm.html:16
+#: .\apps\accounts\templates\registration\password_reset_email.html:18
+msgid "Crear nueva contraseña"
+msgstr "Créer un compte"
+
+#: .\apps\accounts\templates\registration\password_reset_confirm.html:22
+msgid "Guardar contraseña"
+msgstr "Enregistrer le mot de passe"
+
+#: .\apps\accounts\templates\registration\password_reset_confirm.html:25
+msgid "Este enlace no es válido o ha caducado."
+msgstr "Ce lien n'est pas valide ou a expiré."
+
+#: .\apps\accounts\templates\registration\password_reset_confirm.html:26
+msgid "Solicitar un nuevo enlace"
+msgstr "Demander un nouveau lien"
+
+#: .\apps\accounts\templates\registration\password_reset_done.html:8
+msgid "Correo enviado"
+msgstr "E-mail envoyé"
+
+#: .\apps\accounts\templates\registration\password_reset_done.html:16
+msgid "Revisa tu correo"
+msgstr "Vérifiez votre courrier électronique"
+
+#: .\apps\accounts\templates\registration\password_reset_done.html:17
+msgid ""
+"Si el email existe en nuestra base de datos, recibirás en unos minutos un "
+"enlace para restablecer tu contraseña."
+msgstr ""
+"Si l'adresse e-mail est dans notre base de données, vous recevrez un lien "
+"pour réinitialiser votre mot de passe dans quelques minutes."
+
+#: .\apps\accounts\templates\registration\password_reset_done.html:18
+msgid "Volver al inicio de sesión"
+msgstr "Revenir à la connexion"
+
+#: .\apps\accounts\templates\registration\password_reset_email.html:8
+#: .\apps\accounts\templates\registration\password_reset_email.html:12
+msgid "Restablecer contraseña"
+msgstr "Réinitialiser le mot de passe"
+
+#: .\apps\accounts\templates\registration\password_reset_email.html:14
+msgid ""
+"Has solicitado restablecer tu contraseña. Haz clic en el siguiente botón:"
+msgstr ""
+"Vous avez demandé une réinitialisation de votre mot de passe. Cliquez sur le "
+"bouton ci-dessous:"
+
+#: .\apps\accounts\templates\registration\password_reset_email.html:21
+msgid "Si no fuiste tú, puedes ignorar este mensaje."
+msgstr "Si ce n’était pas vous, vous pouvez ignorer ce message."
+
+#: .\apps\accounts\templates\registration\password_reset_form.html:8
+#: .\apps\accounts\templates\registration\password_reset_form.html:16
+msgid "Recuperar contraseña"
+msgstr "Récupérer le mot de passe"
+
+#: .\apps\accounts\templates\registration\password_reset_form.html:26
+msgid ""
+"Introduce tu email y te enviaremos un enlace para restablecer tu contraseña."
+msgstr ""
+"Entrez votre email et nous vous enverrons un lien pour réinitialiser votre "
+"mot de passe."
+
+#: .\apps\accounts\templates\registration\password_reset_form.html:34
+msgid "Enviar enlace"
+msgstr "Envoyer le lien"
+
+#: .\apps\accounts\templates\registration\password_reset_form.html:38
+msgid "Volver a iniciar sesión"
+msgstr "Changer de région"
+
+#: .\apps\accounts\templates\registration\signup.html:11
+msgid "Crear cuenta"
+msgstr "Créer un compte"
+
+#: .\apps\accounts\templates\registration\signup.html:16
+msgid "Registrarme"
+msgstr "Registre"
+
+#: .\apps\accounts\templates\registration\signup.html:19
+msgid "¿Ya tienes cuenta?"
+msgstr "Vous avez déjà un compte ?"
+
+#: .\apps\accounts\templates\registration\signup.html:20
+msgid "Inicia sesión"
+msgstr "Se connecter"
+
+#: .\apps\accounts\views.py:63
+msgid "Te hemos enviado un email para activar tu cuenta."
+msgstr "Nous vous avons envoyé un e-mail pour activer votre compte."
+
+#: .\apps\accounts\views.py:160
+msgid "¡Tu cuenta ha sido activada! Ya puedes iniciar sesión."
+msgstr "Votre compte a été activé ! Vous pouvez désormais vous connecter."
+
+#: .\apps\accounts\views.py:180
+msgid "Activa tu cuenta en CoBien"
+msgstr "Créer un compte"
+
+#: .\apps\asociacion\templates\asociacion.html:25
+#: .\apps\eventos\templates\eventos.html:31
+#: .\apps\eventos\templates\home.html:31
+#: .\apps\eventos\templates\videocall.html:25
+#: .\apps\pizarra\templates\pizarra\pizarra.html:26
+msgid "Eventos"
+msgstr "Événements"
+
+#: .\apps\asociacion\templates\asociacion.html:28
+#: .\apps\eventos\templates\eventos.html:34
+#: .\apps\eventos\templates\home.html:34
+#: .\apps\eventos\templates\videocall.html:28
+#: .\apps\pizarra\templates\pizarra\pizarra.html:27
+msgid "Videollamadas"
+msgstr "Appels vidéo"
+
+#: .\apps\asociacion\templates\asociacion.html:31
+msgid "Asociacion"
+msgstr "Description"
+
+#: .\apps\eventos\templates\eventos.html:38
+#: .\apps\eventos\templates\home.html:42
+#: .\apps\eventos\templates\videocall.html:32
+#: .\apps\eventos\templates\videocall.html:59
+#: .\apps\pizarra\templates\pizarra\pizarra.html:33
+msgid "Salir"
+msgstr "Sortir"
+
+#: .\apps\eventos\templates\eventos.html:41
+#: .\apps\eventos\templates\home.html:46
+#: .\apps\eventos\templates\videocall.html:35
+#: .\apps\pizarra\templates\pizarra\pizarra.html:37
+msgid "Registrarse"
+msgstr "Registre"
+
+#: .\apps\eventos\templates\eventos.html:67
+msgid "Selecciona una Región"
+msgstr "Sélectionnez une région"
+
+#: .\apps\eventos\templates\eventos.html:71
+msgid "Elige una región:"
+msgstr "Choisissez une région :"
+
+#: .\apps\eventos\templates\eventos.html:73
+#: .\apps\eventos\templates\eventos.html:227
+msgid "Todos"
+msgstr "Tous"
+
+#: .\apps\eventos\templates\eventos.html:80
+msgid "Ver Eventos"
+msgstr "Événements"
+
+#: .\apps\eventos\templates\eventos.html:94
+msgid "Detalles del Evento"
+msgstr "Liste des événements"
+
+#: .\apps\eventos\templates\eventos.html:98
+msgid "Título:"
+msgstr "Qualification"
+
+#: .\apps\eventos\templates\eventos.html:99
+msgid "Fecha:"
+msgstr "Date"
+
+#: .\apps\eventos\templates\eventos.html:100
+msgid "Localización:"
+msgstr "Emplacement:"
+
+#: .\apps\eventos\templates\eventos.html:101
+msgid "Descripción:"
+msgstr "Description"
+
+#: .\apps\eventos\templates\eventos.html:102
+msgid "Añadido por:"
+msgstr "Ajouté par :"
+
+#: .\apps\eventos\templates\eventos.html:114
+msgid "Añadir Evento"
+msgstr "Liste des événements"
+
+#: .\apps\eventos\templates\eventos.html:121
+msgid "Cambiar Región"
+msgstr "Changer de région"
+
+#: .\apps\eventos\templates\eventos.html:129
+msgid "Global"
+msgstr "Mondial"
+
+#: .\apps\eventos\templates\eventos.html:132
+msgid "Personal"
+msgstr "Personnel"
+
+#: .\apps\eventos\templates\eventos.html:138
+msgid "Seleccionar destinatarios"
+msgstr "Sélectionnez les destinataires"
+
+#: .\apps\eventos\templates\eventos.html:165
+msgid "Limpiar"
+msgstr "Faire le ménage"
+
+#: .\apps\eventos\templates\eventos.html:166
+msgid "Aplicar"
+msgstr "Appliquer"
+
+#: .\apps\eventos\templates\eventos.html:185
+msgid "Añadir Nuevo Evento"
+msgstr "Ajouter un nouvel événement"
+
+#: .\apps\eventos\templates\eventos.html:191
+msgid "Subir Imagen"
+msgstr "Télécharger une image"
+
+#: .\apps\eventos\templates\eventos.html:195
+msgid "Título"
+msgstr "Qualification"
+
+#: .\apps\eventos\templates\eventos.html:199
+msgid "Fecha"
+msgstr "Date"
+
+#: .\apps\eventos\templates\eventos.html:203
+msgid "Localización"
+msgstr "Emplacement"
+
+#: .\apps\eventos\templates\eventos.html:205
+msgid "— Selecciona —"
+msgstr "— Sélectionner —"
+
+#: .\apps\eventos\templates\eventos.html:209
+msgid "Nueva ubicación…"
+msgstr "Nouvel emplacement…"
+
+#: .\apps\eventos\templates\eventos.html:214
+msgid "Nueva ubicación"
+msgstr "Nouvel emplacement"
+
+#: .\apps\eventos\templates\eventos.html:215
+msgid "Escribe una nueva ubicación"
+msgstr "Écrire un nouvel emplacement"
+
+#: .\apps\eventos\templates\eventos.html:217
+msgid "Si eliges “Nueva ubicación…”, se guardará el texto que escribas aquí."
+msgstr ""
+"Si vous choisissez « Nouvel emplacement… », le texte que vous saisissez ici "
+"sera enregistré."
+
+#: .\apps\eventos\templates\eventos.html:221
+msgid "Descripción"
+msgstr "Description"
+
+#: .\apps\eventos\templates\eventos.html:225
+msgid "Dirigido a"
+msgstr "Adressé à"
+
+#: .\apps\eventos\templates\eventos.html:228
+#: .\apps\eventos\templates\eventos.html:232
+msgid "Usuario de mueble"
+msgstr "Utilisateur de meubles"
+
+#: .\apps\eventos\templates\eventos.html:237
+msgid "Se autocompleta con tu mueble si lo tienes guardado; puedes cambiarlo."
+msgstr ""
+"Il se remplit automatiquement avec vos meubles si vous l'avez enregistré ; "
+"vous pouvez le modifier."
+
+#: .\apps\eventos\templates\eventos.html:240
+msgid "Guardar Evento"
+msgstr "Liste des événements"
+
+#: .\apps\eventos\templates\home.html:37
+#: .\apps\pizarra\templates\pizarra\pizarra.html:28
+#: .\apps\pizarra\templates\pizarra\pizarra.html:69
+msgid "Pizarra"
+msgstr "Conseil"
+
+#: .\apps\eventos\templates\home.html:41
+#: .\apps\pizarra\templates\pizarra\pizarra.html:32
+msgid "Hola, "
+msgstr "Bonjour, "
+
+#: .\apps\eventos\templates\home.html:74
+msgid "Pagina de CoBien"
+msgstr "Page CoBien"
+
+#: .\apps\eventos\templates\videocall.html:55
+msgid "Videollamada"
+msgstr "Appel vidéo"
+
+#: .\apps\eventos\templates\videocall.html:63
+msgid "Activar Detección Emocional"
+msgstr "Activer la détection émotionnelle"
+
+#: .\apps\eventos\templates\videocall.html:83
+msgid "¿Es esta la persona mayor?"
+msgstr "Est-ce la personne âgée ?"
+
+#: .\apps\eventos\templates\videocall.html:94
+msgid "Sí, es correcta"
+msgstr "Oui, c'est correct"
+
+#: .\apps\eventos\templates\videocall.html:103
+msgid "No, mostrar otra"
+msgstr "Non, montre-en un autre"
+
+#: .\apps\eventos\templates\videocall.html:112
+msgid "Cancelar "
+msgstr "Annuler"
+
+#: .\apps\eventos\views.py:232
+msgid "tiempo"
+msgstr "temps"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:70
+msgid ""
+"Envía un mensaje de texto o imagen para que lo vea el usuario del mueble"
+msgstr "Envoyez un SMS ou une image à l'utilisateur du meuble."
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:87
+msgid "Nuevo mensaje"
+msgstr "Nouveau message"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:93
+#, fuzzy
+#| msgid "Para:"
+msgid "Para"
+msgstr "Pour:"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:100
+msgid ""
+"Debe coincidir con el destinatario que usará la app del mueble para "
+"consultar."
+msgstr ""
+"Il doit correspondre au destinataire qui utilisera l'application de meubles "
+"pour vérifier."
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:104
+msgid "Mensaje (opcional si subes imagen)"
+msgstr "Message (facultatif si vous téléchargez une image)"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:109
+msgid "Imagen (máx. 5 MB)"
+msgstr "Image (max. 5 MB)"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:116
+#, fuzzy
+#| msgid "Enviar enlace"
+msgid "Enviar"
+msgstr "Envoyer le lien"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:125
+msgid "Historial"
+msgstr "Enregistrer"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:128
+msgid ""
+"Selecciona un destinatario arriba (o escribe uno en “Para”) para ver su "
+"historial."
+msgstr ""
+"Sélectionnez un destinataire ci-dessus (ou saisissez-en un dans le champ "
+"« À ») pour consulter son historique."
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:135
+msgid "Para:"
+msgstr "Pour:"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:143
+msgid "(Sin texto)"
+msgstr "(Pas de texte)"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:155
+#, fuzzy
+#| msgid "Nuevo mensaje"
+msgid "No hay mensajes para"
+msgstr "Nouveau message"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:155
+msgid ". ¡Envía el primero!"
+msgstr ". Envoyez le premier !"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:165
+msgid "Notificaciones entrantes"
+msgstr "Notifications entrantes"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:176
+msgid "Disponible para llamada"
+msgstr "Disponible pour appel"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:193
+msgid "Marcar leída"
+msgstr "Marquer comme lu"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:196
+msgid "Llamar ahora"
+msgstr "Appelez maintenant"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:205
+msgid "Marcar todas como leídas"
+msgstr "Marquer tout comme lu"
+
+#: .\apps\pizarra\templates\pizarra\pizarra.html:208
+msgid "No tienes notificaciones pendientes."
+msgstr "Vous n'avez aucune notification en attente."
+
+#~ msgid "Abrir menú"
+#~ msgstr "Ouvrir le menu"
+
+#~ msgid "Contacto seleccionado"
+#~ msgstr "Contact sélectionné"
+
+#~ msgid ""
+#~ "Este es tu usuario de mueble por defecto (configurado en el registro)."
+#~ msgstr ""
+#~ "Il s'agit de votre utilisateur de meubles par défaut (configuré dans le "
+#~ "registre)."
+
+#~ msgid "Cambiar/Añadir contacto"
+#~ msgstr "Modifier/Ajouter un contact"
+
+#~ msgid "Tus contactos"
+#~ msgstr "Vos contacts"
+
+#, fuzzy
+#~| msgid "¿Aún no tienes cuenta?"
+#~ msgid "Aún no tienes contactos guardados."
+#~ msgstr "Vous n'avez pas encore de compte ?"
+
+#~ msgid "Histórico con"
+#~ msgstr "Historique avec"
+
+#~ msgid "Aún no has enviado nada a"
+#~ msgstr "Vous n'avez encore rien envoyé"
+
+#~ msgid "Selecciona un contacto para ver/enviar mensajes."
+#~ msgstr "Sélectionnez un contact pour afficher/envoyer des messages."
+
+#~ msgid "Cerrar"
+#~ msgstr "Fermer"
+
+#~ msgid "Escribe un mensaje..."
+#~ msgstr "Écrire un message.."
+
+#~ msgid "Imagen (opcional)"
+#~ msgstr "Image (facultatif)"
+
+#, fuzzy
+#~| msgid "Guardar Evento"
+#~ msgid "Guardar"
+#~ msgstr "Liste des événements"
+
+#, fuzzy
+#~| msgid "Seleccionar destinatarios"
+#~ msgid "Selecciona o añade un contacto"
+#~ msgstr "Sélectionnez les destinataires"
+
+#~ msgid "Contactos"
+#~ msgstr "Contacts"
+
+#, fuzzy
+#~| msgid "Añadir Nuevo Evento"
+#~ msgid "Añadir nuevo contacto"
+#~ msgstr "Ajouter un nouvel événement"
+
+#, fuzzy
+#~| msgid "Añadido por:"
+#~ msgid "Añadir"
+#~ msgstr "Ajouté par :"
+
+#, fuzzy
+#~| msgid "— Selecciona —"
+#~ msgid "Seleccionar"
+#~ msgstr "— Sélectionner —"
+
+#, fuzzy
+#~| msgid "Seleccionar destinatarios"
+#~ msgid "Selecciona un contacto primero."
+#~ msgstr "Sélectionnez les destinataires"
+
+#~ msgid "Hola "
+#~ msgstr "Bonjour"
+
+#~ msgid "Mostrar"
+#~ msgstr "Entrer"
+
+#~ msgid "Ocultar"
+#~ msgstr "Déguisement"
+
+#~ msgid "app2"
+#~ msgstr "app2"

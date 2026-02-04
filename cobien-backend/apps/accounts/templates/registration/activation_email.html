@@ -1,0 +1,18 @@
+<!doctype html>
+{% load static %}
+{% load i18n %}
+<html>
+  <body style="font-family:Arial,Helvetica,sans-serif; line-height:1.5;">
+    <h2>{% blocktrans %}¡Bienvenido/a a {% endblocktrans %}{{ site_name }}!</h2>
+    <p>{% blocktrans %}Hola{% endblocktrans %} <strong>{{ username }}</strong>,</p>
+    <p>{% blocktrans %}Para activar tu cuenta, haz clic en el siguiente botón:{% endblocktrans %}</p>
+    <p>
+      <a href="{{ activation_url }}" 
+         style="display:inline-block;padding:10px 16px;text-decoration:none;border-radius:6px;
+                background:#2596be;color:#fff;font-weight:bold;">
+        {% blocktrans %}Activar mi cuenta{% endblocktrans %}
+      </a>
+    </p>
+    <p>{% blocktrans %}Si no has solicitado esta cuenta, puedes ignorar este correo.{% endblocktrans %}</p>
+  </body>
+</html>

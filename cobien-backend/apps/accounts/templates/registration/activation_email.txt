@@ -1,0 +1,9 @@
+Hola {{ username }},
+
+Gracias por registrarte en {{ site_name }}.
+
+Activa tu cuenta haciendo clic en este enlace:
+{{ activation_url }}
+
+Si no has solicitado esta cuenta, ignora este mensaje.
+

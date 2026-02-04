@@ -1,0 +1,62 @@
+{% load static %}
+{% load i18n %}
+
+{#—--- CSS extra solo para esta vista —---#}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="auth-page">
+    <div class="auth-container">
+      <h2>{% blocktrans %}Iniciar sesión{% endblocktrans %}</h2>
+
+      {% if messages %}
+        <ul class="alert-list">
+          {% for m in messages %}
+            <li class="alert">{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if form.non_field_errors %}
+        <div class="alert-list">
+          {% for err in form.non_field_errors %}
+            <div class="alert">{{ err }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit">{% blocktrans %}Entrar{% endblocktrans %}</button>
+      </form>
+
+      <p class="text-sm" style="margin-top: .75rem;">
+        <a href="{% url 'password_reset' %}">{% blocktrans %}¿Olvidaste tu contraseña?{% endblocktrans %}</a>
+      </p>
+      
+      <p>{% blocktrans %}¿Aún no tienes cuenta?{% endblocktrans %}
+        <a href="{% url 'signup' %}">{% blocktrans %}Regístrate{% endblocktrans %}</a>
+      </p>
+    </div>
+  </div>
+{% endblock %}
+      <footer>
+            <!-- LINKS -->
+            <div class="footer-icons">
+                <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
+                </a>
+                <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
+                </a>
+                <a href="https://www.linkedin.com/company/co-bien" target="_blank">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn" style="height: 40px;">
+                </a>
+            </div>
+            <!-- END OF LINKS -->
+            <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
+        </footer> 

@@ -1,0 +1,69 @@
+{% load static %}
+{% load i18n %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="auth-page">
+    <div class="auth-container">
+      <h2>{% blocktrans %}Crear cuenta{% endblocktrans %}</h2>
+
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">{% blocktrans %}Registrarme{% endblocktrans %}</button>
+      </form>
+
+      <p>{% blocktrans %}¿Ya tienes cuenta?{% endblocktrans %}
+        <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Inicia sesión{% endblocktrans %}</a>
+      </p>
+    </div>
+  </div>
+{% endblock %}
+{% block extra_js %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll('input[type="password"]').forEach(inp => {
+
+        /* crea contenedor si no existe */
+        const wrap = document.createElement('div');
+        wrap.className = 'pwd-field-wrap';
+        inp.parentNode.insertBefore(wrap, inp);
+        wrap.appendChild(inp);
+
+        /* botón Mostrar/Ocultar */
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pwd-toggle-auto';
+        btn.textContent = 'Mostrar';
+        wrap.appendChild(btn);
+
+        btn.addEventListener('click', () => {
+          const hidden = inp.type === 'password';
+          inp.type = hidden ? 'text' : 'password';
+          btn.textContent = hidden ? 'Ocultar' : 'Mostrar';
+          if (!hidden) inp.select();     // facilita copiar
+        });
+      });
+    });
+  </script>
+{% endblock %}
+
+  <footer>
+      <!-- LINKS -->
+      <div class="footer-icons">
+          <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
+          </a>
+          <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
+          </a>
+          <a href="https://www.linkedin.com/company/co-bien" target="_blank">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn" style="height: 40px;">
+          </a>
+      </div>
+      <!-- END OF LINKS -->
+      <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
+  </footer> 
