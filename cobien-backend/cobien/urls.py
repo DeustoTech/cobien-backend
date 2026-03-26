@@ -1,4 +1,4 @@
-
+import os
 from django.contrib import admin
 from django.urls import path, include
 from apps.eventos.views import lista_eventos, home, app2, guardar_evento,extraer_evento, generate_video_token,videocall, toggle_emotion_detection
@@ -6,6 +6,9 @@ from django.views.i18n import set_language
 from django.conf import settings
 from django.conf.urls.static import static
 from apps.accounts.views import SignUpView, CustomLoginView, CustomLogoutView, ActivateAccountView
+
+ENABLE_EMOCIONES = os.getenv("COBIEN_ENABLE_EMOCIONES", "1").strip().lower() not in {"0", "false", "no", "off"}
+ENABLE_ASOCIACION = os.getenv("COBIEN_ENABLE_ASOCIACION", "1").strip().lower() not in {"0", "false", "no", "off"}
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -18,9 +21,7 @@ urlpatterns = [
     path('api/extraer_evento/', extraer_evento, name='extraer_evento'),
     path('api/generate-token/<str:identity>/<str:room_name>/', generate_video_token, name='generate_video_token'),
     path('videocall/', videocall, name='videocall'),
-    path('asociacion/', include('apps.asociacion.urls')),
     path('api/emotion-toggle/', toggle_emotion_detection, name='toggle_emotion'),
-    path('api/emociones/', include('apps.emociones.urls')),
     path('accounts/signup/',  SignUpView.as_view(),      name='signup'),
     path('accounts/login/',   CustomLoginView.as_view(), name='login'),
     path('accounts/logout/',  CustomLogoutView.as_view(),name='logout'),
@@ -29,4 +30,10 @@ urlpatterns = [
     path('pizarra/', include('apps.pizarra.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if ENABLE_EMOCIONES:
+    urlpatterns.append(path('api/emociones/', include('apps.emociones.urls')))
+
+if ENABLE_ASOCIACION:
+    urlpatterns.append(path('asociacion/', include('apps.asociacion.urls')))
  
