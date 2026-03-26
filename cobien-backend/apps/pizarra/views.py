@@ -314,6 +314,35 @@ def api_pizarra_messages(request):
 
     return JsonResponse({"messages": items})
 
+
+@csrf_exempt
+def api_delete_pizarra_message(request, post_id: str):
+    if request.method not in ("POST", "DELETE"):
+        return JsonResponse({"error": "Método no permitido. Usa POST o DELETE."}, status=405)
+
+    api_key = request.headers.get("X-API-KEY") or request.POST.get("api_key")
+    if getattr(settings, "NOTIFY_API_KEY", ""):
+        if api_key != settings.NOTIFY_API_KEY:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"error": "post_id inválido"}, status=400)
+
+    doc = col_messages.find_one({"_id": target_id})
+    if not doc:
+        return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
+
+    if doc.get("image_file_id"):
+        try:
+            fs.delete(doc["image_file_id"])
+        except Exception:
+            pass
+
+    col_messages.delete_one({"_id": target_id})
+    return JsonResponse({"ok": True, "id": post_id})
+
 @csrf_exempt
 def api_notify(request):
     """

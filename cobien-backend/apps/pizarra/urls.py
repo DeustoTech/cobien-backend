@@ -8,6 +8,7 @@ urlpatterns = [
     path('delete/<str:post_id>/', views.pizarra_delete, name='pizarra_delete'),
     path('img/<str:file_id>/', views.pizarra_image, name='pizarra_image'),
     path('api/messages/', views.api_pizarra_messages, name='pizarra_api_messages'),
+    path('api/messages/<str:post_id>/delete/', views.api_delete_pizarra_message, name='pizarra_api_delete_message'),
 
     # Notificaciones
     path('api/notify/', views.api_notify, name='pizarra_api_notify'),  # endpoint para el mueble
