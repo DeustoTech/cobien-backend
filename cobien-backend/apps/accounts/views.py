@@ -1,7 +1,7 @@
 from django.urls import reverse_lazy
 from django.views.generic import CreateView
 from django.contrib.auth.views import LoginView, LogoutView
-from .forms import SignUpForm, LoginForm, EmailLoginForm
+from .forms import SignUpForm, EmailLoginForm
 import os
 from pymongo import MongoClient
 from django.contrib import messages
@@ -15,11 +15,6 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
-from django.utils.translation import activate, override, gettext as _
-from django.conf import settings
-from django.utils import translation
-
-
 from django.utils.translation import activate, override, gettext as _
 
 #  Mongo 
