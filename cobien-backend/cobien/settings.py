@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
-import dj_database_url
 from django.utils.translation import gettext_lazy as _
 
 
@@ -160,10 +159,6 @@ LANGUAGES = [
 ]
 
 TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
 
 # Location of translation files
 LOCALE_PATHS = [

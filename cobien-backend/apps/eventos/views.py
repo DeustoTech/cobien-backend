@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,19 +14,15 @@ from django.core.files.storage import default_storage
 import os
 import base64
 from django.conf import settings
-from datetime import datetime
 import re
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VideoGrant
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import redirect, render
 from functools import wraps
 from pymongo import MongoClient
 from django.urls import reverse
-import json
 import paho.mqtt.publish as mqtt_publish
-from django.conf import settings  
 from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
 
