@@ -15,6 +15,18 @@ import os
 from django.utils.translation import gettext_lazy as _
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name: str, default: str) -> list[str]:
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,13 +41,10 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-yt@44*)wj6ef$95f3e5
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # If u want to work on local comment the next line and comment the one afters and descoment de second DEBUG and the allowed hosts for local development
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+ENV_DEBUG = env_bool('DEBUG', False)
+ENV_ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '.onrender.com')
 
-
-ALLOWED_HOSTS = os.getenv(
-    'ALLOWED_HOSTS', '.onrender.com'
-).split(',') 
-
+# Current effective behavior is preserved intentionally until deployment config is revisited.
 DEBUG = True
 
 # allowed host in local development
