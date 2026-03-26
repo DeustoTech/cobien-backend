@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from pymongo import MongoClient
 from datetime import datetime
@@ -9,9 +10,14 @@ csv_path = "eventos_con_location.csv"
 df = pd.read_csv(csv_path)
 
 # Conexión a MongoDB Atlas
-client = MongoClient("mongodb+srv://usuarioCoBien:passwordCoBien@clustercobienevents.j8ev5.mongodb.net/LabasAppDB?retryWrites=true&w=majority")
-db = client['LabasAppDB']
-collection = db['Eventos']
+client = MongoClient(
+    os.getenv(
+        "MONGO_URI",
+        "mongodb+srv://usuarioCoBien:passwordCoBien@clustercobienevents.j8ev5.mongodb.net/LabasAppDB?retryWrites=true&w=majority",
+    )
+)
+db = client[os.getenv("DB_NAME", "LabasAppDB")]
+collection = db[os.getenv("EVENTS_COLLECTION", "Eventos")]
 
 # Preparar e insertar eventos
 eventos = []

@@ -211,9 +211,12 @@ def run_emotion_detector(
         print(f"Emoción media de la llamada: {media}")
         print(f"Log resumen guardado en: {final}")
 
-        MONGO_URI = "mongodb+srv://usuarioCoBien:passwordCoBien@clustercobienevents.j8ev5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCoBienEvents"
-        NOMBRE_DB = "LabasAppDB"
-        NOMBRE_COLECCION = "LogsEmociones"
+        MONGO_URI = os.getenv(
+            "MONGO_URI",
+            "mongodb+srv://usuarioCoBien:passwordCoBien@clustercobienevents.j8ev5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCoBienEvents",
+        )
+        NOMBRE_DB = os.getenv("DB_NAME", "LabasAppDB")
+        NOMBRE_COLECCION = os.getenv("EMOCIONES_COLLECTION", "LogsEmociones")
 
         exito = subir_log_a_mongo(
             path_log_json=final,
