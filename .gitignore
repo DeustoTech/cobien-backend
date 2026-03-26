@@ -36,3 +36,10 @@ instance/
 .webassets-cache/
 .scrapy/
 docs/_build/
+venv/
+gettext/
+.env
+*.sqlite3
+a.out
+subscriber.py
+ImagenesLectura/JsonGoogleCloud/*.json
