@@ -28,7 +28,10 @@ from .call_monitor import call_monitor
 
 
 
-openai.api_key = "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"
+openai.api_key = os.getenv(
+    "OPENAI_API_KEY",
+    "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",
+)
 _client = MongoClient(os.getenv("MONGO_URI"))
 db = _client["LabasAppDB"]       
 
