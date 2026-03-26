@@ -141,6 +141,41 @@ def pizarra_home(request):
     }
     return render(request, "pizarra/pizarra.html", ctx)
 
+
+@login_required
+def pizarra_delete(request, post_id: str):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        doc = col_messages.find_one({"_id": ObjectId(post_id), "author": request.user.username})
+    except Exception:
+        doc = None
+
+    if not doc:
+        messages.error(request, "Mensaje no encontrado.")
+        return redirect("pizarra_home")
+
+    recipient_key = doc.get("recipient_key", "")
+
+    try:
+        image_file_id = doc.get("image_file_id")
+        if image_file_id:
+            try:
+                fs.delete(ObjectId(str(image_file_id)))
+            except Exception:
+                pass
+
+        col_messages.delete_one({"_id": doc["_id"], "author": request.user.username})
+        messages.success(request, "Mensaje eliminado.")
+    except Exception as e:
+        messages.error(request, f"No se pudo eliminar el mensaje: {e}")
+
+    target = reverse("pizarra_home")
+    if recipient_key:
+        target = f"{target}?to={recipient_key}"
+    return redirect(target)
+
 @login_required
 def pizarra_create(request):
     if request.method != "POST":

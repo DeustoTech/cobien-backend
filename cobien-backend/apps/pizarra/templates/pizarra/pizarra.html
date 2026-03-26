@@ -136,6 +136,10 @@
                             <span>{% blocktrans %}Para:{% endblocktrans %} <strong>{{ post.recipient_key }}</strong></span>
                             &nbsp;•&nbsp;
                             <time datetime="{{ post.created_at|date:'c' }}">{{ post.created_at|date:"Y-m-d H:i" }}</time>
+                            <form method="post" action="{% url 'pizarra_delete' post.id %}" style="display:inline; margin-left:12px;">
+                              {% csrf_token %}
+                              <button class="btn-outline" type="submit">{% blocktrans %}Eliminar{% endblocktrans %}</button>
+                            </form>
                           </div>
 
                           <div class="post-content">
