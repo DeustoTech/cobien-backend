@@ -41,6 +41,15 @@ PALETTE = [
     "#F87171", "#C084FC", "#FB7185", "#FBBF24"
 ]
 
+
+def _mqtt_auth():
+    if settings.MQTT_USERNAME:
+        return {
+            "username": settings.MQTT_USERNAME,
+            "password": settings.MQTT_PASSWORD,
+        }
+    return None
+
 def color_for_device(name: str) -> str:
     if not name:
         return "#9CA3AF"  # gris neutro fallback
@@ -295,6 +304,7 @@ def guardar_evento(request):
                         payload=payload,
                         hostname=settings.MQTT_BROKER_URL,
                         port=settings.MQTT_BROKER_PORT,
+                        auth=_mqtt_auth(),
                         qos=1
                     )
                     
@@ -321,6 +331,7 @@ def guardar_evento(request):
                         payload=payload,
                         hostname=settings.MQTT_BROKER_URL,
                         port=settings.MQTT_BROKER_PORT,
+                        auth=_mqtt_auth(),
                         qos=1
                     )
                     
@@ -555,19 +566,12 @@ def send_mqtt_notification(room_name: str, caller: str) -> None:
             "timestamp": datetime.now().isoformat()
         })
         
-        auth = None
-        if settings.MQTT_USERNAME:
-            auth = {
-                "username": settings.MQTT_USERNAME,
-                "password": settings.MQTT_PASSWORD
-            }
-        
         mqtt_publish.single(
             topic=settings.MQTT_TOPIC_GENERAL,  # "tarjeta"
             payload=payload,
             hostname=settings.MQTT_BROKER_URL,
             port=settings.MQTT_BROKER_PORT,
-            auth=auth,
+            auth=_mqtt_auth(),
             qos=1
         )
         

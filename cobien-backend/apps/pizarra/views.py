@@ -35,6 +35,15 @@ try:
 except Exception:
     pass
 
+
+def _mqtt_auth():
+    if settings.MQTT_USERNAME:
+        return {
+            "username": settings.MQTT_USERNAME,
+            "password": settings.MQTT_PASSWORD,
+        }
+    return None
+
 def _fetch_user_profile(request):
     username = getattr(request.user, "username", None)
     email = getattr(request.user, "email", None)
@@ -200,6 +209,7 @@ def pizarra_create(request):
             payload=payload,
             hostname=broker_url,
             port=broker_port,
+            auth=_mqtt_auth(),
             qos=1
         )
         
