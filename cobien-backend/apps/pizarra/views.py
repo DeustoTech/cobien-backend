@@ -44,6 +44,14 @@ def _mqtt_auth():
         }
     return None
 
+
+def _require_api_key(request):
+    expected = getattr(settings, "NOTIFY_API_KEY", "")
+    if not expected:
+        return True
+    provided = request.headers.get("X-API-KEY") or request.GET.get("api_key") or request.POST.get("api_key")
+    return provided == expected
+
 def _fetch_user_profile(request):
     username = getattr(request.user, "username", None)
     email = getattr(request.user, "email", None)
@@ -58,6 +66,64 @@ def _fetch_user_profile(request):
             if doc:
                 return doc
     return None
+
+
+def _find_profile_by_device(device_id: str):
+    device_id = (device_id or "").strip()
+    if not device_id:
+        return None
+
+    query = {
+        "$or": [
+            {"target_device": device_id},
+            {"default_room": device_id},
+            {"linked_device": device_id},
+        ]
+    }
+    for colname in ("auth_user", "users"):
+        doc = db[colname].find_one(query)
+        if doc:
+            return doc
+    return None
+
+
+def _normalize_contacts_list(raw_contacts):
+    contacts = []
+    if not isinstance(raw_contacts, (list, tuple)):
+        return contacts
+
+    for item in raw_contacts:
+        if isinstance(item, dict):
+            display_name = (
+                str(item.get("display_name") or item.get("name") or item.get("display") or "").strip()
+            )
+            user_name = (
+                str(item.get("user_name") or item.get("username") or item.get("user") or "").strip()
+            )
+            image_url = str(item.get("image_url") or item.get("image") or "").strip()
+            if display_name and user_name:
+                contacts.append(
+                    {
+                        "display_name": display_name,
+                        "user_name": user_name,
+                        "image_url": image_url,
+                    }
+                )
+            continue
+
+        # Backward-compatible format: plain username string.
+        if item is not None:
+            value = str(item).strip()
+            if value:
+                contacts.append(
+                    {
+                        "display_name": value,
+                        "user_name": value,
+                        "image_url": "",
+                    }
+                )
+
+    return contacts
 
 @login_required
 def pizarra_home(request):
@@ -402,6 +468,85 @@ def api_notify(request):
 
     res = col_notifications.insert_one(doc)
     return JsonResponse({"ok": True, "id": str(res.inserted_id)})
+
+
+def api_contacts_for_device(request):
+    """
+    Endpoint for furniture contact synchronization.
+    GET params:
+      - device_id (required)
+    Auth:
+      - X-API-KEY must match settings.NOTIFY_API_KEY when configured.
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido. Usa GET."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    device_id = (request.GET.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    profile = _find_profile_by_device(device_id)
+    if not profile:
+        return JsonResponse({"device_id": device_id, "contacts": []})
+
+    contacts = _normalize_contacts_list(profile.get("contacts", []))
+    return JsonResponse({"device_id": device_id, "contacts": contacts})
+
+
+@csrf_exempt
+def api_trigger_contacts_sync(request):
+    """
+    Trigger a contacts refresh on one furniture or all furniture devices.
+    POST JSON/form:
+      - to / target_device / recipient (required, supports "all")
+    Auth:
+      - X-API-KEY must match settings.NOTIFY_API_KEY when configured.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    try:
+        payload = request.POST.dict()
+        if not payload:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+
+    target = (
+        payload.get("to")
+        or payload.get("target_device")
+        or payload.get("recipient")
+        or ""
+    ).strip()
+    if not target:
+        return JsonResponse({"error": "to/target_device requerido"}, status=400)
+
+    mqtt_payload = {
+        "type": "contacts_updated",
+        "to": target,
+        "from": payload.get("from") or "cobien",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        mqtt_publish.single(
+            topic=settings.MQTT_TOPIC_GENERAL,
+            payload=json.dumps(mqtt_payload),
+            hostname=settings.MQTT_BROKER_URL,
+            port=settings.MQTT_BROKER_PORT,
+            auth=_mqtt_auth(),
+            qos=1,
+        )
+    except Exception as exc:
+        return JsonResponse({"error": f"MQTT publish failed: {exc}"}, status=502)
+
+    return JsonResponse({"ok": True, "published": mqtt_payload})
 
 @login_required
 def api_notifications(request):
