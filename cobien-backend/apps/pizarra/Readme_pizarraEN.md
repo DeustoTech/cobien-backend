@@ -10,6 +10,7 @@
 * Browse **message history** by recipient.
 * Show **incoming notifications** (e.g., “Ready for call”).
 * HTTP API for the **device** to fetch messages or **create notifications**.
+* HTTP API and web page to ingest and inspect **ICSO telemetry** from the device.
 
 ---
 
@@ -103,6 +104,9 @@ Main routes inside the app:
 * Fetch notifications (web): `GET /pizarra/api/notifications/`
 * Mark one as read: `POST /pizarra/notifications/mark-read/<notif_id>/`
 * Mark all as read: `POST /pizarra/notifications/mark-all/`
+* ICSO dashboard: `GET /pizarra/icso/`
+* ICSO snapshot API: `POST/GET /pizarra/api/icso/telemetry/`
+* ICSO events API: `POST/GET /pizarra/api/icso/events/`
 
 ---
 
@@ -112,6 +116,8 @@ Main routes inside the app:
 
 * **Messages**: collection `pizarra_messages`.
 * **Notifications**: collection `pizarra_notifications`.
+* **ICSO snapshots**: collection `pizarra_icso_snapshots`.
+* **ICSO events**: collection `pizarra_icso_events`.
 * **Images**: **GridFS** bucket `pizarra_fs`.
 
 ### 6.2 Indexes

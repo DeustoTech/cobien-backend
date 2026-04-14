@@ -1,0 +1,104 @@
+{% load i18n %}
+{% load static %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>CoBien — ICSO</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <div class="coBienLogo">
+          <a id="logo" href="{% url 'home' %}">
+            <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image" style="height: 35px;">
+          </a>
+        </div>
+        <button class="menu-toggle" aria-label="Abrir menú">☰</button>
+        <nav class="main-nav">
+          <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
+          <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
+          <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
+          <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
+          {% if user.is_authenticated %}
+            <div class="user-info">
+              <span class="saludo">{% blocktrans %}Hola, {% endblocktrans %}{{ user.username }} —</span>
+              <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
+            </div>
+          {% endif %}
+        </nav>
+        <div class="language-switcher">
+          <form action="{% url 'set_language' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <select name="language" onchange="this.form.submit();">
+              <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
+              <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
+            </select>
+          </form>
+        </div>
+      </header>
+
+      <main class="main-container pizarra">
+        <div class="pz-wrap">
+          <section class="pz-card">
+            <h1 class="pz-h2">{% blocktrans %}Telemetría ICSO{% endblocktrans %}</h1>
+            <p class="muted mb-1">{% blocktrans %}Consulta el último estado agregado enviado por cada mueble y los eventos recientes sincronizados.{% endblocktrans %}</p>
+            <form method="get" class="mt-2">
+              <label class="form-label" for="device_id">{% blocktrans %}Dispositivo{% endblocktrans %}</label>
+              <input type="text" id="device_id" name="device_id" value="{{ selected_device }}" list="devices-list" placeholder="CoBien1">
+              <datalist id="devices-list">
+                {% for dev in devices %}<option value="{{ dev }}">{% endfor %}
+              </datalist>
+              <button class="btn-main" type="submit">{% blocktrans %}Consultar{% endblocktrans %}</button>
+            </form>
+          </section>
+
+          <div class="section-sep"></div>
+
+          <div class="pz-grid">
+            <div class="pz-main">
+              <section class="pz-card">
+                <h2 class="h5">{% blocktrans %}Último snapshot{% endblocktrans %}</h2>
+                {% if snapshot %}
+                  <p class="muted">
+                    {% blocktrans %}Dispositivo:{% endblocktrans %} <strong>{{ snapshot.device_id }}</strong>
+                    &nbsp;•&nbsp;
+                    {% blocktrans %}Actualizado:{% endblocktrans %} {{ snapshot.updated_at }}
+                  </p>
+                  <pre style="white-space: pre-wrap; overflow-x: auto;">{{ snapshot.payload_pretty }}</pre>
+                {% else %}
+                  <p class="muted">{% blocktrans %}Todavía no hay snapshot ICSO para este dispositivo.{% endblocktrans %}</p>
+                {% endif %}
+              </section>
+            </div>
+
+            <aside class="pz-notifs">
+              <section class="pz-card">
+                <h2 class="h5">{% blocktrans %}Eventos recientes{% endblocktrans %}</h2>
+                {% if events %}
+                  <ul class="notif-list">
+                    {% for event in events %}
+                      <li class="notif-item">
+                        <div class="notif-main">
+                          <div class="notif-title">{{ event.source }}</div>
+                          <div class="notif-sub">{{ event.logged_at }}</div>
+                          <div class="notif-message">{{ event.message }}</div>
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="muted">{% blocktrans %}No hay eventos ICSO sincronizados para este dispositivo.{% endblocktrans %}</p>
+                {% endif %}
+              </section>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

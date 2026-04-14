@@ -10,6 +10,7 @@
 * Consultar **historial** por destinatario.
 * Mostrar **notificaciones entrantes** (p. ej. “Disponible para llamada”).
 * API HTTP para que el **mueble** recupere mensajes o **cree notificaciones**.
+* API HTTP y vista web para recibir y consultar **telemetría ICSO** del mueble.
 
 ---
 
@@ -103,6 +104,9 @@ Rutas principales dentro de la app:
 * API consultar notificaciones (web): `GET /pizarra/api/notifications/`
 * Marcar leída: `POST /pizarra/notifications/mark-read/<notif_id>/`
 * Marcar todas: `POST /pizarra/notifications/mark-all/`
+* Dashboard ICSO: `GET /pizarra/icso/`
+* API ICSO snapshot: `POST/GET /pizarra/api/icso/telemetry/`
+* API ICSO eventos: `POST/GET /pizarra/api/icso/events/`
 
 ---
 
@@ -112,6 +116,8 @@ Rutas principales dentro de la app:
 
 * **Mensajes**: colección `pizarra_messages`.
 * **Notificaciones**: colección `pizarra_notifications`.
+* **ICSO snapshots**: colección `pizarra_icso_snapshots`.
+* **ICSO eventos**: colección `pizarra_icso_events`.
 * **Imágenes**: **GridFS** en bucket `pizarra_fs`.
 
 ### 6.2 Índices

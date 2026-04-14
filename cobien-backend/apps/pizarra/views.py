@@ -1,6 +1,7 @@
 import os
 import gridfs
 import json
+import pprint
 from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from django.views.decorators.csrf import csrf_exempt
@@ -24,6 +25,8 @@ col_messages = db["pizarra_messages"]
 
 # --- Notificaciones ---
 col_notifications = db["pizarra_notifications"]
+col_icso_snapshots = db["pizarra_icso_snapshots"]
+col_icso_events = db["pizarra_icso_events"]
 try:
     # Búsqueda rápida por usuario/estado/fecha
     col_notifications.create_index([
@@ -32,6 +35,14 @@ try:
         ("created_at", DESCENDING),
     ])
     col_notifications.create_index("expire_at", expireAfterSeconds=0)
+except Exception:
+    pass
+
+try:
+    col_icso_snapshots.create_index([("device_id", ASCENDING)], unique=True)
+    col_icso_snapshots.create_index([("updated_at", DESCENDING)])
+    col_icso_events.create_index([("device_id", ASCENDING), ("logged_at", DESCENDING)])
+    col_icso_events.create_index([("created_at", DESCENDING)])
 except Exception:
     pass
 
@@ -51,6 +62,56 @@ def _require_api_key(request):
         return True
     provided = request.headers.get("X-API-KEY") or request.GET.get("api_key") or request.POST.get("api_key")
     return provided == expected
+
+
+def _read_api_payload(request):
+    try:
+        payload = request.POST.dict()
+        if payload:
+            return payload
+    except Exception:
+        pass
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return {}
+
+
+def _serialize_datetime(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _parse_datetime_value(value, fallback=None):
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return fallback
+    try:
+        normalized = str(value).replace("Z", "+00:00")
+        return datetime.fromisoformat(normalized)
+    except Exception:
+        return fallback
+
+
+def _serialize_doc(doc):
+    if not isinstance(doc, dict):
+        return doc
+    serialized = {}
+    for key, value in doc.items():
+        if key == "_id":
+            serialized[key] = str(value)
+        elif isinstance(value, dict):
+            serialized[key] = _serialize_doc(value)
+        elif isinstance(value, list):
+            serialized[key] = [
+                _serialize_doc(item) if isinstance(item, dict) else _serialize_datetime(item)
+                for item in value
+            ]
+        else:
+            serialized[key] = _serialize_datetime(value)
+    return serialized
 
 def _fetch_user_profile(request):
     username = getattr(request.user, "username", None)
@@ -206,6 +267,51 @@ def pizarra_home(request):
         "unread_count": unread_count,
     }
     return render(request, "pizarra/pizarra.html", ctx)
+
+
+@login_required
+def icso_dashboard(request):
+    selected_device = (request.GET.get("device_id") or "").strip()
+    device_docs = list(
+        col_icso_snapshots.find({}, {"device_id": 1}).sort("device_id", ASCENDING)
+    )
+    devices = [str(doc.get("device_id") or "").strip() for doc in device_docs if str(doc.get("device_id") or "").strip()]
+    if not selected_device and devices:
+        selected_device = devices[0]
+
+    snapshot = None
+    events = []
+    if selected_device:
+        snapshot_doc = col_icso_snapshots.find_one({"device_id": selected_device})
+        if snapshot_doc:
+            payload = snapshot_doc.get("payload", {})
+            snapshot = {
+                "device_id": snapshot_doc.get("device_id"),
+                "updated_at": _serialize_datetime(snapshot_doc.get("updated_at")),
+                "payload_pretty": pprint.pformat(payload, width=100, sort_dicts=True),
+            }
+
+        cursor = col_icso_events.find({"device_id": selected_device}).sort("logged_at", DESCENDING).limit(100)
+        for doc in cursor:
+            item = _serialize_doc(doc)
+            events.append(
+                {
+                    "source": item.get("source", ""),
+                    "logged_at": item.get("logged_at") or item.get("created_at") or "",
+                    "message": item.get("message", ""),
+                }
+            )
+
+    return render(
+        request,
+        "pizarra/icso_dashboard.html",
+        {
+            "devices": devices,
+            "selected_device": selected_device,
+            "snapshot": snapshot,
+            "events": events,
+        },
+    )
 
 
 @login_required
@@ -568,6 +674,104 @@ def api_notifications(request):
         })
 
     return JsonResponse({"notifications": items})
+
+
+@csrf_exempt
+def api_icso_telemetry(request):
+    if request.method == "POST":
+        if not _require_api_key(request):
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+        payload = _read_api_payload(request)
+        device_id = str(payload.get("device_id", "") or "").strip()
+        snapshot = payload.get("snapshot")
+        if not device_id:
+            return JsonResponse({"error": "device_id requerido"}, status=400)
+        if not isinstance(snapshot, dict):
+            return JsonResponse({"error": "snapshot requerido"}, status=400)
+
+        now = datetime.now(timezone.utc)
+        captured_at = _parse_datetime_value(payload.get("captured_at"), fallback=now)
+        doc = {
+            "device_id": device_id,
+            "payload": snapshot,
+            "captured_at": captured_at,
+            "updated_at": now,
+        }
+        col_icso_snapshots.update_one(
+            {"device_id": device_id},
+            {"$set": doc},
+            upsert=True,
+        )
+        return JsonResponse({"ok": True, "device_id": device_id})
+
+    if request.method == "GET":
+        if not (request.user.is_authenticated or _require_api_key(request)):
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+        device_id = (request.GET.get("device_id") or "").strip()
+        filt = {"device_id": device_id} if device_id else {}
+        cursor = col_icso_snapshots.find(filt).sort("updated_at", DESCENDING).limit(100)
+        items = [_serialize_doc(doc) for doc in cursor]
+        return JsonResponse({"items": items})
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
+def api_icso_events(request):
+    if request.method == "POST":
+        if not _require_api_key(request):
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+        payload = _read_api_payload(request)
+        device_id = str(payload.get("device_id", "") or "").strip()
+        events = payload.get("events")
+        if not device_id:
+            return JsonResponse({"error": "device_id requerido"}, status=400)
+        if not isinstance(events, list):
+            return JsonResponse({"error": "events requerido"}, status=400)
+
+        now = datetime.now(timezone.utc)
+        docs = []
+        for item in events:
+            if not isinstance(item, dict):
+                continue
+            message = str(item.get("message", "") or "").strip()
+            if not message:
+                continue
+            docs.append(
+                {
+                    "device_id": device_id,
+                    "source": str(item.get("source", "") or "").strip() or "icso",
+                    "logged_at": _parse_datetime_value(item.get("logged_at"), fallback=now),
+                    "message": message,
+                    "created_at": now,
+                }
+            )
+        if docs:
+            col_icso_events.insert_many(docs)
+        return JsonResponse({"ok": True, "inserted": len(docs), "device_id": device_id})
+
+    if request.method == "GET":
+        if not (request.user.is_authenticated or _require_api_key(request)):
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+        device_id = (request.GET.get("device_id") or "").strip()
+        limit = min(max(int(request.GET.get("limit", 100) or 100), 1), 500)
+        source = (request.GET.get("source") or "").strip()
+
+        filt = {}
+        if device_id:
+            filt["device_id"] = device_id
+        if source:
+            filt["source"] = source
+
+        cursor = col_icso_events.find(filt).sort("logged_at", DESCENDING).limit(limit)
+        items = [_serialize_doc(doc) for doc in cursor]
+        return JsonResponse({"items": items})
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 @login_required
 def notification_mark_read(request, notif_id: str):

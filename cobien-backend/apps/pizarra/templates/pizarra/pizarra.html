@@ -27,6 +27,7 @@
           <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
           <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
           <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
+          <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
 
           {% if user.is_authenticated %}
             <div class="user-info">
