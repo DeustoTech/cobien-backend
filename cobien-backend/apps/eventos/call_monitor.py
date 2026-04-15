@@ -9,8 +9,10 @@ Fonctionne sans webhooks Twilio, juste avec l'API Twilio.
 import threading
 import time
 import json
+import os
 from datetime import datetime
 from twilio.rest import Client
+from twilio.base.exceptions import TwilioException
 from django.conf import settings
 import paho.mqtt.publish as mqtt_publish
 
@@ -43,11 +45,16 @@ class CallMonitor:
         # Thread de surveillance
         self.monitor_thread = None
         self.running = False
+        self.enabled = os.getenv("COBIEN_ENABLE_CALL_MONITOR", "1").strip().lower() not in {"0", "false", "no", "off"}
         
         print("[CALL MONITOR] 🎯 Initialisé")
     
     def start(self):
         """Démarre la surveillance en arrière-plan"""
+        if not self.enabled:
+            print("[CALL MONITOR] ⏸️ Désactivé par environnement")
+            return
+
         if self.running:
             print("[CALL MONITOR] ⚠️ Déjà démarré")
             return
@@ -74,6 +81,9 @@ class CallMonitor:
             room_name: Nom de la room Twilio (ex: "maria")
             caller: Nom de l'appelant (ex: "Ana")
         """
+        if not self.enabled:
+            return
+
         self.active_calls[room_name] = {
             "caller": caller,
             "room": room_name,
@@ -94,6 +104,9 @@ class CallMonitor:
         Args:
             room_name: Nom de la room Twilio
         """
+        if not self.enabled:
+            return
+
         if room_name in self.active_calls:
             self.active_calls[room_name]["answered"] = True
             print(f"[CALL MONITOR] ✅ Appel répondu: {room_name}")
@@ -189,6 +202,14 @@ class CallMonitor:
             del self.active_calls[room_name]
             print(f"[CALL MONITOR] 🧹 Room retirée du tracker: {room_name}")
         
+        except TwilioException as e:
+            print(f"[CALL MONITOR] ❌ Erreur Twilio room {room_name}: {e}")
+            if getattr(e, "status", None) == 401 or "HTTP 401" in str(e):
+                print("[CALL MONITOR] 🛑 Désactivation du monitor suite à une erreur d'authentification Twilio")
+                self.enabled = False
+                self.running = False
+            import traceback
+            traceback.print_exc()
         except Exception as e:
             print(f"[CALL MONITOR] ❌ Erreur vérification room {room_name}: {e}")
             import traceback

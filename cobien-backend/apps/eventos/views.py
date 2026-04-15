@@ -618,9 +618,8 @@ def call_answered(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-# Démarrer le call monitor au chargement du module
+# Démarrer le call monitor au chargement du module si está habilitado
 call_monitor.start()
-print("[VIEWS] ✅ Call monitor démarré")
 
 
 """ ================= Solution espanol =================="""
