@@ -6,8 +6,14 @@ from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import ChatGrant
 from django.conf import settings
 from twilio.rest import Client
+from twilio.base.exceptions import TwilioException
 
 client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+
+def get_conversation_sid():
+    """Obtiene la conversación bajo demanda para evitar llamadas externas al importar el módulo."""
+    return obtener_o_crear_conversacion()
 
 # Generar un Access Token para un usuario específico
 @csrf_exempt
@@ -31,7 +37,14 @@ def generate_twilio_token(request):
     token.add_grant(chat_grant)
 
     # Agregar al usuario a la conversación si no está ya dentro
-    conversation = client.conversations.v1.conversations(CONVERSATION_SID)
+    try:
+        conversation_sid = get_conversation_sid()
+        conversation = client.conversations.v1.conversations(conversation_sid)
+    except TwilioException as exc:
+        return JsonResponse(
+            {"error": "No se pudo inicializar la conversación de Twilio", "detail": str(exc)},
+            status=503,
+        )
 
     participants = conversation.participants.list()
     existing_participants = [p.identity for p in participants]
@@ -62,5 +75,3 @@ def obtener_o_crear_conversacion():
     )
     print(f"Nueva conversación creada: {conversation.sid}")
     return conversation.sid
-
-CONVERSATION_SID = obtener_o_crear_conversacion()
