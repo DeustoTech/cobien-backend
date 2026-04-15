@@ -88,6 +88,42 @@
             </div>
         </div>
         <div class="calendar-wrapper">
+            <!-- Top actions: botones y filtros (ahora visibles arriba) -->
+            <div class="top-actions container-inner">
+                <div class="actions-left">
+                    {% if user.is_authenticated %}
+                        <button id="addEventBtn" class="btn btn-primary"
+                                data-bs-toggle="modal" data-bs-target="#addEventModal">
+                            {% blocktrans %}Añadir Evento{% endblocktrans %}
+                        </button>
+                    {% endif %}
+
+                    <button id="changeRegionBtn" class="btn btn-secondary"
+                            data-bs-toggle="modal" data-bs-target="#regionModal">
+                        {% blocktrans %}Cambiar Región{% endblocktrans %}
+                    </button>
+                </div>
+
+                <div class="actions-right">
+                    <div class="filters-area">
+                        <div class="filters-bar">
+                            <div class="segmented" id="modeSelector">
+                                <input type="radio" class="sgmt-input" name="mode" id="modeGlobal" value="global">
+                                <label class="sgmt" for="modeGlobal">{% blocktrans %}Global{% endblocktrans %}</label>
+
+                                <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
+                                <label class="sgmt" for="modePersonal">{% blocktrans %}Personal{% endblocktrans %}</label>
+                            </div>
+                        </div>
+                        <div class="legend compact-legend">
+                            {% for d in my_device_colors %}
+                                <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="calendar">
                 <!-- Contenedor -->
                 <section class="main-container" > 
@@ -110,78 +146,7 @@
                         </div>
                     </div>
                     <h2 id="currentRegion" class="h5 text-center my-3"></h2>
-                    <div class="bottom-action-bar">
-                        {# ─── Mostrar sólo si el usuario está logeado ─── #}
-                        {% if user.is_authenticated %}
-                            <!-- Botón para añadir eventos -->
-                            <button id="addEventBtn" class="btn btn-primary"
-                                    data-bs-toggle="modal" data-bs-target="#addEventModal">
-                                {% blocktrans %}Añadir Evento{% endblocktrans %}
-                            </button>
-                        {% endif %}
-
-                        <!-- Botón para cambiar región (siempre visible) -->
-                        <button id="changeRegionBtn" class="btn btn-secondary"
-                                data-bs-toggle="modal" data-bs-target="#regionModal">
-                            {% blocktrans %}Cambiar Región{% endblocktrans %}
-                        </button>
-                        <!-- Barra de filtros (alineada a la derecha) -->
-                        <div class="filters-area"> 
-                            <div class="filters-bar">
-                                <!-- Toggle Global / Personal -->
-                                <div class="segmented" id="modeSelector">
-                                    <input type="radio" class="sgmt-input" name="mode" id="modeGlobal" value="global">
-                                    <label class="sgmt" for="modeGlobal">{% blocktrans %}Global{% endblocktrans %}</label>
-
-                                    <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
-                                    <label class="sgmt" for="modePersonal">{% blocktrans %}Personal{% endblocktrans %}</label>
-                                </div>
-
-                                <!-- Multi-select en desplegable (solo se muestra en modo Personal) -->
-                                <div id="personalPicker" class="droplist" style="display:none;">
-                                    <button type="button" id="personalToggle" class="multi-select-btn">
-                                    <span id="personalLabel">{% blocktrans %}Seleccionar destinatarios{% endblocktrans %}</span>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
-                                    </button>
-
-                                    <div id="personalPanel" class="droplist-panel">
-                                    <div class="droplist-head">
-                                        <input id="targetSearch" type="text" class="droplist-search" placeholder="Buscar…">
-                                    </div>
-
-                                    <label class="check check--all">
-                                        <input class="form-check-input" type="checkbox" value="all" id="targets_all" checked>
-                                        <span>Todas</span>
-                                    </label>
-
-                                    <ul class="target-list">
-                                        {% for d in my_device_colors %}
-                                        <li>
-                                            <label class="check">
-                                            <input class="form-check-input target-item" type="checkbox" value="{{ d.name }}">
-                                            <i class="swatch" style="background-color: {{ d.color }}"></i>
-                                            <span>{{ d.name }}</span>
-                                            </label>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-
-                                    <div class="droplist-actions">
-                                        <button type="button" class="btn-ghost" id="targets_clear">{% blocktrans %}Limpiar{% endblocktrans %}</button>
-                                        <button type="button" class="btn-primary" id="targets_apply">{% blocktrans %}Aplicar{% endblocktrans %}</button>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Leyenda compacta (igual que antes) -->
-                            <div class="legend">
-                            {% for d in my_device_colors %}
-                                <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.name }}</span>
-                            {% endfor %}
-                            </div>
-                        </div>
-
-                    <!-- Modal para agregar un evento -->
+                    <!-- Modal para agregar un evento (mantener donde estaba) -->
                     {% if user.is_authenticated %}
                         <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
                             <div class="modal-dialog">
