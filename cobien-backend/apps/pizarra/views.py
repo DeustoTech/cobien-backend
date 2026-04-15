@@ -18,6 +18,8 @@ from .forms import PizarraPostForm
 from .device_registry import (
     col_devices,
     col_user_device_access,
+    create_device,
+    device_online_status,
     get_accessible_device_ids,
     get_default_device_id,
     get_device_contacts,
@@ -26,6 +28,8 @@ from .device_registry import (
     list_known_devices,
     normalize_contacts_list,
     replace_device_assignments,
+    touch_device_heartbeat,
+    update_device_metadata,
     update_device_contacts,
 )
 import paho.mqtt.publish as mqtt_publish
@@ -343,6 +347,47 @@ def icso_dashboard(request):
             "events": events,
         },
     )
+
+
+@login_required
+@user_passes_test(_staff_required)
+def devices_admin(request):
+    if request.method == "POST":
+        action = (request.POST.get("action") or "create").strip()
+        try:
+            if action == "create":
+                create_device(
+                    request.POST.get("device_id", ""),
+                    display_name=request.POST.get("display_name", ""),
+                    enabled=request.POST.get("enabled") == "1",
+                )
+                messages.success(request, "Dispositivo creado.")
+            elif action == "update":
+                update_device_metadata(
+                    request.POST.get("device_id", ""),
+                    display_name=request.POST.get("display_name", ""),
+                    enabled=request.POST.get("enabled") == "1",
+                )
+                messages.success(request, "Dispositivo actualizado.")
+            else:
+                messages.error(request, "Acción no soportada.")
+        except Exception as exc:
+            messages.error(request, str(exc))
+        return redirect(reverse("pizarra_devices_admin"))
+
+    devices = []
+    for item in list_known_devices():
+        devices.append(
+            {
+                "device_id": item.get("device_id"),
+                "display_name": item.get("display_name") or item.get("device_id"),
+                "enabled": item.get("enabled", True),
+                "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
+                "status": device_online_status(item),
+            }
+        )
+
+    return render(request, "pizarra/devices_admin.html", {"devices": devices})
 
 
 @login_required
@@ -670,6 +715,34 @@ def api_notify(request):
 
     res = col_notifications.insert_one(doc)
     return JsonResponse({"ok": True, "id": str(res.inserted_id)})
+
+
+@csrf_exempt
+def api_device_heartbeat(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id", "") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    try:
+        device = touch_device_heartbeat(device_id, payload=payload)
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "device_id": device_id,
+            "status": device_online_status(device),
+            "last_seen_at": _serialize_datetime(device.get("last_seen_at")),
+        }
+    )
 
 
 def api_contacts_for_device(request):

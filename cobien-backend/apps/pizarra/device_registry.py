@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone, timedelta
 
 from pymongo import MongoClient
 
@@ -143,6 +144,16 @@ def list_known_devices():
     return devices
 
 
+def device_online_status(device, online_window_minutes=5):
+    last_seen = device.get("last_seen_at")
+    if not isinstance(last_seen, datetime):
+        return "unknown"
+    now = datetime.now(timezone.utc)
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    return "online" if now - last_seen <= timedelta(minutes=online_window_minutes) else "offline"
+
+
 def get_accessible_device_ids(username="", email=""):
     device_ids = []
     seen = set()
@@ -192,7 +203,7 @@ def update_device_contacts(device_id, contacts, display_name=""):
     resolved_display = str(display_name or device.get("display_name") or device_id).strip() or device_id
     col_devices.update_one(
         {"device_id": device_id},
-        {"$set": {"device_id": device_id, "display_name": resolved_display, "contacts": contacts}},
+        {"$set": {"device_id": device_id, "display_name": resolved_display, "contacts": contacts, "updated_at": datetime.now(timezone.utc)}},
         upsert=True,
     )
 
@@ -226,3 +237,60 @@ def replace_device_assignments(device_id, usernames, default_username=""):
                 "is_default": True,
             }
         )
+
+
+def create_device(device_id, display_name="", enabled=True):
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        raise ValueError("device_id requerido")
+    existing = col_devices.find_one({"device_id": device_id})
+    if existing:
+        raise ValueError(f"El dispositivo {device_id} ya existe")
+    now = datetime.now(timezone.utc)
+    col_devices.insert_one(
+        {
+            "device_id": device_id,
+            "display_name": str(display_name or device_id).strip() or device_id,
+            "enabled": bool(enabled),
+            "contacts": [],
+            "created_at": now,
+            "updated_at": now,
+            "last_seen_at": None,
+        }
+    )
+
+
+def update_device_metadata(device_id, display_name="", enabled=True):
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        raise ValueError("device_id requerido")
+    col_devices.update_one(
+        {"device_id": device_id},
+        {
+            "$set": {
+                "display_name": str(display_name or device_id).strip() or device_id,
+                "enabled": bool(enabled),
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
+        upsert=True,
+    )
+
+
+def touch_device_heartbeat(device_id, payload=None):
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        raise ValueError("device_id requerido")
+    payload = payload or {}
+    get_or_create_device(device_id)
+    col_devices.update_one(
+        {"device_id": device_id},
+        {
+            "$set": {
+                "last_seen_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "heartbeat": payload,
+            }
+        },
+    )
+    return col_devices.find_one({"device_id": device_id})

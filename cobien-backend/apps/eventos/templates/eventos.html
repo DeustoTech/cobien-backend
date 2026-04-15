@@ -36,6 +36,11 @@
           <a href="{% url 'pizarra_home' %}">
             {% blocktrans %}Pizarra{% endblocktrans %}
           </a>
+          {% if user.is_staff or user.is_superuser %}
+            <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
+            <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
+            <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
+          {% endif %}
           {% if user.is_authenticated %}
             <span class="saludo">Hola, {{ user.username }} —</span>
             <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
