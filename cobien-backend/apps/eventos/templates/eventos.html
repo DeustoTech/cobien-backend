@@ -19,47 +19,44 @@
 </head>
 <body>
     <div class="wrapper">
-      <!-- HEADER -->
-      <header>
-        <div class="coBienLogo">
-          <a id="logo" href="{% url 'home' %}"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image" style="height: 35px;"></a>
-        </div> 
-        <!-- Botón hamburguesa, oculto por defecto en escritorio -->
-        <button class="menu-toggle" aria-label="Abrir menú">☰</button>     
-        <nav class="main-nav">                
-          <a href="{% url 'lista_eventos' %}">
-            {% blocktrans %}Eventos{% endblocktrans %}
-          </a>
-          <a href="{% url 'videocall' %}">
-            {% blocktrans %}Videollamadas{% endblocktrans %}
-          </a>
-          <a href="{% url 'pizarra_home' %}">
-            {% blocktrans %}Pizarra{% endblocktrans %}
-          </a>
-          {% if user.is_staff or user.is_superuser %}
-            <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
-            <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
-            <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
-          {% endif %}
-          {% if user.is_authenticated %}
-            <span class="saludo">Hola, {{ user.username }} —</span>
-            <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
-          {% else %}
-            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
-            <a href="{% url 'signup' %}"  class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
-          {% endif %}             
-        </nav>
-               <!-- Botón de Cambio de Idioma -->
-          <div class="language-switcher">
-            <form action="{% url 'set_language' %}" method="post">
-              {% csrf_token %}
-              <select name="language" onchange="this.form.submit();">
-                  <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
-                  <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
-              </select>
-          </form>
-        </div>
-      </header>
+            <!-- HEADER -->
+            <header>
+                <div class="container header-inner">
+                    <div class="coBienLogo">
+                        <a id="logo" href="{% url 'home' %}"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image"></a>
+                    </div>
+                    <button class="menu-toggle" aria-label="Abrir menú">☰</button>
+                    <nav class="main-nav" role="navigation" aria-label="Main navigation">
+                        <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
+                        <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
+                        <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
+                        {% if user.is_staff or user.is_superuser %}
+                            <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
+                            <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
+                            <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
+                        {% endif %}
+                        <span class="spacer"></span>
+                        {% if user.is_authenticated %}
+                            <div class="user-info">
+                                <span class="saludo">Hola, {{ user.username }} —</span>
+                                <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
+                            </div>
+                        {% else %}
+                            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
+                            <a href="{% url 'signup' %}"  class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
+                        {% endif %}
+                    </nav>
+                    <div class="language-switcher">
+                        <form action="{% url 'set_language' %}" method="post">
+                            {% csrf_token %}
+                            <select name="language" onchange="this.form.submit();">
+                                    <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
+                                    <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+            </header>
         {% if messages %}
             <ul class="alert-list">
                 {% for m in messages %}

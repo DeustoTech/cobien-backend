@@ -1,402 +1,91 @@
-/* CSS VARIABLES */
-:root {
-    --primary: #2596be;
-    --light: #F3F3F3;
-    --dark: #686868;
-    --accent:  #ffbc44;   
-}
-  
-  html, body {
-    width: 100vw;
-    min-height: 100vh;
-    margin: 0;
-    height: 100%;
-    padding: 0;
-    background-color: var(--primary);
-    color: var(--light);
-    font-family: Arial, Helvetica, sans-serif;
-    box-sizing: border-box;
-    line-height: 1.4;
-    display: flex;
-    flex-direction: column;
+:root{
+  --primary: #2596be; /* azul original */
+  --primary-700: #1f7ea3;
+  --accent: #ffbc44; /* amarillo original */
+  --bg: #f6f8fa;
+  --muted: #6b7280;
+  --card: #ffffff;
+  --glass: rgba(255,255,255,0.06);
+  --shadow: 0 6px 18px rgba(15,23,42,0.08);
+  --radius: 10px;
+  --max-width: 1100px;
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  background-color: var(--primary);
-  color: var(--light);
-}
-  
-  img {
-    max-width: 100%;
-  }
-  
-  h1 {
-    padding-top: 60px;  
-  }
-  
-  .wrapper {
-    flex: 1;
-    background-color: #2596be;
-    display: flex;
-    flex-direction: column;
-}
-  
-  /* HEADER */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:var(--muted);background:linear-gradient(180deg, var(--primary) 0%, #1f8fbf33 100%)}
 
-  header {
-    padding: 10px;
-    position: fixed;
-    top: 0;
-    display: flex;
-    align-items: center;
-    background-color: var(--primary);
-    width: 100%;
-    z-index: 1000;
-    height: 70px; 
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
+.wrapper{min-height:100vh;display:flex;flex-direction:column}
 
+/* Container utility */
+.container{width:100%;max-width:var(--max-width);margin:0 auto;padding:20px}
 
-  
-  /* LOGO */
-  .coBienLogo {
-    display: flex;
-    align-items: center; 
-    margin-left:3%;
-  }
+/* HEADER */
+header{position:sticky;top:0;z-index:1000;background:linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));backdrop-filter: blur(4px);border-bottom:1px solid rgba(255,255,255,0.04)}
+.header-inner{display:flex;align-items:center;gap:20px;padding:12px 0}
+.coBienLogo{display:flex;align-items:center}
+.coBienLogo img{height:44px}
 
-  .coBienLogo img {
-    height: 50%; 
-  }
-  
-  #logo {
-    color: #E50914;  
-    margin: 0; 
-    padding: 0; 
-  }
-  
-  
-  .main-nav {
-    gap: 30%; 
-    margin-left: 2%;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    column-gap: 20px;
-    row-gap: 10px;
-  }
+/* Nav */
+.main-nav{display:flex;align-items:center;gap:18px;margin-left:24px;flex-wrap:wrap}
+.main-nav a{color:var(--card);text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600;transition:all .18s ease}
+.main-nav a:hover{background:rgba(255,255,255,0.06);color:var(--accent)}
 
-  .saludo {
-    margin-left: auto;
-    white-space: nowrap;
-  }
+.spacer{flex:1}
 
-  .user-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .main-nav a {
-    color: var(--light);
-    text-decoration: none;
-    font-size: 16px;
-    transition: color 0.3s ease;
-  }
-  
-  .main-nav a:hover {
-    color: var(--dark);
-  }
-  
-  .sub-nav {
-    grid-area: sb;
-    padding: 0 40px 0 40px;
-  }
-  
-  .sub-nav a {
-    color: var(--light);
-    text-decoration: none;
-    margin: 5px;
-  }
-  
-  .sub-nav a:hover {
-    color: var(--dark);
-  }
-  
-  
-  /* MAIN CONTIANER */
-  #home{
-      background-color: #2596be;
-  }
-  
-  
-  .main-container {
-    background-color: var(--primary);
-    flex: 1;
-    padding: 20px;
-    margin-top: 70px; 
-    text-align: center;
-  }
+.auth-link{background:var(--card);color:var(--primary-700);padding:6px 10px;border-radius:8px;font-weight:700}
 
-/* Estilo del calendario */
-  #calendar {
-    margin: 20px auto;
-    max-width: 900px;
-    background-color: var(--light);
-    color: var(--dark);
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 100px; 
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  .box {
-    display: grid;
-    grid-gap: 20px;
-    grid-template-columns: repeat(6, minmax(100px, 1fr));
-  }
-  
-  .box a {
-    transition: transform .3s;  
-  }
-  
-  .box a:hover {
-    transition: transform .3s;
-    -ms-transform: scale(1.4);
-    -webkit-transform: scale(1.4);  
-    transform: scale(1.4);
-  }
-  
-  .box img {
-    border-radius: 2px;
-  }
+.menu-toggle{display:none;background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--card);padding:8px 10px;border-radius:8px;cursor:pointer}
 
-  .fc-toolbar {
-    display: flex;
-    justify-content: space-between; 
-    align-items: center; 
-  }
+/* LANGUAGE */
+.language-switcher select{background:var(--card);color:var(--primary-700);border:none;padding:6px 8px;border-radius:6px}
 
-  .fc-toolbar .fc-button-group, 
-  .fc-toolbar-title, 
-  .fc-toolbar-chunk {
-      margin: 0 20px; 
-  }
+/* MAIN */
+.main-container{flex:1;padding:36px 20px;margin-top:8px}
 
-  .calendar-wrapper{
-    position: relative;       
-    padding-top: 50px;        
-  }
-  @media (min-width: 768px) {
-    .calendar-wrapper {
-      padding-left: 40px;   
-      padding-right: 40px;
-    }
-  }
+.hero{background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);display:flex;align-items:center;gap:20px}
+.hero h1{margin:0;color:var(--card);font-size:1.6rem}
+.hero p{margin:0;color:var(--bg);opacity:.95}
 
-/* hace que los tres “trozos” se repartan y salten de línea con gracia */
-  .fc-header-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .5rem;
-    align-items: center;
-    justify-content: space-between;
-  }
+/* Cards grid */
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:18px}
+.card{background:var(--card);border-radius:12px;padding:18px;box-shadow:var(--shadow);color:#0f172a}
+.card h3{margin:0 0 8px 0}
+.card p{margin:0;color:var(--muted)}
 
-/* En pantallas pequeñas, cada chunk ocupa el 100 % y se centra */
-  @media (max-width: 600px) {
-    .fc-header-toolbar .fc-toolbar-chunk {
-      flex: 1 1 100%;
-      display: flex;
-      justify-content: center;
-    }
-  }
+/* Calendar adjustments */
+#calendar{max-width:100%;background:var(--card);color:var(--muted);border-radius:12px;padding:18px;margin:24px auto;box-shadow:var(--shadow)}
 
-  
-  /* LINKS */
-  .link {
-    padding: 50px;
-  }
-  
-  .sub-links ul {
-    list-style: none;
-    padding: 0;
-    display: grid;
-    grid-gap: 20px;
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .sub-links a {
-    color: var(--dark);
-    text-decoration: none;
-  }
-  
-  .sub-links a:hover {
-    color: var(--dark);
-    text-decoration: underline;
-  }
-  
-  .logos a{
-    padding: 10px;
-  }
-  
-  .logo {
-    color: var(--dark);
-  }
-  
-  
-  /* FOOTER */
-  footer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color:  #ffbc44;
-    color: white;
-    padding: 20px;
-    margin-top: auto;
-    text-align: center;
-    }
+.box{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.box a{display:block;transition:transform .18s ease}
+.box a:hover{transform:translateY(-6px)}
 
-    .footer-icons {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        margin-bottom: 10px;
-    }
+/* Video / media */
+.video-wrapper{max-width:1200px;margin:0 auto}
+.video-box{background:#000;border-radius:8px;overflow:hidden}
 
-    footer p {
-        margin: 0;
-    }
-  
- 
+/* Footer */
+footer{background:var(--accent);color:#07203a;padding:18px 0;margin-top:36px}
+.footer-inner{display:flex;flex-direction:column;align-items:center;gap:8px}
+.footer-icons img{height:28px;filter:brightness(0)}
 
-  /* BOTÓN DE CAMBIO DE IDIOMA */
-  .language-switcher {
-    display: flex;
-    align-items: center; 
-    margin-right: 3%; 
-    margin-left: auto;
-  }
+/* Alerts/messages */
+.alert-list{list-style:none;padding:0;margin:16px 0}
+.alert{background:rgba(255,255,255,0.06);padding:10px;border-radius:8px;color:var(--card);margin-bottom:8px}
 
-  .language-switcher select {
-    background-color: var(--light);
-    color: var(--primary);
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
+/* Responsive */
+@media (max-width:900px){.main-nav{display:none}.menu-toggle{display:inline-flex}.language-switcher{margin-left:8px}}
+@media (max-width:560px){.hero{flex-direction:column;align-items:flex-start}.coBienLogo img{height:38px}}
 
-  .language-switcher select:hover {
-    background-color: var(--primary);
-    color: var(--light);
-  }
+/* Accessibility focus */
+a:focus{outline:3px solid rgba(255,188,68,0.25);outline-offset:2px}
 
-/* Estilo para el modal */
+/* Small helpers kept from previous definitions for compatibility */
+.saludo{white-space:nowrap}
+.user-info{display:flex;align-items:center;gap:10px}
 
-.modal-header {
-  background-color: var(--primary); 
-  color: var(--light); 
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-}
+/* Mobile menu visible state */
+.main-nav.active{display:flex;flex-direction:column;gap:10px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:8px;margin-top:8px}
 
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.modal-body {
-  font-size: 1rem;
-  line-height: 1.6;
-  padding: 20px;
-}
-
-.modal-body p {
-  margin-bottom: 10px;
-}
-
-.modal-footer {
-  background-color: var(--light);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-}
-
-/* VIDEOCALL HTML*/
-.video-wrapper{
-  padding: 0 16px;           
-  max-width: 1200px;         
-  margin: 0 auto;           
-}
-
-#video-container {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(
-        auto-fit,
-        minmax(clamp(340px,45vw,500px), 1fr)
-  );
-}
-
-.video-box {
-  position: relative;
-  aspect-ratio: 16/9;        
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
-  display: flex;               
-  align-items: center;
-  justify-content: center;
-}
-
-.video-box video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-#leave-room {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  font-size: 18px;
-  background-color: red;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  width: 150px;
-  text-align: center;
-}
-
-#leave-room:hover {
-  background-color: darkred;
-}
-
-/* Estilos para el chat */
-#chat-container {
-  width: 50%;
-  margin: auto;
-  background-color: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-  margin-top: 100px; 
-  position: relative;
-  z-index: 10; 
-}
-
-#chat-messages {
-  height: 300px;
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  padding: 10px;
   background: #f9f9f9;
 }
 

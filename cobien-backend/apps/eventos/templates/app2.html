@@ -11,27 +11,29 @@
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   </head>
 <body>
-    <header>
-        <div class="coBienLogo">
-            <a id="logo" href="http://127.0.0.1:8000"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image" style="height: 35px;"></a>
-        </div>  
-    </header>
+        <header>
+            <div class="container header-inner">
+                <div class="coBienLogo">
+                        <a id="logo" href="http://127.0.0.1:8000"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image"></a>
+                </div>
+            </div>
+        </header>
 
     <div class="wrapper">
         <!-- FOOTER -->
         <footer>
-              <!-- LINKS -->
+          <div class="container footer-inner">
               <div class="footer-icons">
                   <a href="https://www.instagram.com/" target="_blank">
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram">
                   </a>
                   <a href="https://www.facebook.com/" target="_blank">
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook">
                   </a>
               </div>
-              <!-- END OF LINKS -->
               <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
-            </footer>  
+          </div>
+        </footer>  
     </div>
 </body>
 </html>
