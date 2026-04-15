@@ -135,17 +135,20 @@
                   <p class="muted mt-2">{% blocktrans %}Selecciona un destinatario arriba (o escribe uno en “Para”) para ver su historial.{% endblocktrans %}</p>
                 {% else %}
                   {% if posts and posts|length > 0 %}
-                    <div class="history-list mt-3">
+                    <div class="history-list mt-3" id="historyList">
                       {% for post in posts %}
-                        <article class="post-card {% if post.image_url %}has-media{% endif %}">
+                        <article class="post-card {% if post.image_url %}has-media{% endif %}" data-index="{{ forloop.counter0 }}">
                           <div class="post-meta">
-                            <span>{% blocktrans %}Para:{% endblocktrans %} <strong>{{ post.recipient_key }}</strong></span>
-                            &nbsp;•&nbsp;
-                            <time datetime="{{ post.created_at|date:'c' }}">{{ post.created_at|date:"Y-m-d H:i" }}</time>
-                            <form method="post" action="{% url 'pizarra_delete' post.id %}" style="display:inline; margin-left:12px;">
-                              {% csrf_token %}
-                              <button class="btn-outline" type="submit">{% blocktrans %}Eliminar{% endblocktrans %}</button>
-                            </form>
+                            <div>
+                              <span>{% blocktrans %}Para:{% endblocktrans %} <strong>{{ post.recipient_key }}</strong></span>
+                              <div class="muted" style="display:inline-block;margin-left:8px">• <time datetime="{{ post.created_at|date:'c' }}">{{ post.created_at|date:"Y-m-d H:i" }}</time></div>
+                            </div>
+                            <div>
+                              <form method="post" action="{% url 'pizarra_delete' post.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button class="btn-outline" type="submit">{% blocktrans %}Eliminar{% endblocktrans %}</button>
+                              </form>
+                            </div>
                           </div>
 
                           <div class="post-content">
@@ -162,6 +165,11 @@
                         </article>
                       {% endfor %}
                     </div>
+                    {% if posts|length > 8 %}
+                      <div style="text-align:center;margin-top:14px;">
+                        <button id="loadMoreHistory" class="btn btn-primary">{% blocktrans %}Load more{% endblocktrans %}</button>
+                      </div>
+                    {% endif %}
                   {% else %}
                     <p class="muted mt-2">{% blocktrans %}No hay mensajes para{% endblocktrans %} <strong>{{ selected_contact }}</strong>{% blocktrans %}. ¡Envía el primero!{% endblocktrans %}</p>
                   {% endif %}
@@ -264,6 +272,31 @@
           if (!f) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
           preview.src = URL.createObjectURL(f);
           preview.style.display = 'block';
+        });
+      })();
+
+      // Load more for history (client-side progressive reveal)
+      (function(){
+        const initial = 8; // items to show initially
+        const step = 6;    // items to reveal on each click
+        const list = document.getElementById('historyList');
+        const btn = document.getElementById('loadMoreHistory');
+        if (!list || !btn) return;
+        const items = Array.from(list.querySelectorAll('.post-card'));
+        // Hide items beyond initial
+        items.forEach((it) => {
+          const idx = Number(it.getAttribute('data-index') || 0);
+          if (idx >= initial) it.setAttribute('data-hidden','true');
+        });
+
+        btn.addEventListener('click', function(){
+          const hidden = items.filter(i=>i.getAttribute('data-hidden') === 'true');
+          if (!hidden.length) { btn.style.display='none'; return; }
+          const toReveal = hidden.slice(0, step);
+          toReveal.forEach(it => it.removeAttribute('data-hidden'));
+          // If none left, hide the button
+          const stillHidden = items.some(i=>i.getAttribute('data-hidden') === 'true');
+          if (!stillHidden) btn.style.display = 'none';
         });
       })();
 

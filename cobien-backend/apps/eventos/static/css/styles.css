@@ -932,48 +932,37 @@ h1 + .video-wrapper{
   color: var(--light); font-size:.9rem; line-height:1;
 }
 
-/* 2) Histórico en columna con tarjetas elegantes y ancho moderado */
-.history-list{ display:flex; flex-direction:column; gap:.85rem; }
+/* 2) Histórico: grid de tarjetas responsivo (más compacto y organizado) */
+.history-list{ display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:16px; align-items:start; }
 
 .post-card{
-  background: rgba(0,0,0,.10);
-  border: 1px solid rgba(255,255,255,.18);
+  background: var(--card);
+  border: 1px solid rgba(15,23,42,0.04);
   border-radius: 12px;
-  padding: .85rem 1rem;
-  box-shadow: 0 6px 16px rgba(0,0,0,.08);
+  padding: 12px;
+  box-shadow: var(--shadow);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 
-.post-meta{ font-size:.9rem; opacity:.85; margin-bottom:.25rem; }
+.post-meta{ font-size:.9rem; color:var(--muted); display:flex; align-items:center; justify-content:space-between; gap:12px }
 
-/* 3) Texto + Imagen: bloque centrado con imagen pegada a la derecha del texto */
-.post-card .post-content{
-  max-width: 720px;     /* controla dónde cae el centro visual del conjunto */
-  margin: 0 auto;       /* centra texto+imagen dentro de la tarjeta */
-}
-.post-card.has-media .post-content{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(220px, 26vw, 260px); /* texto | imagen */
-  column-gap: .6rem;    /* separación pequeña: “pegados” */
-  align-items: start;
-}
+/* Contenido: texto + miniatura */
+.post-content{ display:flex; gap:12px; align-items:flex-start }
+.post-text{ flex:1; color:#0f172a }
+.post-img{ width:120px; height:80px; object-fit:cover; border-radius:8px; flex-shrink:0 }
 
-/* Imagen compacta y redondeada */
-.post-card.has-media .post-img{
-  width: clamp(220px, 26vw, 260px);
-  max-height: 200px;
-  object-fit: cover;
-  border-radius: 10px;
-  display: block;
-}
+/* Estado para ocultar tarjetas controladas por JS (load more) */
+.post-card[data-hidden="true"]{ display:none !important }
 
-/* Por si quedó alguna regla vieja de flex activa */
-.post-card.has-media .post-text{ flex: initial; }
+/* Tarjeta con imagen: usa grid para layout de texto/imagen en pantallas anchas */
+.post-card.has-media .post-content{ display:grid; grid-template-columns: 1fr 220px; column-gap:12px; align-items:start }
 
-/* En móvil apila vertical */
-@media (max-width: 720px){
-  .post-card .post-content{ max-width: 100%; }
-  .post-card.has-media .post-content{ grid-template-columns: 1fr; }
-  .post-card.has-media .post-img{ width: 100%; max-height: 320px; }
+@media (max-width:720px){
+  .history-list{ grid-template-columns: 1fr }
+  .post-card.has-media .post-content{ grid-template-columns: 1fr }
+  .post-img{ width:100%; height:auto }
 }
 
 /* 4) Botones en color de marca (ámbar) y centrado del CTA final */
