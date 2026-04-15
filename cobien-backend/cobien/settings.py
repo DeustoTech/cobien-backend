@@ -40,15 +40,13 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-yt@44*)wj6ef$95f3e5
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# If u want to work on local comment the next line and comment the one afters and descoment de second DEBUG and the allowed hosts for local development
 ENV_DEBUG = env_bool('DEBUG', False)
 ENV_ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '.onrender.com')
 
-# Current effective behavior is preserved intentionally until deployment config is revisited.
-DEBUG = True
+DEBUG = ENV_DEBUG
 
-# allowed host in local development
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# Keep local hosts available in development, while allowing deployment hosts from env.
+ALLOWED_HOSTS = list(dict.fromkeys(ENV_ALLOWED_HOSTS + ['localhost', '127.0.0.1']))
 
 # Application definition
 
