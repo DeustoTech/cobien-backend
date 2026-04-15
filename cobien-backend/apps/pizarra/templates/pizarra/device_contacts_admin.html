@@ -63,16 +63,27 @@
               <div class="section-sep"></div>
               <p><strong>{% trans "Dispositivo activo:" %}</strong> {{ selected_device }}</p>
               <p class="muted">
-                {% trans "Perfil vinculado:" %}
-                {% if profile_source %}{{ profile_source }}{% else %}{% trans "sin perfil existente, se creará en users" %}{% endif %}
+                {% trans "Nombre visible del dispositivo:" %}
+                {% if profile_source %}{{ profile_source }}{% else %}{{ selected_device }}{% endif %}
               </p>
 
               <form method="post" class="mt-2">
                 {% csrf_token %}
                 <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
+                <input type="text" id="display_name" name="display_name" value="{{ profile_source|default:selected_device }}" placeholder="María">
+
                 <label class="form-label" for="contacts">{% trans "Contactos" %}</label>
                 <textarea id="contacts" name="contacts" rows="14" placeholder="Maria=maria&#10;Paula=paula">{{ contacts_text }}</textarea>
                 <small class="muted">{% trans "Una línea por contacto con formato NombreVisible=username. Si no incluyes '=', se usará el mismo valor para mostrar y llamar." %}</small>
+
+                <label class="form-label" for="assigned_users" style="margin-top:16px;">{% trans "Usuarios con acceso" %}</label>
+                <textarea id="assigned_users" name="assigned_users" rows="8" placeholder="maria&#10;paula">{{ assigned_users_text }}</textarea>
+                <small class="muted">{% trans "Un username por línea. Estos usuarios podrán usar este dispositivo desde la web." %}</small>
+
+                <label class="form-label" for="default_username" style="margin-top:16px;">{% trans "Usuario por defecto" %}</label>
+                <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
+                <small class="muted">{% trans "Si este dispositivo debe ser el principal para uno de los usuarios asignados, indícalo aquí." %}</small>
 
                 <div class="newpost-cta" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
                   <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>

@@ -25,6 +25,7 @@ from django.urls import reverse
 import paho.mqtt.publish as mqtt_publish
 from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
+from apps.pizarra.device_registry import get_accessible_device_ids, get_default_device_id
 
 
 
@@ -57,6 +58,24 @@ def color_for_device(name: str) -> str:
     for ch in name:
         h = (h * 31 + ord(ch)) & 0xFFFFFFFF
     return PALETTE[h % len(PALETTE)]
+
+
+def _user_accessible_devices(request):
+    if not getattr(request.user, "is_authenticated", False):
+        return []
+    return get_accessible_device_ids(
+        username=getattr(request.user, "username", ""),
+        email=getattr(request.user, "email", ""),
+    )
+
+
+def _user_default_device(request):
+    if not getattr(request.user, "is_authenticated", False):
+        return ""
+    return get_default_device_id(
+        username=getattr(request.user, "username", ""),
+        email=getattr(request.user, "email", ""),
+    )
 
 class EventoList(APIView):
     permission_classes = [IsAuthenticated]
@@ -134,15 +153,13 @@ def lista_eventos(request):
     ]}
 
     linked_device = ""
+    accessible_devices = []
     if request.user.is_authenticated:
-        user_doc = db["auth_user"].find_one(
-            {"username": request.user.username},
-            {"target_device": 1, "default_room": 1}
-        )
-        linked_device = (user_doc.get("target_device") or user_doc.get("default_room") or "") if user_doc else ""
+        accessible_devices = _user_accessible_devices(request)
+        linked_device = _user_default_device(request)
 
-        if linked_device:
-            visibilidad["$or"].append({"audience": "device", "target_device": linked_device})
+        if accessible_devices:
+            visibilidad["$or"].append({"audience": "device", "target_device": {"$in": accessible_devices}})
         visibilidad["$or"].append({"created_by": request.user.username})
 
     condiciones.append(visibilidad)
@@ -150,7 +167,10 @@ def lista_eventos(request):
     # 3) Opciones visibles para el picker (igual base que antes)
     filtro_visible = {"$and": (condiciones[:])} if condiciones else {}
     filtro_devices = {"$and": (condiciones[:] + [{"audience": "device"}])} if condiciones else {"audience": "device"}
-    my_devices = sorted(d for d in collection.distinct("target_device", filtro_devices) if d)
+    my_devices = sorted(
+        set(d for d in collection.distinct("target_device", filtro_devices) if d).union(accessible_devices),
+        key=str.casefold,
+    )
     my_device_colors = [{"name": d, "color": color_for_device(d)} for d in my_devices]
 
     # 4) NUEVO: parámetros modernos
@@ -263,14 +283,13 @@ def guardar_evento(request):
 
             # Si es para mueble y no se pasó, usa el vinculado del usuario
             if audience == 'device' and not target_device:
-                user_doc = db["auth_user"].find_one(
-                    {"username": request.user.username},
-                    {"target_device": 1, "default_room": 1}
-                )
-                if user_doc:
-                    target_device = user_doc.get("target_device") or user_doc.get("default_room") or ""
+                target_device = _user_default_device(request)
                 if not target_device:
                     return JsonResponse({'success': False, 'error': 'Falta el usuario de mueble destino.'})
+            if audience == 'device':
+                allowed_devices = _user_accessible_devices(request)
+                if allowed_devices and target_device not in allowed_devices:
+                    return JsonResponse({'success': False, 'error': 'No tienes acceso al mueble destino.'}, status=403)
 
             doc = {
                 "title"      : title,
@@ -472,16 +491,6 @@ def generate_video_token(request, identity, room_name):
         video_grant = VideoGrant(room=room_name)
         token.add_grant(video_grant)
 
-        user_doc = db["auth_user"].find_one(
-            {"username": identity},
-            {"default_room": 1}
-        )
-        if not user_doc or not user_doc.get("default_room"):
-            db["auth_user"].update_one(
-                {"username": identity},
-                {"$set": {"default_room": room_name}}
-            )
-
         print(f"Token generado JWT: {token.to_jwt()}")  
         send_mqtt_notification(room_name, identity) 
 
@@ -532,15 +541,15 @@ def login_required_message(view_func):
 
 @login_required_message
 def videocall(request):
-    user_doc = db["auth_user"].find_one(
-        {"username": request.user.username},
-        {"default_room": 1}
-    )
-    prefill = (request.GET.get("to") or user_doc.get("default_room", "")).strip()
+    accessible_devices = _user_accessible_devices(request)
+    prefill = (request.GET.get("to") or _user_default_device(request)).strip()
+    if prefill and accessible_devices and prefill not in accessible_devices:
+        prefill = _user_default_device(request)
 
     return render(request, "videocall.html", {
         "identity": request.user.username,
         "default_room": prefill,
+        "available_rooms": accessible_devices,
     })
 
 def send_mqtt_notification(room_name: str, caller: str) -> None:

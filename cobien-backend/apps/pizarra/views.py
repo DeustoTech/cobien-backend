@@ -15,6 +15,19 @@ from django.contrib import messages
 from django.urls import reverse
 from django.http import FileResponse, Http404, JsonResponse
 from .forms import PizarraPostForm
+from .device_registry import (
+    col_devices,
+    col_user_device_access,
+    get_accessible_device_ids,
+    get_default_device_id,
+    get_device_contacts,
+    get_or_create_device,
+    list_device_assignments,
+    list_known_devices,
+    normalize_contacts_list,
+    replace_device_assignments,
+    update_device_contacts,
+)
 import paho.mqtt.publish as mqtt_publish
 
 # --- Mongo / GridFS ---
@@ -138,43 +151,23 @@ def _find_profile_by_device(device_id: str):
     device_id = (device_id or "").strip()
     if not device_id:
         return None
-
-    query = {
-        "$or": [
-            {"target_device": device_id},
-            {"default_room": device_id},
-            {"linked_device": device_id},
-        ]
-    }
     for colname in ("auth_user", "users"):
-        doc = db[colname].find_one(query)
+        doc = db[colname].find_one(
+            {
+                "$or": [
+                    {"target_device": device_id},
+                    {"default_room": device_id},
+                    {"linked_device": device_id},
+                ]
+            }
+        )
         if doc:
             return doc
     return None
 
 
 def _list_known_device_ids():
-    device_ids = set()
-
-    try:
-        for doc in col_icso_snapshots.find({}, {"device_id": 1}):
-            value = str(doc.get("device_id") or "").strip()
-            if value:
-                device_ids.add(value)
-    except Exception:
-        pass
-
-    for colname in ("auth_user", "users"):
-        try:
-            for doc in db[colname].find({}, {"target_device": 1, "default_room": 1, "linked_device": 1, "username": 1}):
-                for field in ("target_device", "default_room", "linked_device"):
-                    value = str(doc.get(field) or "").strip()
-                    if value:
-                        device_ids.add(value)
-        except Exception:
-            pass
-
-    return sorted(device_ids, key=str.casefold)
+    return [str(device.get("device_id") or "").strip() for device in list_known_devices() if str(device.get("device_id") or "").strip()]
 
 
 def _parse_contacts_text(raw_text):
@@ -204,7 +197,7 @@ def _parse_contacts_text(raw_text):
 
 def _serialize_contacts_text(raw_contacts):
     lines = []
-    for item in _normalize_contacts_list(raw_contacts):
+    for item in normalize_contacts_list(raw_contacts):
         lines.append(f"{item['display_name']}={item['user_name']}")
     return "\n".join(lines)
 
@@ -227,64 +220,22 @@ def _publish_contacts_sync(target):
     return mqtt_payload
 
 
-def _normalize_contacts_list(raw_contacts):
-    contacts = []
-    if not isinstance(raw_contacts, (list, tuple)):
-        return contacts
-
-    for item in raw_contacts:
-        if isinstance(item, dict):
-            display_name = (
-                str(item.get("display_name") or item.get("name") or item.get("display") or "").strip()
-            )
-            user_name = (
-                str(item.get("user_name") or item.get("username") or item.get("user") or "").strip()
-            )
-            image_url = str(item.get("image_url") or item.get("image") or "").strip()
-            if display_name and user_name:
-                contacts.append(
-                    {
-                        "display_name": display_name,
-                        "user_name": user_name,
-                        "image_url": image_url,
-                    }
-                )
-            continue
-
-        # Backward-compatible format: plain username string.
-        if item is not None:
-            value = str(item).strip()
-            if value:
-                contacts.append(
-                    {
-                        "display_name": value,
-                        "user_name": value,
-                        "image_url": "",
-                    }
-                )
-
-    return contacts
-
 @login_required
 def pizarra_home(request):
-    # Perfil -> linked_device + contactos
-    profile = None
-    try:
-        profile = _fetch_user_profile(request)
-    except Exception:
-        profile = None
-
-    linked_device = None
     contacts_server = set()
-    if profile:
-        linked_device = (
-            profile.get("target_device")
-            or profile.get("default_room")
-            or profile.get("linked_device")
-        )
-        raw_contacts = profile.get("contacts", [])
-        if isinstance(raw_contacts, (list, tuple)):
-            contacts_server.update([str(x).strip() for x in raw_contacts if str(x).strip()])
+    accessible_devices = get_accessible_device_ids(
+        username=getattr(request.user, "username", ""),
+        email=getattr(request.user, "email", ""),
+    )
+    linked_device = get_default_device_id(
+        username=getattr(request.user, "username", ""),
+        email=getattr(request.user, "email", ""),
+    )
+    for device_id in accessible_devices:
+        contacts_server.add(device_id)
+        for item in get_device_contacts(device_id):
+            contacts_server.add(item["display_name"])
+            contacts_server.add(item["user_name"])
 
     # Destinatarios ya usados por este usuario
     prev = col_messages.aggregate([
@@ -349,6 +300,7 @@ def pizarra_home(request):
 
 
 @login_required
+@user_passes_test(_staff_required)
 def icso_dashboard(request):
     selected_device = (request.GET.get("device_id") or "").strip()
     device_docs = list(
@@ -401,13 +353,16 @@ def device_contacts_admin(request):
     if not selected_device and device_ids:
         selected_device = device_ids[0]
 
-    profile = _find_profile_by_device(selected_device) if selected_device else None
-    contacts_text = _serialize_contacts_text(profile.get("contacts", [])) if profile else ""
-    profile_source = ""
-    if profile:
-        profile_source = (
-            str(profile.get("username") or profile.get("email") or profile.get("_id") or "").strip()
-        )
+    device_doc = get_or_create_device(selected_device) if selected_device else None
+    contacts_text = _serialize_contacts_text((device_doc or {}).get("contacts", []))
+    profile_source = str((device_doc or {}).get("display_name") or "").strip()
+    assignments = list_device_assignments(selected_device) if selected_device else []
+    assigned_users_text = "\n".join(sorted([str(item.get("username") or "").strip() for item in assignments if str(item.get("username") or "").strip()], key=str.casefold))
+    default_username = ""
+    for item in assignments:
+        if item.get("is_default"):
+            default_username = str(item.get("username") or "").strip()
+            break
 
     if request.method == "POST":
         action = (request.POST.get("action") or "save").strip()
@@ -418,15 +373,14 @@ def device_contacts_admin(request):
         try:
             if action in {"save", "save_and_sync"}:
                 contacts = _parse_contacts_text(request.POST.get("contacts", ""))
-                if profile:
-                    target_col = "auth_user" if db["auth_user"].find_one({"_id": profile["_id"]}) else "users"
-                    db[target_col].update_one({"_id": profile["_id"]}, {"$set": {"contacts": contacts}})
-                else:
-                    db["users"].update_one(
-                        {"linked_device": selected_device},
-                        {"$set": {"linked_device": selected_device, "contacts": contacts}},
-                        upsert=True,
-                    )
+                display_name = (request.POST.get("display_name") or selected_device).strip()
+                update_device_contacts(selected_device, contacts, display_name=display_name)
+                assigned_users = [line.strip() for line in str(request.POST.get("assigned_users", "")).splitlines() if line.strip()]
+                replace_device_assignments(
+                    selected_device,
+                    assigned_users,
+                    default_username=(request.POST.get("default_username") or "").strip(),
+                )
                 messages.success(request, f"Contactos guardados para {selected_device}.")
 
             if action in {"sync", "save_and_sync"}:
@@ -450,6 +404,8 @@ def device_contacts_admin(request):
             "selected_device": selected_device,
             "contacts_text": contacts_text,
             "profile_source": profile_source,
+            "assigned_users_text": assigned_users_text,
+            "default_username": default_username,
         },
     )
 
@@ -734,11 +690,10 @@ def api_contacts_for_device(request):
     if not device_id:
         return JsonResponse({"error": "device_id requerido"}, status=400)
 
-    profile = _find_profile_by_device(device_id)
-    if not profile:
+    contacts = get_device_contacts(device_id)
+    if not contacts:
         return JsonResponse({"device_id": device_id, "contacts": []})
 
-    contacts = _normalize_contacts_list(profile.get("contacts", []))
     return JsonResponse({"device_id": device_id, "contacts": contacts})
 
 
@@ -846,7 +801,7 @@ def api_icso_telemetry(request):
         return JsonResponse({"ok": True, "device_id": device_id})
 
     if request.method == "GET":
-        if not (request.user.is_authenticated or _require_api_key(request)):
+        if not _staff_required(request.user):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
         device_id = (request.GET.get("device_id") or "").strip()
@@ -894,7 +849,7 @@ def api_icso_events(request):
         return JsonResponse({"ok": True, "inserted": len(docs), "device_id": device_id})
 
     if request.method == "GET":
-        if not (request.user.is_authenticated or _require_api_key(request)):
+        if not _staff_required(request.user):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
         device_id = (request.GET.get("device_id") or "").strip()
