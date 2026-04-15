@@ -9,6 +9,7 @@ from django.conf import settings
 from django.http import HttpResponseNotAllowed
 from pymongo import MongoClient, DESCENDING, ASCENDING
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
@@ -129,6 +130,10 @@ def _fetch_user_profile(request):
     return None
 
 
+def _staff_required(user):
+    return bool(getattr(user, "is_authenticated", False) and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)))
+
+
 def _find_profile_by_device(device_id: str):
     device_id = (device_id or "").strip()
     if not device_id:
@@ -146,6 +151,80 @@ def _find_profile_by_device(device_id: str):
         if doc:
             return doc
     return None
+
+
+def _list_known_device_ids():
+    device_ids = set()
+
+    try:
+        for doc in col_icso_snapshots.find({}, {"device_id": 1}):
+            value = str(doc.get("device_id") or "").strip()
+            if value:
+                device_ids.add(value)
+    except Exception:
+        pass
+
+    for colname in ("auth_user", "users"):
+        try:
+            for doc in db[colname].find({}, {"target_device": 1, "default_room": 1, "linked_device": 1, "username": 1}):
+                for field in ("target_device", "default_room", "linked_device"):
+                    value = str(doc.get(field) or "").strip()
+                    if value:
+                        device_ids.add(value)
+        except Exception:
+            pass
+
+    return sorted(device_ids, key=str.casefold)
+
+
+def _parse_contacts_text(raw_text):
+    contacts = []
+    for line in str(raw_text or "").splitlines():
+        value = line.strip()
+        if not value:
+            continue
+        if "=" in value:
+            display_name, user_name = value.split("=", 1)
+            display_name = display_name.strip()
+            user_name = user_name.strip()
+        else:
+            display_name = value
+            user_name = value
+        if not display_name or not user_name:
+            continue
+        contacts.append(
+            {
+                "display_name": display_name,
+                "user_name": user_name,
+                "image_url": "",
+            }
+        )
+    return contacts
+
+
+def _serialize_contacts_text(raw_contacts):
+    lines = []
+    for item in _normalize_contacts_list(raw_contacts):
+        lines.append(f"{item['display_name']}={item['user_name']}")
+    return "\n".join(lines)
+
+
+def _publish_contacts_sync(target):
+    mqtt_payload = {
+        "type": "contacts_updated",
+        "to": target,
+        "from": "cobien-admin",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    mqtt_publish.single(
+        topic=settings.MQTT_TOPIC_GENERAL,
+        payload=json.dumps(mqtt_payload),
+        hostname=settings.MQTT_BROKER_URL,
+        port=settings.MQTT_BROKER_PORT,
+        auth=_mqtt_auth(),
+        qos=1,
+    )
+    return mqtt_payload
 
 
 def _normalize_contacts_list(raw_contacts):
@@ -310,6 +389,67 @@ def icso_dashboard(request):
             "selected_device": selected_device,
             "snapshot": snapshot,
             "events": events,
+        },
+    )
+
+
+@login_required
+@user_passes_test(_staff_required)
+def device_contacts_admin(request):
+    device_ids = _list_known_device_ids()
+    selected_device = (request.GET.get("device_id") or request.POST.get("device_id") or "").strip()
+    if not selected_device and device_ids:
+        selected_device = device_ids[0]
+
+    profile = _find_profile_by_device(selected_device) if selected_device else None
+    contacts_text = _serialize_contacts_text(profile.get("contacts", [])) if profile else ""
+    profile_source = ""
+    if profile:
+        profile_source = (
+            str(profile.get("username") or profile.get("email") or profile.get("_id") or "").strip()
+        )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "save").strip()
+        if not selected_device:
+            messages.error(request, "Selecciona un dispositivo.")
+            return redirect(reverse("pizarra_device_contacts_admin"))
+
+        try:
+            if action in {"save", "save_and_sync"}:
+                contacts = _parse_contacts_text(request.POST.get("contacts", ""))
+                if profile:
+                    target_col = "auth_user" if db["auth_user"].find_one({"_id": profile["_id"]}) else "users"
+                    db[target_col].update_one({"_id": profile["_id"]}, {"$set": {"contacts": contacts}})
+                else:
+                    db["users"].update_one(
+                        {"linked_device": selected_device},
+                        {"$set": {"linked_device": selected_device, "contacts": contacts}},
+                        upsert=True,
+                    )
+                messages.success(request, f"Contactos guardados para {selected_device}.")
+
+            if action in {"sync", "save_and_sync"}:
+                _publish_contacts_sync(selected_device)
+                if action == "sync":
+                    messages.success(request, f"Sincronización enviada a {selected_device}.")
+                else:
+                    messages.success(request, f"Sincronización enviada a {selected_device}.")
+            elif action not in {"save", "save_and_sync"}:
+                messages.error(request, "Acción no soportada.")
+        except Exception as exc:
+            messages.error(request, f"No se pudo actualizar la configuración: {exc}")
+
+        return redirect(f"{reverse('pizarra_device_contacts_admin')}?device_id={selected_device}")
+
+    return render(
+        request,
+        "pizarra/device_contacts_admin.html",
+        {
+            "device_ids": device_ids,
+            "selected_device": selected_device,
+            "contacts_text": contacts_text,
+            "profile_source": profile_source,
         },
     )
 

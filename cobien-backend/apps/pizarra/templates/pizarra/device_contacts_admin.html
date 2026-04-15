@@ -1,0 +1,100 @@
+{% load i18n %}
+{% load static %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>CoBien — {% trans "Contactos de dispositivos" %}</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <div class="coBienLogo">
+          <a id="logo" href="{% url 'home' %}">
+            <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image" style="height: 35px;">
+          </a>
+        </div>
+        <button class="menu-toggle" aria-label="Abrir menú">☰</button>
+        <nav class="main-nav">
+          <a href="{% url 'lista_eventos' %}">{% trans "Eventos" %}</a>
+          <a href="{% url 'videocall' %}">{% trans "Videollamadas" %}</a>
+          <a href="{% url 'pizarra_home' %}">{% trans "Pizarra" %}</a>
+          <a href="{% url 'pizarra_icso_dashboard' %}">{% trans "ICSO" %}</a>
+          <a href="{% url 'pizarra_device_contacts_admin' %}">{% trans "Contactos Muebles" %}</a>
+          <div class="user-info">
+            <span class="saludo">{% trans "Hola," %} {{ user.username }} —</span>
+            <a href="{% url 'logout' %}" class="auth-link">{% trans "Salir" %}</a>
+          </div>
+        </nav>
+      </header>
+
+      {% if messages %}
+        <ul class="alert-list">
+          {% for m in messages %}
+            <li class="alert">{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <main class="main-container pizarra">
+        <div class="pz-wrap">
+          <section class="pz-card">
+            <h1 class="pz-h2">{% trans "Contactos por dispositivo" %}</h1>
+            <p class="muted">{% trans "Edita los contactos que recibe cada mueble y lanza la sincronización remota." %}</p>
+
+            <form method="get" class="mt-2">
+              <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
+              <input type="text" id="device_id" name="device_id" value="{{ selected_device }}" list="devices-list" placeholder="CoBien1" required>
+              <datalist id="devices-list">
+                {% for device_id in device_ids %}
+                  <option value="{{ device_id }}">
+                {% endfor %}
+              </datalist>
+              <div class="newpost-cta">
+                <button class="btn-outline" type="submit">{% trans "Cargar" %}</button>
+              </div>
+            </form>
+
+            {% if selected_device %}
+              <div class="section-sep"></div>
+              <p><strong>{% trans "Dispositivo activo:" %}</strong> {{ selected_device }}</p>
+              <p class="muted">
+                {% trans "Perfil vinculado:" %}
+                {% if profile_source %}{{ profile_source }}{% else %}{% trans "sin perfil existente, se creará en users" %}{% endif %}
+              </p>
+
+              <form method="post" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <label class="form-label" for="contacts">{% trans "Contactos" %}</label>
+                <textarea id="contacts" name="contacts" rows="14" placeholder="Maria=maria&#10;Paula=paula">{{ contacts_text }}</textarea>
+                <small class="muted">{% trans "Una línea por contacto con formato NombreVisible=username. Si no incluyes '=', se usará el mismo valor para mostrar y llamar." %}</small>
+
+                <div class="newpost-cta" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
+                  <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
+                  <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
+                  <button class="btn-outline" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+                </div>
+              </form>
+            {% endif %}
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.querySelector('.menu-toggle');
+        const nav = document.querySelector('.main-nav');
+        if (!toggleBtn || !nav) return;
+        toggleBtn.addEventListener('click', function() {
+          nav.classList.toggle('active');
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -5,6 +5,7 @@ from django.conf.urls.i18n import set_language
 urlpatterns = [
     path('', views.pizarra_home, name='pizarra_home'),
     path('icso/', views.icso_dashboard, name='pizarra_icso_dashboard'),
+    path('devices/contacts/', views.device_contacts_admin, name='pizarra_device_contacts_admin'),
     path('nuevo/', views.pizarra_create, name='pizarra_create'),
     path('delete/<str:post_id>/', views.pizarra_delete, name='pizarra_delete'),
     path('img/<str:file_id>/', views.pizarra_image, name='pizarra_image'),
