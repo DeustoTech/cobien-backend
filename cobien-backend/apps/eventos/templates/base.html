@@ -28,7 +28,6 @@
             <a class="site-nav-link{% if request.resolver_match.url_name == 'lista_eventos' %} is-active{% endif %}" href="{% url 'lista_eventos' %}">{% trans "Eventos" %}</a>
             <a class="site-nav-link{% if request.resolver_match.url_name == 'videocall' %} is-active{% endif %}" href="{% url 'videocall' %}">{% trans "Videollamadas" %}</a>
             <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_home' %} is-active{% endif %}" href="{% url 'pizarra_home' %}">{% trans "Pizarra" %}</a>
-            <a class="site-nav-link{% if request.resolver_match.url_name == 'asociacion_chat' %} is-active{% endif %}" href="{% url 'asociacion_chat' %}">{% trans "Asociación" %}</a>
             {% if user.is_staff or user.is_superuser %}
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_icso_dashboard' %} is-active{% endif %}" href="{% url 'pizarra_icso_dashboard' %}">ICSO</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
