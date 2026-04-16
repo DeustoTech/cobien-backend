@@ -332,6 +332,15 @@
     let currentROI = null;
     let roomName = null;
     let identity = null;
+    const I18N_VIDEOCALL = {
+      elderPrompt: "{% trans 'La persona mayor, acérquese a la cámara por favor.' %}",
+      summaryUploaded: "{% trans 'Resumen emocional subido correctamente.' %}",
+      summaryErrorPrefix: "{% trans 'Error subiendo resumen:' %}",
+      summaryException: "{% trans 'Excepción al finalizar detección emocional.' %}",
+      roomPrompt: "{% trans 'Ingresa el nombre de la sala:' %}",
+      missingDevices: "{% trans 'No se ha encontrado una cámara o un micrófono disponibles en este equipo. Revisa que estén conectados y que el navegador tenga permisos.' %}",
+      startupErrorPrefix: "{% trans 'Ocurrió un error al iniciar la videollamada:' %}"
+    };
 
     function captureCurrentFrame() {
       const localDiv = document.getElementById('local-video');
@@ -399,7 +408,7 @@
         };
         document.getElementById('confirmFaceNo').onclick = () => {
           modal.style.display = 'none';
-          alert("La persona mayor, acérquese a la cámara por favor.");
+          alert(I18N_VIDEOCALL.elderPrompt);
           if (emotionDetectionEnabled) {
             setTimeout(() => {
               requestSelectFace();
@@ -486,13 +495,13 @@
           return;
         }
         if (js.success) {
-          alert("Resumen emocional subido correctamente.");
+          alert(I18N_VIDEOCALL.summaryUploaded);
         } else {
-          alert("Error subiendo resumen: " + (js.error || JSON.stringify(js)));
+          alert(`${I18N_VIDEOCALL.summaryErrorPrefix} ${js.error || JSON.stringify(js)}`);
         }
       } catch (e) {
         console.error("Excepción en /api/emociones/finalizar/:", e);
-        alert("Excepción al finalizar detección emocional.");
+        alert(I18N_VIDEOCALL.summaryException);
       }
     }
   </script>
@@ -599,7 +608,7 @@
       }
 
       roomName = prompt(
-        "Ingresa el nombre de la sala:",
+        I18N_VIDEOCALL.roomPrompt,
         "{{ default_room|escapejs }}"
       );
       if (!roomName || !roomName.trim()) {
@@ -712,8 +721,8 @@
           msg.includes("Requested device not found") ||
           msg.includes("NotFoundError")
         )
-          ? "No se ha encontrado una cámara o un micrófono disponibles en este equipo. Revisa que estén conectados y que el navegador tenga permisos."
-          : "Ocurrió un error al iniciar la videollamada: " + msg;
+          ? I18N_VIDEOCALL.missingDevices
+          : `${I18N_VIDEOCALL.startupErrorPrefix} ${msg}`;
         alert(mensaje);
         window.location.href = HOME_URL;
       }

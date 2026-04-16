@@ -212,6 +212,15 @@
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
   <script>
     let calendar;
+    const I18N_EVENTS = {
+      allRegions: "{% trans 'Eventos de todas las regiones' %}",
+      regionPrefix: "{% trans 'Eventos de' %}",
+      chooseLocation: "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
+      saveErrorPrefix: "{% trans 'Error al guardar el evento:' %}",
+      imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
+      allRecipients: "{% trans 'Todos los destinatarios' %}",
+      selectedPrefix: "{% trans 'Seleccionados' %}"
+    };
 
     const PALETTE = ["#A3E635", "#F472B6", "#F59E0B", "#34D399", "#F87171", "#C084FC", "#FB7185", "#FBBF24"];
     function colorForDevice(name) {
@@ -229,8 +238,8 @@
       if (heading) {
         const loc = new URLSearchParams(location.search).get('location');
         heading.textContent = (!loc || loc === 'all')
-          ? 'Eventos de todas las regiones'
-          : `Eventos de ${decodeURIComponent(loc)}`;
+          ? I18N_EVENTS.allRegions
+          : `${I18N_EVENTS.regionPrefix} ${decodeURIComponent(loc)}`;
       }
 
       const calendarEl = document.getElementById('calendar');
@@ -302,7 +311,7 @@
         }
 
         if (!eventLocation) {
-          alert('Selecciona una ubicación o escribe una nueva.');
+          alert(I18N_EVENTS.chooseLocation);
           return;
         }
 
@@ -335,7 +344,7 @@
               const modal = bootstrap.Modal.getInstance(document.getElementById('addEventModal'));
               modal.hide();
             } else {
-              alert('Error al guardar el evento: ' + (data.error || ''));
+              alert(`${I18N_EVENTS.saveErrorPrefix} ${data.error || ''}`);
             }
           })
           .catch(err => console.error('Error en la solicitud:', err));
@@ -362,7 +371,7 @@
               document.getElementById('eventDate').value = data.date || '';
               document.getElementById('eventDescription').value = data.description || '';
             } else {
-              alert('Error al procesar la imagen: ' + data.error);
+              alert(`${I18N_EVENTS.imageErrorPrefix} ${data.error}`);
             }
           })
           .catch(error => console.error('Error en la solicitud:', error));
@@ -477,11 +486,11 @@
         if (!labelBtn) return;
         const csv = currentSelectionCSV();
         if (csv === 'all' || csv === '') {
-          labelBtn.textContent = 'Todos los destinatarios';
+          labelBtn.textContent = I18N_EVENTS.allRecipients;
           return;
         }
         const count = csv.split(',').length;
-        labelBtn.textContent = `Seleccionados (${count})`;
+        labelBtn.textContent = `${I18N_EVENTS.selectedPrefix} (${count})`;
       }
 
       function navigate(nextMode, targetsCSV) {

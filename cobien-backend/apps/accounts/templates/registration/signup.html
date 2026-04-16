@@ -24,6 +24,8 @@
 {% block extra_js %}
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+      const showLabel = "{% trans 'Mostrar' %}";
+      const hideLabel = "{% trans 'Ocultar' %}";
       document.querySelectorAll('input[type="password"]').forEach(inp => {
         const wrap = document.createElement('div');
         wrap.className = 'pwd-field-wrap';
@@ -34,13 +36,13 @@
         btn.type = 'button';
         btn.className = 'btn btn-ghost';
         btn.style.marginTop = '10px';
-        btn.textContent = 'Mostrar';
+        btn.textContent = showLabel;
         wrap.appendChild(btn);
 
         btn.addEventListener('click', () => {
           const hidden = inp.type === 'password';
           inp.type = hidden ? 'text' : 'password';
-          btn.textContent = hidden ? 'Ocultar' : 'Mostrar';
+          btn.textContent = hidden ? hideLabel : showLabel;
         });
       });
     });

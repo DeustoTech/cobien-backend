@@ -417,6 +417,57 @@ msgstr "Activer la détection émotionnelle"
 msgid "¿Es esta la persona mayor?"
 msgstr "Est-ce la personne âgée ?"
 
+msgid "Mostrar"
+msgstr "Afficher"
+
+msgid "Ocultar"
+msgstr "Masquer"
+
+msgid "Ingresa tu nombre:"
+msgstr "Entrez votre nom :"
+
+msgid "Eventos de todas las regiones"
+msgstr "Événements de toutes les régions"
+
+msgid "Eventos de"
+msgstr "Événements de"
+
+msgid "Selecciona una ubicación o escribe una nueva."
+msgstr "Sélectionnez un lieu ou saisissez-en un nouveau."
+
+msgid "Error al guardar el evento:"
+msgstr "Erreur lors de l'enregistrement de l'événement :"
+
+msgid "Error al procesar la imagen:"
+msgstr "Erreur lors du traitement de l'image :"
+
+msgid "Todos los destinatarios"
+msgstr "Tous les destinataires"
+
+msgid "Seleccionados"
+msgstr "Sélectionnés"
+
+msgid "La persona mayor, acérquese a la cámara por favor."
+msgstr "La personne âgée, veuillez vous rapprocher de la caméra s'il vous plaît."
+
+msgid "Resumen emocional subido correctamente."
+msgstr "Résumé émotionnel envoyé correctement."
+
+msgid "Error subiendo resumen:"
+msgstr "Erreur lors de l'envoi du résumé :"
+
+msgid "Excepción al finalizar detección emocional."
+msgstr "Exception lors de la finalisation de la détection émotionnelle."
+
+msgid "Ingresa el nombre de la sala:"
+msgstr "Entrez le nom de la salle :"
+
+msgid "No se ha encontrado una cámara o un micrófono disponibles en este equipo. Revisa que estén conectados y que el navegador tenga permisos."
+msgstr "Aucune caméra ou aucun microphone disponible n'a été trouvé sur cet appareil. Vérifiez qu'ils sont connectés et que le navigateur dispose des autorisations nécessaires."
+
+msgid "Ocurrió un error al iniciar la videollamada:"
+msgstr "Une erreur s'est produite au démarrage de l'appel vidéo :"
+
 #: .\apps\eventos\templates\videocall.html:94
 msgid "Sí, es correcta"
 msgstr "Oui, c'est correct"
@@ -600,12 +651,6 @@ msgstr "Vous n'avez aucune notification en attente."
 
 #~ msgid "Hola "
 #~ msgstr "Bonjour"
-
-#~ msgid "Mostrar"
-#~ msgstr "Entrer"
-
-#~ msgid "Ocultar"
-#~ msgstr "Déguisement"
 
 #~ msgid "app2"
 #~ msgstr "app2"

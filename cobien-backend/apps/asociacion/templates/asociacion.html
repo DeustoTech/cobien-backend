@@ -32,7 +32,8 @@
   <script>
     let conversationsClient;
     let activeConversation;
-    let usuario = localStorage.getItem("usuario") || prompt("Ingresa tu nombre:");
+    const asociacionPrompt = "{% trans 'Ingresa tu nombre:' %}";
+    let usuario = localStorage.getItem("usuario") || prompt(asociacionPrompt);
     localStorage.setItem("usuario", usuario);
 
     async function obtenerToken() {
