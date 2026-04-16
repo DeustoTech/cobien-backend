@@ -1,312 +1,200 @@
+{% extends "base.html" %}
 {% load i18n %}
-{% load static %}
-{% get_current_language as LANGUAGE_CODE %}
-<!doctype html>
-<html lang="{{ LANGUAGE_CODE }}">
-  <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>CoBien — Pizarra</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-  </head>
 
-  <body>
-    <div class="wrapper">
-      <!-- HEADER -->
-      <header>
-        <div class="container header-inner">
-          <div class="coBienLogo">
-            <a id="logo" href="{% url 'home' %}">
-              <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image">
-            </a>
-          </div>
-          <button class="menu-toggle" aria-label="Abrir menú">☰</button>
+{% block title %}CoBien · {% trans "Pizarra" %}{% endblock %}
+{% block page_class %}pizarra{% endblock %}
 
-          <nav class="main-nav" role="navigation" aria-label="Main navigation">
-            <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
-            <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
-            <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
-            {% if user.is_staff or user.is_superuser %}
-              <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
-            {% endif %}
-            <span class="spacer"></span>
-            {% if user.is_authenticated %}
-              <div class="user-info">
-                <span class="saludo">{% blocktrans %}Hola, {% endblocktrans %}{{ user.username }} —</span>
-                <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
-              </div>
-            {% else %}
-              <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
-              <a href="{% url 'signup' %}" class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
-            {% endif %}
-          </nav>
-
-          <!-- Cambio de idioma -->
-          <div class="language-switcher">
-            <form action="{% url 'set_language' %}" method="post">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.path }}">
-              <select name="language" onchange="this.form.submit();">
-                <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
-                <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
-              </select>
-            </form>
-          </div>
+{% block content %}
+  <div class="pz-wrap">
+    <section class="pz-card">
+      <div class="section-heading">
+        <div>
+          <h1 class="pz-h2">{% trans "Pizarra" %}</h1>
+          <p class="lead-text">{% trans "Envía mensajes o imágenes al mueble y consulta rápidamente el histórico y las notificaciones pendientes." %}</p>
         </div>
-      </header>
-      <!-- END HEADER -->
-
-      <!-- FLASH MESSAGES (como en home) -->
-      {% if messages %}
-        <ul class="alert-list">
-          {% for m in messages %}
-            <li class="alert">{{ m }}</li>
+      </div>
+      {% if contacts %}
+        <div class="chips" style="margin-top: 18px;">
+          {% for c in contacts %}
+            <a class="chip" href="?to={{ c|urlencode }}">{{ c }}</a>
           {% endfor %}
-        </ul>
+        </div>
       {% endif %}
+    </section>
 
-      <!-- MAIN -->
-      <main class="main-container pizarra">
-        <div class="pz-wrap">
-          <!-- Cabecera Pizarra -->
-          <section class="pz-card">
-            <h1 class="pz-h2">{% blocktrans %}Pizarra{% endblocktrans %}</h1>
-            <p class="muted mb-1">{% blocktrans %}Envía un mensaje de texto o imagen para que lo vea el usuario del mueble{% endblocktrans %}</p>
+    <div class="pz-grid">
+      <div class="section-stack">
+        <section class="pz-card">
+          <h2>{% trans "Nuevo mensaje" %}</h2>
+          <form id="pizarra-form" method="post" action="{% url 'pizarra_create' %}" enctype="multipart/form-data" class="section-stack">
+            {% csrf_token %}
 
-            {% if contacts %}
-              <div class="chips mt-2">
-                {% for c in contacts %}
-                  <a class="chip" href="?to={{ c|urlencode }}">{{ c }}</a>
-                {% endfor %}
-              </div>
-            {% endif %}
-          </section>
-
-          <div class="section-sep"></div>
-
-          <div class="pz-grid">
-            <div class="pz-main">
-              <!-- Nuevo mensaje -->
-              <section class="pz-card">
-                <h2 class="h5">{% blocktrans %}Nuevo mensaje{% endblocktrans %}</h2>
-
-                <form id="pizarra-form" method="post" action="{% url 'pizarra_create' %}" enctype="multipart/form-data">
-                  {% csrf_token %}
-
-                  <p class="mb-1">
-                    <label class="form-label" for="recipient_key">{% blocktrans %}Para{% endblocktrans %}</label>
-                    <input type="text" id="recipient_key" name="recipient_key"
-                          value="{{ form.initial.recipient_key|default:selected_contact }}"
-                          list="recipients-list" placeholder="Ej.: maria, paula, salón…" required>
-                    <datalist id="recipients-list">
-                      {% for c in contacts %}<option value="{{ c }}">{% endfor %}
-                    </datalist>
-                    <small class="muted">{% blocktrans %}Debe coincidir con el destinatario que usará la app del mueble para consultar.{% endblocktrans %}</small>
-                  </p>
-
-                  <p class="mb-1 mt-2">
-                    <label class="form-label" for="content">{% blocktrans %}Mensaje (opcional si subes imagen){% endblocktrans %}</label>
-                    <textarea id="content" name="content" rows="4" placeholder="Escribe tu mensaje…">{{ form.data.content }}</textarea>
-                  </p>
-
-                  <p class="mb-1 mt-2">
-                    <label class="form-label" for="image">{% blocktrans %}Imagen (máx. 5 MB){% endblocktrans %}</label>
-                    <input type="file" id="image" name="image" accept="image/*">
-                    <br>
-                    <img id="preview" class="post-img" alt="" style="display:none;">
-                  </p>
-
-                  <div class="newpost-cta">
-                    <button class="btn-main" type="submit">{% blocktrans %}Enviar{% endblocktrans %}</button>
-                  </div>
-                </form>
-              </section>
-
-              <div class="section-sep"></div>
-
-              <!-- Histórico -->
-              <section class="pz-card">
-                <h2 class="h5">{% blocktrans %}Historial{% endblocktrans %}</h2>
-
-                {% if not selected_contact %}
-                  <p class="muted mt-2">{% blocktrans %}Selecciona un destinatario arriba (o escribe uno en “Para”) para ver su historial.{% endblocktrans %}</p>
-                {% else %}
-                  {% if posts and posts|length > 0 %}
-                    <div class="history-list mt-3" id="historyList">
-                      {% for post in posts %}
-                        <article class="post-card {% if post.image_url %}has-media{% endif %}" data-index="{{ forloop.counter0 }}">
-                          <div class="post-meta">
-                            <div>
-                              <span>{% blocktrans %}Para:{% endblocktrans %} <strong>{{ post.recipient_key }}</strong></span>
-                              <div class="muted" style="display:inline-block;margin-left:8px">• <time datetime="{{ post.created_at|date:'c' }}">{{ post.created_at|date:"Y-m-d H:i" }}</time></div>
-                            </div>
-                            <div>
-                              <form method="post" action="{% url 'pizarra_delete' post.id %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button class="btn-outline" type="submit">{% blocktrans %}Eliminar{% endblocktrans %}</button>
-                              </form>
-                            </div>
-                          </div>
-
-                          <div class="post-content">
-                            <div class="post-text">
-                              {% if post.content %}{{ post.content }}{% else %}
-                                <span class="muted"><em>{% blocktrans %}(Sin texto){% endblocktrans %}</em></span>
-                              {% endif %}
-                            </div>
-
-                            {% if post.image_url %}
-                              <img class="post-img" loading="lazy" src="{{ post.image_url }}" alt="Imagen enviada">
-                            {% endif %}
-                          </div>
-                        </article>
-                      {% endfor %}
-                    </div>
-                    {% if posts|length > 8 %}
-                      <div style="text-align:center;margin-top:14px;">
-                        <button id="loadMoreHistory" class="btn btn-primary">{% blocktrans %}Load more{% endblocktrans %}</button>
-                      </div>
-                    {% endif %}
-                  {% else %}
-                    <p class="muted mt-2">{% blocktrans %}No hay mensajes para{% endblocktrans %} <strong>{{ selected_contact }}</strong>{% blocktrans %}. ¡Envía el primero!{% endblocktrans %}</p>
-                  {% endif %}
-                {% endif %}
-              </section>
+            <div>
+              <label class="form-label" for="recipient_key">{% trans "Para" %}</label>
+              <input type="text" id="recipient_key" name="recipient_key"
+                     value="{{ form.initial.recipient_key|default:selected_contact }}"
+                     list="recipients-list" placeholder="Ej.: maria, paula, salón…" required>
+              <datalist id="recipients-list">
+                {% for c in contacts %}<option value="{{ c }}">{% endfor %}
+              </datalist>
+              <small class="muted">{% trans "Debe coincidir con el destinatario que usará la app del mueble para consultar." %}</small>
             </div>
 
-            <!-- === LATERAL: Notificaciones entrantes === -->
-            <aside class="pz-notifs">
-              <section class="pz-card">
-                <div class="notifs-head">
-                  <h2 class="h5">{% blocktrans %}Notificaciones entrantes{% endblocktrans %}</h2>
-                  <span class="badge">{% if unread_count %}{{ unread_count }}{% else %}0{% endif %}</span>
+            <div>
+              <label class="form-label" for="content">{% trans "Mensaje (opcional si subes imagen)" %}</label>
+              <textarea id="content" name="content" rows="4" placeholder="Escribe tu mensaje…">{{ form.data.content }}</textarea>
+            </div>
+
+            <div>
+              <label class="form-label" for="image">{% trans "Imagen (máx. 5 MB)" %}</label>
+              <input type="file" id="image" name="image" accept="image/*">
+              <img id="preview" class="post-img" alt="" style="display:none; margin-top: 12px;">
+            </div>
+
+            <div class="newpost-cta">
+              <button class="btn-main" type="submit">{% trans "Enviar" %}</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="pz-card">
+          <h2>{% trans "Historial" %}</h2>
+
+          {% if not selected_contact %}
+            <p class="muted">{% trans "Selecciona un destinatario arriba para consultar su historial." %}</p>
+          {% else %}
+            {% if posts and posts|length > 0 %}
+              <div class="history-list" id="historyList">
+                {% for post in posts %}
+                  <article class="post-card {% if post.image_url %}has-media{% endif %}" data-index="{{ forloop.counter0 }}">
+                    <div class="post-meta">
+                      <div>
+                        <span>{% trans "Para:" %} <strong>{{ post.recipient_key }}</strong></span>
+                        <span class="muted" style="margin-left:8px;">• {{ post.created_at|date:"Y-m-d H:i" }}</span>
+                      </div>
+                      <form method="post" action="{% url 'pizarra_delete' post.id %}">
+                        {% csrf_token %}
+                        <button class="btn-outline" type="submit">{% trans "Eliminar" %}</button>
+                      </form>
+                    </div>
+
+                    <div class="post-content">
+                      <div class="post-text">
+                        {% if post.content %}{{ post.content }}{% else %}
+                          <span class="muted"><em>{% trans "(Sin texto)" %}</em></span>
+                        {% endif %}
+                      </div>
+                      {% if post.image_url %}
+                        <img class="post-img" loading="lazy" src="{{ post.image_url }}" alt="{% trans 'Imagen enviada' %}">
+                      {% endif %}
+                    </div>
+                  </article>
+                {% endfor %}
+              </div>
+              {% if posts|length > 8 %}
+                <div class="newpost-cta" style="justify-content:center;">
+                  <button id="loadMoreHistory" class="btn btn-primary" type="button">{% trans "Cargar más" %}</button>
                 </div>
+              {% endif %}
+            {% else %}
+              <p class="muted">{% trans "No hay mensajes para" %} <strong>{{ selected_contact }}</strong>. {% trans "Envía el primero." %}</p>
+            {% endif %}
+          {% endif %}
+        </section>
+      </div>
 
-                {% if notifications %}
-                  <ul class="notif-list">
-                    {% for n in notifications %}
-                      <li class="notif-item">
-                        <div class="notif-main">
-                          <div class="notif-title">
-                            {% if n.kind == 'call_ready' %}
-                              {% blocktrans %}Disponible para llamada{% endblocktrans %}
-                            {% else %}
-                              {{ n.kind }}
-                            {% endif %}
-                          </div>
-                          <div class="notif-sub">
-                            {% if n.from_device %}<strong>{{ n.from_device }}</strong> — {% endif %}
-                            <time datetime="{{ n.created_at|date:'c' }}">{{ n.created_at|date:"Y-m-d H:i" }}</time>
-                          </div>
-                          {% if n.message %}
-                            <div class="notif-message">{{ n.message }}</div>
-                          {% endif %}
-                        </div>
-
-                        <div class="notif-actions">
-                          <form method="post" action="{% url 'pizarra_notif_mark_read' n.id %}">
-                            {% csrf_token %}
-                            <button class="btn-outline" type="submit">{% blocktrans %}Marcar leída{% endblocktrans %}</button>
-                          </form>
-                          <a class="btn-main" href="{% url 'videocall' %}?to={{ n.from_device|urlencode }}">
-                            {% blocktrans %}Llamar ahora{% endblocktrans %}
-                          </a>
-                        </div>
-                      </li>
-                    {% endfor %}
-                  </ul>
-
-                  <form class="mt-3" method="post" action="{% url 'pizarra_notif_mark_all' %}">
-                    {% csrf_token %}
-                    <button class="btn-outline" type="submit">{% blocktrans %}Marcar todas como leídas{% endblocktrans %}</button>
-                  </form>
-                {% else %}
-                  <p class="muted">{% blocktrans %}No tienes notificaciones pendientes.{% endblocktrans %}</p>
-                {% endif %}
-              </section>
-            </aside>
+      <aside class="section-stack">
+        <section class="pz-card">
+          <div class="notifs-head">
+            <h2>{% trans "Notificaciones entrantes" %}</h2>
+            <span class="badge">{% if unread_count %}{{ unread_count }}{% else %}0{% endif %}</span>
           </div>
-        </div>
-      </main>
-      <!-- END MAIN -->
 
-      <!-- FOOTER (igual que en home) -->
-      <footer>
-        <div class="footer-icons">
-          <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
-          </a>
-          <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
-          </a>
-          <a href="https://www.linkedin.com/company/co-bien" target="_blank">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn" style="height: 40px;">
-          </a>
-        </div>
-        <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
-      </footer>
-    </div> <!-- /wrapper -->
+          {% if notifications %}
+            <ul class="notif-list">
+              {% for n in notifications %}
+                <li class="notif-item">
+                  <div class="notif-main">
+                    <div class="notif-title">
+                      {% if n.kind == 'call_ready' %}
+                        {% trans "Disponible para llamada" %}
+                      {% else %}
+                        {{ n.kind }}
+                      {% endif %}
+                    </div>
+                    <div class="notif-sub">
+                      {% if n.from_device %}<strong>{{ n.from_device }}</strong> — {% endif %}
+                      {{ n.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                    {% if n.message %}
+                      <div class="notif-message">{{ n.message }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="notif-actions">
+                    <form method="post" action="{% url 'pizarra_notif_mark_read' n.id %}">
+                      {% csrf_token %}
+                      <button class="btn-outline" type="submit">{% trans "Marcar leída" %}</button>
+                    </form>
+                    <a class="btn-main" href="{% url 'videocall' %}?to={{ n.from_device|urlencode }}">{% trans "Llamar ahora" %}</a>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
 
-    <!-- Scripts -->
-    <script>
-      // Menú hamburguesa (mismo comportamiento que en home)
-      document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.querySelector('.menu-toggle');
-        const nav = document.querySelector('.main-nav');
-        if (!toggleBtn || !nav) return;
-        toggleBtn.addEventListener('click', function() {
-          nav.classList.toggle('active');
-        });
-      });
+            <form method="post" action="{% url 'pizarra_notif_mark_all' %}">
+              {% csrf_token %}
+              <button class="btn-outline" type="submit">{% trans "Marcar todas como leídas" %}</button>
+            </form>
+          {% else %}
+            <p class="muted">{% trans "No tienes notificaciones pendientes." %}</p>
+          {% endif %}
+        </section>
+      </aside>
+    </div>
+  </div>
+{% endblock %}
 
-      // Preview imagen
-      (function () {
-        const input = document.getElementById('image');
-        const preview = document.getElementById('preview');
-        if (!input || !preview) return;
-        input.addEventListener('change', () => {
-          const f = input.files && input.files[0];
-          if (!f) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
-          preview.src = URL.createObjectURL(f);
-          preview.style.display = 'block';
-        });
-      })();
-
-      // Load more for history (client-side progressive reveal)
-      (function(){
-        const initial = 8; // items to show initially
-        const step = 6;    // items to reveal on each click
-        const list = document.getElementById('historyList');
-        const btn = document.getElementById('loadMoreHistory');
-        if (!list || !btn) return;
-        const items = Array.from(list.querySelectorAll('.post-card'));
-        // Hide items beyond initial
-        items.forEach((it) => {
-          const idx = Number(it.getAttribute('data-index') || 0);
-          if (idx >= initial) it.setAttribute('data-hidden','true');
-        });
-
-        btn.addEventListener('click', function(){
-          const hidden = items.filter(i=>i.getAttribute('data-hidden') === 'true');
-          if (!hidden.length) { btn.style.display='none'; return; }
-          const toReveal = hidden.slice(0, step);
-          toReveal.forEach(it => it.removeAttribute('data-hidden'));
-          // If none left, hide the button
-          const stillHidden = items.some(i=>i.getAttribute('data-hidden') === 'true');
-          if (!stillHidden) btn.style.display = 'none';
-        });
-      })();
-
-      // Si se selecciona un chip (?to=...), enfoca el textarea
-      (function () {
-        if (window.location.search.includes('to=')) {
-          const ta = document.getElementById('content');
-          if (ta) ta.focus();
+{% block extra_js %}
+  <script>
+    (function () {
+      const input = document.getElementById('image');
+      const preview = document.getElementById('preview');
+      if (!input || !preview) return;
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) {
+          preview.style.display = 'none';
+          preview.removeAttribute('src');
+          return;
         }
-      })();
-    </script>
-  </body>
-</html>
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = 'block';
+      });
+    })();
+
+    (function () {
+      const initial = 8;
+      const step = 6;
+      const list = document.getElementById('historyList');
+      const btn = document.getElementById('loadMoreHistory');
+      if (!list || !btn) return;
+      const items = Array.from(list.querySelectorAll('.post-card'));
+      items.forEach((it) => {
+        const idx = Number(it.getAttribute('data-index') || 0);
+        if (idx >= initial) it.setAttribute('data-hidden', 'true');
+      });
+      btn.addEventListener('click', function () {
+        const hidden = items.filter(i => i.getAttribute('data-hidden') === 'true');
+        hidden.slice(0, step).forEach(i => i.removeAttribute('data-hidden'));
+        if (!items.some(i => i.getAttribute('data-hidden') === 'true')) btn.style.display = 'none';
+      });
+    })();
+
+    (function () {
+      if (window.location.search.includes('to=')) {
+        const ta = document.getElementById('content');
+        if (ta) ta.focus();
+      }
+    })();
+  </script>
+{% endblock %}

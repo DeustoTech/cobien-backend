@@ -1,0 +1,111 @@
+{% load static %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block title %}CoBien{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body class="{% block body_class %}{% endblock %}">
+    <div class="site-shell">
+      <header class="site-header">
+        <div class="site-width site-header-inner">
+          <a class="brand" href="{% url 'home' %}" aria-label="CoBien">
+            <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="CoBien">
+          </a>
+
+          <button class="menu-toggle" type="button" aria-label="{% trans 'Abrir menú' %}" aria-expanded="false" aria-controls="mainNavigation">
+            <span></span><span></span><span></span>
+          </button>
+
+          <nav id="mainNavigation" class="site-nav" aria-label="{% trans 'Navegación principal' %}">
+            <a class="site-nav-link{% if request.resolver_match.url_name == 'home' %} is-active{% endif %}" href="{% url 'home' %}">{% trans "Inicio" %}</a>
+            <a class="site-nav-link{% if request.resolver_match.url_name == 'lista_eventos' %} is-active{% endif %}" href="{% url 'lista_eventos' %}">{% trans "Eventos" %}</a>
+            <a class="site-nav-link{% if request.resolver_match.url_name == 'videocall' %} is-active{% endif %}" href="{% url 'videocall' %}">{% trans "Videollamadas" %}</a>
+            <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_home' %} is-active{% endif %}" href="{% url 'pizarra_home' %}">{% trans "Pizarra" %}</a>
+            <a class="site-nav-link{% if request.resolver_match.url_name == 'asociacion_chat' %} is-active{% endif %}" href="{% url 'asociacion_chat' %}">{% trans "Asociación" %}</a>
+            {% if user.is_staff or user.is_superuser %}
+              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_icso_dashboard' %} is-active{% endif %}" href="{% url 'pizarra_icso_dashboard' %}">ICSO</a>
+              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
+              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_device_contacts_admin' %} is-active{% endif %}" href="{% url 'pizarra_device_contacts_admin' %}">{% trans "Contactos Muebles" %}</a>
+            {% endif %}
+          </nav>
+
+          <div class="site-actions">
+            <form class="language-switcher" action="{% url 'set_language' %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <select name="language" onchange="this.form.submit();">
+                <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>ES</option>
+                <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>FR</option>
+              </select>
+            </form>
+
+            {% if user.is_authenticated %}
+              <details class="user-menu">
+                <summary class="user-menu-trigger" aria-label="{% trans 'Cuenta de usuario' %}">
+                  <span class="user-avatar">{{ user.username|first|upper }}</span>
+                </summary>
+                <div class="user-menu-panel">
+                  <div class="user-menu-name">{{ user.username }}</div>
+                  <a href="{% url 'logout' %}" class="user-menu-link">{% trans "Salir" %}</a>
+                </div>
+              </details>
+            {% else %}
+              <div class="auth-actions">
+                <a class="btn btn-ghost" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% trans "Entrar" %}</a>
+                <a class="btn btn-primary" href="{% url 'signup' %}">{% trans "Registrarse" %}</a>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </header>
+
+      {% if messages %}
+        <div class="site-width flash-stack">
+          {% for m in messages %}
+            <div class="flash-message">{{ m }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <main class="site-main">
+        <div class="site-width site-content {% block page_class %}{% endblock %}">
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <div class="site-width site-footer-inner">
+          <div class="footer-copy">
+            <strong>CoBien</strong>
+            <span>{% trans "Tecnología y acompañamiento para un cuidado más cercano." %}</span>
+          </div>
+          <div class="footer-socials">
+            <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank" rel="noreferrer">Instagram</a>
+            <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank" rel="noreferrer">Facebook</a>
+            <a href="https://www.linkedin.com/company/co-bien" target="_blank" rel="noreferrer">LinkedIn</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.querySelector('.menu-toggle');
+        const nav = document.querySelector('.site-nav');
+        if (!toggleBtn || !nav) return;
+        toggleBtn.addEventListener('click', function () {
+          const isOpen = nav.classList.toggle('is-open');
+          toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+      });
+    </script>
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>

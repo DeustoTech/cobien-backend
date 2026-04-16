@@ -1,205 +1,115 @@
-{% load static %}
+{% extends "base.html" %}
 {% load i18n %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <title>{% block titulo %}  {% endblock %}</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>CoBien</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    <script src="https://sdk.twilio.com/js/conversations/releases/2.3.0/twilio-conversations.min.js"></script>
-    <!-- Remote style sheet -->
-  </head>
-  <body>
-    <div class="wrapper">
-  
-      <!-- HEADER -->
-      <header>
-        <div class="container header-inner">
-          <div class="coBienLogo">
-            <a id="logo" href="{% url 'home' %}"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image"></a>
-          </div>
-          <button class="menu-toggle" aria-label="Abrir menú">☰</button>
-          <nav class="main-nav" role="navigation" aria-label="Main navigation">                
-            <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
-            <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
-            <a href="{% url 'asociacion_chat' %}">{% blocktrans %}Asociacion{% endblocktrans %}</a>
-            {% if user.is_staff or user.is_superuser %}
-              <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
-            {% endif %}
-            <span class="spacer"></span>
-          </nav>
-          <!-- Botón de Cambio de Idioma -->
-          <div class="language-switcher">
-            <form action="{% url 'set_language' %}" method="post">
-              {% csrf_token %}
-              <select name="language" onchange="this.form.submit();">
-                  <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
-                  <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
-              </select>
-            </form>
-          </div>
-        </div>
-      </header>
-      <!-- END OF HEADER -->
 
-    
-    <div id="chat-container">
-        <div id="chat-messages" style="height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;"></div>
-        <form id="chat-form">
-            <textarea id="message-text" placeholder="Escribe un mensaje..." style="width: 100%; height: 50px;"></textarea>
-            <button type="submit">Enviar</button>
-        </form>
+{% block title %}CoBien · {% trans "Asociación" %}{% endblock %}
 
-      <script>
-        let conversationsClient;
-        let activeConversation;
-        let usuario = localStorage.getItem("usuario") || prompt("Ingresa tu nombre:");
-        localStorage.setItem("usuario", usuario);
-    
-        async function obtenerToken() {
-            try {
-                const response = await fetch('/asociacion/token/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identity: usuario })
-                });
-    
-                const data = await response.json();
-                return data.token;
-            } catch (error) {
-                console.error("Error al obtener el token:", error);
-            }
-        }
-    
-        async function conectarTwilio() {
-          const token = await obtenerToken();
-          if (!token) {
-              console.error("No se pudo obtener un token de Twilio.");
-              return;
-          }
-      
-          try {
-              conversationsClient = new Twilio.Conversations.Client(token); // CORREGIDO
-              console.log("Conectado a Twilio Conversations como:", usuario);
-      
-              conversationsClient.on("connectionStateChanged", (state) => {
-                  if (state === "connected") {
-                      console.log("Cliente conectado correctamente.");
-                      obtenerConversacion();
-                  }
-              });
-      
-          } catch (error) {
-              console.error("Error al conectar con Twilio Conversations:", error);
-          }
-        }
-      
-    
-        async function obtenerConversacion() {
-            try {
-                let conversations = await conversationsClient.getSubscribedConversations();
-                activeConversation = conversations.items.find(c => c.friendlyName === "asociacion_chat");
-        
-                if (!activeConversation) {
-                    console.log("Unirse a la conversación global...");
-                    activeConversation = await conversationsClient.getConversationBySid("CONVERSATION_SID");
-                }
-        
-                console.log("Unido a la conversación global.");
-                escucharMensajes();
-                cargarMensajesAnteriores();
-            } catch (error) {
-                console.error("Error al obtener la conversación:", error);
-            }
-        }
+{% block extra_head %}
+  <script src="https://sdk.twilio.com/js/conversations/releases/2.3.0/twilio-conversations.min.js"></script>
+{% endblock %}
 
-        async function cargarMensajesAnteriores() {
-          if (!activeConversation) {
-              console.error("No hay una conversación activa.");
-              return;
-          }
-      
-          const messages = await activeConversation.getMessages();
-          messages.items.forEach(msg => {
-              mostrarMensaje(msg.author, msg.body);
-          });
-        }
-      
-    
-        function escucharMensajes() {
-            if (!activeConversation) {
-                console.error("No hay una conversación activa.");
-                return;
-            }
-    
-            activeConversation.on("messageAdded", message => {
-                mostrarMensaje(message.author, message.body);
-            });
-        }
-    
-        function mostrarMensaje(autor, mensaje) {
-          const chatMessages = document.getElementById("chat-messages");
-      
-          // Si el contenedor no existe, mostramos un error en la consola
-          if (!chatMessages) {
-              console.error("El contenedor de mensajes no se encontró en el DOM.");
-              return;
-          }
-      
-          const div = document.createElement("div");
-          div.classList.add("chat-message");
-          div.innerHTML = `<strong>${autor}</strong>: ${mensaje}`;
-          chatMessages.appendChild(div);
-      
-          // Hacer scroll hacia abajo automáticamente
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    
-        document.getElementById("chat-form").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            const text = document.getElementById("message-text").value;
-    
-            if (activeConversation) {
-                try {
-                    await activeConversation.sendMessage(text);
-                    mostrarMensaje(usuario, text);
-                    document.getElementById("message-text").value = "";
-                } catch (error) {
-                    console.error("Error al enviar el mensaje:", error);
-                }
-            } else {
-                console.error("No hay una conversación activa.");
-            }
-        });
-    
-        conectarTwilio();
-      </script>
-    
-        <!-- FOOTER -->
-      <footer>
-            <!-- LINKS -->
-            <div class="footer-icons">
-                <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
-                </a>
-                <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
-                </a>
-                <a href="https://www.linkedin.com/company/co-bien" target="_blank">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn" style="height: 40px;">
-                </a>
-            </div>
-            <!-- END OF LINKS -->
-            <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
-      </footer>  
+{% block content %}
+  <div class="content-card content-card--narrow">
+    <div class="section-heading">
+      <div>
+        <h1>{% trans "Asociación" %}</h1>
+        <p class="lead-text">{% trans "Canal compartido para coordinación y comunicación comunitaria." %}</p>
+      </div>
     </div>
-</body>
 
+    <div id="chat-container">
+      <div id="chat-messages" style="height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 18px; padding: 14px; background: var(--surface-muted);"></div>
+      <form id="chat-form" class="section-stack" style="margin-top: 18px;">
+        <textarea id="message-text" placeholder="{% trans 'Escribe un mensaje...' %}" style="width: 100%; height: 96px;"></textarea>
+        <div class="newpost-cta">
+          <button class="btn-main" type="submit">{% trans "Enviar" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
 
-{% block contenido %}  {% endblock %}
-</html>
+{% block extra_js %}
+  <script>
+    let conversationsClient;
+    let activeConversation;
+    let usuario = localStorage.getItem("usuario") || prompt("Ingresa tu nombre:");
+    localStorage.setItem("usuario", usuario);
+
+    async function obtenerToken() {
+      try {
+        const response = await fetch('/asociacion/token/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identity: usuario })
+        });
+        const data = await response.json();
+        return data.token;
+      } catch (error) {
+        console.error("Error al obtener el token:", error);
+      }
+    }
+
+    async function conectarTwilio() {
+      const token = await obtenerToken();
+      if (!token) return;
+      try {
+        conversationsClient = new Twilio.Conversations.Client(token);
+        conversationsClient.on("connectionStateChanged", (state) => {
+          if (state === "connected") obtenerConversacion();
+        });
+      } catch (error) {
+        console.error("Error al conectar con Twilio Conversations:", error);
+      }
+    }
+
+    async function obtenerConversacion() {
+      try {
+        let conversations = await conversationsClient.getSubscribedConversations();
+        activeConversation = conversations.items.find(c => c.friendlyName === "asociacion_chat");
+        if (!activeConversation) {
+          activeConversation = await conversationsClient.getConversationBySid("CONVERSATION_SID");
+        }
+        escucharMensajes();
+        cargarMensajesAnteriores();
+      } catch (error) {
+        console.error("Error al obtener la conversación:", error);
+      }
+    }
+
+    async function cargarMensajesAnteriores() {
+      if (!activeConversation) return;
+      const messages = await activeConversation.getMessages();
+      messages.items.forEach(msg => mostrarMensaje(msg.author, msg.body));
+    }
+
+    function escucharMensajes() {
+      if (!activeConversation) return;
+      activeConversation.on("messageAdded", message => mostrarMensaje(message.author, message.body));
+    }
+
+    function mostrarMensaje(autor, mensaje) {
+      const chatMessages = document.getElementById("chat-messages");
+      if (!chatMessages) return;
+      const div = document.createElement("div");
+      div.classList.add("chat-message");
+      div.innerHTML = `<strong>${autor}</strong>: ${mensaje}`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    document.getElementById("chat-form").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const text = document.getElementById("message-text").value;
+      if (!activeConversation || !text.trim()) return;
+      try {
+        await activeConversation.sendMessage(text);
+        mostrarMensaje(usuario, text);
+        document.getElementById("message-text").value = "";
+      } catch (error) {
+        console.error("Error al enviar el mensaje:", error);
+      }
+    });
+
+    conectarTwilio();
+  </script>
+{% endblock %}

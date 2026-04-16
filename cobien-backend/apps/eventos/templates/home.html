@@ -1,117 +1,97 @@
-{% load static %}
+{% extends "base.html" %}
 {% load i18n %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <title>{% block titulo %}  {% endblock %}</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>CoBien</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    <!-- Remote style sheet -->
-    
-    
-  </head>
- 
- 
-  
-  <body>
-    <div class="wrapper">
-      <!-- HEADER -->
-      <header>
-        <div class="container header-inner">
-          <div class="coBienLogo">
-            <a id="logo" href="{% url 'home' %}"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image"></a>
-          </div>
-          <button class="menu-toggle" aria-label="Abrir menú">☰</button>
-          <nav class="main-nav" role="navigation" aria-label="Main navigation">                
-            <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
-            <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
-            <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
-            {% if user.is_staff or user.is_superuser %}
-              <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
-              <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
-            {% endif %}
-            <span class="spacer"></span>
-            {% if user.is_authenticated %}
-              <div class="user-info">
-                <span class="saludo">{% blocktrans %}Hola, {% endblocktrans %}{{ user.username }} —</span>
-                <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
-              </div>
-            {% else %}
-              <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
-              <a href="{% url 'signup' %}"  class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
-            {% endif %}
-          </nav>
-          <!-- Botón de Cambio de Idioma -->
-          <div class="language-switcher" aria-hidden="false">
-            <form action="{% url 'set_language' %}" method="post">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.path }}">
-              <select name="language" onchange="this.form.submit();">
-                  <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
-                  <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
-              </select>
-            </form>            
-          </div>
-        </div>
-      </header>
-      <!-- END OF HEADER -->
-      {% if messages %}
-          <ul class="alert-list">
-              {% for m in messages %}
-                  <li class="alert">{{ m }}</li>
-              {% endfor %}
-          </ul>
-      {% endif %}
-      <!-- MAIN CONTAINER -->
-      <main class="main-container container" role="main">
-        {% block home %}
-        <div class="location" id="home">
-            <section class="hero">
-              <div>
-                <h1 id="home">{% blocktrans %}Pagina de CoBien{% endblocktrans %}</h1>
-                <p>{% blocktrans %}Portal de gestión y recursos de CoBien.{% endblocktrans %}</p>
-              </div>
-            </section>
-            <div class="box" aria-hidden="true"></div>
-        </div>
-        {% endblock %}
-      </main>
-      <!-- END OF MAIN CONTAINER --> 
-      <!-- FOOTER -->
-        <footer>
-        <div class="container footer-inner">
-          <div class="footer-icons">
-            <a href="https://www.instagram.com/cobien_poctefa24/" target="_blank">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram">
-            </a>
-            <a href="https://www.facebook.com/profile.php?id=61561259653763" target="_blank">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook">
-            </a>
-            <a href="https://www.linkedin.com/company/co-bien" target="_blank">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn">
-            </a>
-          </div>
-          <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
-        </div>
-        </footer>  
+
+{% block title %}CoBien{% endblock %}
+
+{% block content %}
+  <section class="hero-panel">
+    <div>
+      <span class="hero-kicker">{% trans "Plataforma CoBien" %}</span>
+      <h1 class="hero-title">{% trans "Una web más clara para coordinar eventos, videollamadas, pizarra y gestión de muebles." %}</h1>
+      <p class="hero-text">
+        {% trans "Accede a las funciones principales desde una navegación única, con mejor visibilidad del estado de los dispositivos y recorridos más directos para usuarios y administradores." %}
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="{% url 'lista_eventos' %}">{% trans "Ver eventos" %}</a>
+        <a class="btn btn-secondary" href="{% url 'videocall' %}">{% trans "Abrir videollamadas" %}</a>
+        <a class="btn btn-ghost" href="{% url 'pizarra_home' %}">{% trans "Ir a la pizarra" %}</a>
+      </div>
     </div>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.querySelector('.menu-toggle');
-        const nav       = document.querySelector('.main-nav');
-        if (!toggleBtn || !nav) {
-          console.warn('No se encontró .menu-toggle o .main-nav');
-          return;
-        }
-        toggleBtn.addEventListener('click', function() {
-          nav.classList.toggle('active');
-        });
-      });
-    </script>
-  </body>
-  {% block contenido %}  {% endblock %}
-</html>
+
+    <aside class="hero-side">
+      <div class="metric-card">
+        <span class="metric-value">4</span>
+        <strong>{% trans "Módulos principales" %}</strong>
+        <p class="muted">{% trans "Eventos, videollamadas, pizarra y asociación conectados bajo la misma experiencia." %}</p>
+      </div>
+      <div class="metric-card">
+        <span class="metric-value">{% if user.is_authenticated %}24/7{% else %}1{% endif %}</span>
+        <strong>{% trans "Acceso operativo" %}</strong>
+        <p class="muted">{% trans "La interfaz prioriza acceso rápido a las acciones frecuentes y a la supervisión de muebles." %}</p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="section-stack">
+    <div class="section-heading">
+      <div>
+        <h2>{% trans "Accesos rápidos" %}</h2>
+        <p class="lead-text">{% trans "Todo el contenido principal está organizado para aprovechar mejor el ancho de pantalla y reducir pasos innecesarios." %}</p>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <h3>{% trans "Eventos" %}</h3>
+        <p class="muted">{% trans "Consulta el calendario, filtra por tipo de vista y gestiona eventos globales o personales desde una sola pantalla." %}</p>
+        <p><a class="btn btn-ghost" href="{% url 'lista_eventos' %}">{% trans "Abrir calendario" %}</a></p>
+      </article>
+
+      <article class="feature-card">
+        <h3>{% trans "Videollamadas" %}</h3>
+        <p class="muted">{% trans "Accede al portal de llamadas con una disposición más limpia y preparada para iniciar o continuar comunicaciones." %}</p>
+        <p><a class="btn btn-ghost" href="{% url 'videocall' %}">{% trans "Abrir videollamadas" %}</a></p>
+      </article>
+
+      <article class="feature-card">
+        <h3>{% trans "Pizarra" %}</h3>
+        <p class="muted">{% trans "Envía mensajes, imágenes y revisa el historial y las notificaciones entrantes desde un panel lateral más claro." %}</p>
+        <p><a class="btn btn-ghost" href="{% url 'pizarra_home' %}">{% trans "Abrir pizarra" %}</a></p>
+      </article>
+
+      <article class="feature-card">
+        <h3>{% trans "Asociación" %}</h3>
+        <p class="muted">{% trans "Consulta el canal de comunicación compartido con una interfaz más simple y preparada para evolución futura." %}</p>
+        <p><a class="btn btn-ghost" href="{% url 'asociacion_chat' %}">{% trans "Abrir asociación" %}</a></p>
+      </article>
+    </div>
+  </section>
+
+  {% if user.is_staff or user.is_superuser %}
+    <section class="section-stack">
+      <div class="section-heading">
+        <div>
+          <h2>{% trans "Gestión administrativa" %}</h2>
+          <p class="lead-text">{% trans "Los accesos de administración quedan más visibles sin ocupar espacio principal en la navegación cotidiana." %}</p>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+        <article class="card">
+          <h3>ICSO</h3>
+          <p class="muted">{% trans "Consulta snapshots y eventos recientes de telemetría por dispositivo." %}</p>
+          <p><a class="btn btn-ghost" href="{% url 'pizarra_icso_dashboard' %}">{% trans "Ver ICSO" %}</a></p>
+        </article>
+        <article class="card">
+          <h3>{% trans "Muebles" %}</h3>
+          <p class="muted">{% trans "Gestiona inventario, disponibilidad y configuración de dispositivos." %}</p>
+          <p><a class="btn btn-ghost" href="{% url 'pizarra_devices_admin' %}">{% trans "Gestionar muebles" %}</a></p>
+        </article>
+        <article class="card">
+          <h3>{% trans "Contactos y accesos" %}</h3>
+          <p class="muted">{% trans "Controla qué usuarios acceden a qué mueble y qué contactos se sincronizan." %}</p>
+          <p><a class="btn btn-ghost" href="{% url 'pizarra_device_contacts_admin' %}">{% trans "Gestionar contactos" %}</a></p>
+        </article>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

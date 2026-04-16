@@ -1,115 +1,81 @@
+{% extends "base.html" %}
 {% load i18n %}
-{% load static %}
-{% get_current_language as LANGUAGE_CODE %}
-<!doctype html>
-<html lang="{{ LANGUAGE_CODE }}">
-  <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>CoBien — {% trans "Contactos de dispositivos" %}</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-  </head>
-  <body>
-    <div class="wrapper">
-      <header>
-        <div class="container header-inner">
-          <div class="coBienLogo">
-            <a id="logo" href="{% url 'home' %}">
-              <img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image">
-            </a>
+
+{% block title %}CoBien · {% trans "Contactos de dispositivos" %}{% endblock %}
+{% block page_class %}pizarra{% endblock %}
+
+{% block content %}
+  <div class="pz-wrap">
+    <section class="pz-card">
+      <div class="section-heading">
+        <div>
+          <h1 class="pz-h2">{% trans "Contactos por dispositivo" %}</h1>
+          <p class="lead-text">{% trans "Gestiona los contactos visibles en cada mueble y quién puede acceder a ellos desde la web." %}</p>
+        </div>
+      </div>
+
+      <form method="get" class="section-stack" style="margin-top: 20px;">
+        <div class="grid" style="grid-template-columns: 1fr auto;">
+          <div>
+            <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
+            <input type="text" id="device_id" name="device_id" value="{{ selected_device }}" list="devices-list" placeholder="CoBien1" required>
+            <datalist id="devices-list">
+              {% for device_id in device_ids %}
+                <option value="{{ device_id }}">
+              {% endfor %}
+            </datalist>
           </div>
-          <button class="menu-toggle" aria-label="Abrir menú">☰</button>
-          <nav class="main-nav" role="navigation" aria-label="Main navigation">
-            <a href="{% url 'lista_eventos' %}">{% trans "Eventos" %}</a>
-            <a href="{% url 'videocall' %}">{% trans "Videollamadas" %}</a>
-            <a href="{% url 'pizarra_home' %}">{% trans "Pizarra" %}</a>
-            <a href="{% url 'pizarra_icso_dashboard' %}">{% trans "ICSO" %}</a>
-            <a href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
-            <a href="{% url 'pizarra_device_contacts_admin' %}">{% trans "Contactos Muebles" %}</a>
-            <span class="spacer"></span>
-            <div class="user-info">
-              <span class="saludo">{% trans "Hola," %} {{ user.username }} —</span>
-              <a href="{% url 'logout' %}" class="auth-link">{% trans "Salir" %}</a>
+          <div style="display:flex; align-items:end;">
+            <button class="btn-outline" type="submit">{% trans "Cargar" %}</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    {% if selected_device %}
+      <section class="pz-card">
+        <div class="section-heading">
+          <div>
+            <h2>{{ selected_device }}</h2>
+            <p class="lead-text">{% trans "Edita nombre visible, contactos sincronizados y usuarios con acceso para este dispositivo." %}</p>
+          </div>
+        </div>
+
+        <form method="post" class="section-stack" style="margin-top:20px;">
+          {% csrf_token %}
+          <input type="hidden" name="device_id" value="{{ selected_device }}">
+
+          <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+              <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
+              <input type="text" id="display_name" name="display_name" value="{{ profile_source|default:selected_device }}" placeholder="María">
             </div>
-          </nav>
-        </div>
-      </header>
+            <div>
+              <label class="form-label" for="default_username">{% trans "Usuario por defecto" %}</label>
+              <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
+            </div>
+          </div>
 
-      {% if messages %}
-        <ul class="alert-list">
-          {% for m in messages %}
-            <li class="alert">{{ m }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
+          <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+              <label class="form-label" for="contacts">{% trans "Contactos" %}</label>
+              <textarea id="contacts" name="contacts" rows="14" placeholder="Maria=maria&#10;Paula=paula">{{ contacts_text }}</textarea>
+              <small class="muted">{% trans "Una línea por contacto con formato NombreVisible=username." %}</small>
+            </div>
+            <div>
+              <label class="form-label" for="assigned_users">{% trans "Usuarios con acceso" %}</label>
+              <textarea id="assigned_users" name="assigned_users" rows="14" placeholder="maria&#10;paula">{{ assigned_users_text }}</textarea>
+              <small class="muted">{% trans "Un username por línea." %}</small>
+            </div>
+          </div>
 
-      <main class="main-container pizarra">
-        <div class="pz-wrap">
-          <section class="pz-card">
-            <h1 class="pz-h2">{% trans "Contactos por dispositivo" %}</h1>
-            <p class="muted">{% trans "Edita los contactos que recibe cada mueble y lanza la sincronización remota." %}</p>
-
-            <form method="get" class="mt-2">
-              <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
-              <input type="text" id="device_id" name="device_id" value="{{ selected_device }}" list="devices-list" placeholder="CoBien1" required>
-              <datalist id="devices-list">
-                {% for device_id in device_ids %}
-                  <option value="{{ device_id }}">
-                {% endfor %}
-              </datalist>
-              <div class="newpost-cta">
-                <button class="btn-outline" type="submit">{% trans "Cargar" %}</button>
-              </div>
-            </form>
-
-            {% if selected_device %}
-              <div class="section-sep"></div>
-              <p><strong>{% trans "Dispositivo activo:" %}</strong> {{ selected_device }}</p>
-              <p class="muted">
-                {% trans "Nombre visible del dispositivo:" %}
-                {% if profile_source %}{{ profile_source }}{% else %}{{ selected_device }}{% endif %}
-              </p>
-
-              <form method="post" class="mt-2">
-                {% csrf_token %}
-                <input type="hidden" name="device_id" value="{{ selected_device }}">
-                <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
-                <input type="text" id="display_name" name="display_name" value="{{ profile_source|default:selected_device }}" placeholder="María">
-
-                <label class="form-label" for="contacts">{% trans "Contactos" %}</label>
-                <textarea id="contacts" name="contacts" rows="14" placeholder="Maria=maria&#10;Paula=paula">{{ contacts_text }}</textarea>
-                <small class="muted">{% trans "Una línea por contacto con formato NombreVisible=username. Si no incluyes '=', se usará el mismo valor para mostrar y llamar." %}</small>
-
-                <label class="form-label" for="assigned_users" style="margin-top:16px;">{% trans "Usuarios con acceso" %}</label>
-                <textarea id="assigned_users" name="assigned_users" rows="8" placeholder="maria&#10;paula">{{ assigned_users_text }}</textarea>
-                <small class="muted">{% trans "Un username por línea. Estos usuarios podrán usar este dispositivo desde la web." %}</small>
-
-                <label class="form-label" for="default_username" style="margin-top:16px;">{% trans "Usuario por defecto" %}</label>
-                <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
-                <small class="muted">{% trans "Si este dispositivo debe ser el principal para uno de los usuarios asignados, indícalo aquí." %}</small>
-
-                <div class="newpost-cta" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
-                  <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
-                  <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
-                  <button class="btn-outline" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
-                </div>
-              </form>
-            {% endif %}
-          </section>
-        </div>
-      </main>
-    </div>
-
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.querySelector('.menu-toggle');
-        const nav = document.querySelector('.main-nav');
-        if (!toggleBtn || !nav) return;
-        toggleBtn.addEventListener('click', function() {
-          nav.classList.toggle('active');
-        });
-      });
-    </script>
-  </body>
-</html>
+          <div class="newpost-cta">
+            <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
+            <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
+            <button class="btn-secondary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

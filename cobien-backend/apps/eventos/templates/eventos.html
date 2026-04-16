@@ -1,601 +1,569 @@
+{% extends "base.html" %}
 {% load i18n %}
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>{% block titulo %}  {% endblock %}</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>CoBien</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FullCalendar CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
 
+{% block title %}CoBien · {% trans "Eventos" %}{% endblock %}
+{% block page_class %}calendar-shell{% endblock %}
 
-    
-</head>
-<body>
-    <div class="wrapper">
-            <!-- HEADER -->
-            <header>
-                <div class="container header-inner">
-                    <div class="coBienLogo">
-                        <a id="logo" href="{% url 'home' %}"><img src="{% static 'images/LOGO_CO-BIEN_2024-RVB-removebg-preview.png' %}" alt="Logo Image"></a>
-                    </div>
-                    <button class="menu-toggle" aria-label="Abrir menú">☰</button>
-                    <nav class="main-nav" role="navigation" aria-label="Main navigation">
-                        <a href="{% url 'lista_eventos' %}">{% blocktrans %}Eventos{% endblocktrans %}</a>
-                        <a href="{% url 'videocall' %}">{% blocktrans %}Videollamadas{% endblocktrans %}</a>
-                        <a href="{% url 'pizarra_home' %}">{% blocktrans %}Pizarra{% endblocktrans %}</a>
-                        {% if user.is_staff or user.is_superuser %}
-                            <a href="{% url 'pizarra_icso_dashboard' %}">{% blocktrans %}ICSO{% endblocktrans %}</a>
-                            <a href="{% url 'pizarra_devices_admin' %}">{% blocktrans %}Muebles{% endblocktrans %}</a>
-                            <a href="{% url 'pizarra_device_contacts_admin' %}">{% blocktrans %}Contactos Muebles{% endblocktrans %}</a>
-                        {% endif %}
-                        <span class="spacer"></span>
-                        {% if user.is_authenticated %}
-                            <div class="user-info">
-                                <span class="saludo">Hola, {{ user.username }} —</span>
-                                <a href="{% url 'logout' %}" class="auth-link">{% blocktrans %}Salir{% endblocktrans %}</a>
-                            </div>
-                        {% else %}
-                            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% blocktrans %}Entrar{% endblocktrans %}</a>
-                            <a href="{% url 'signup' %}"  class="auth-link">{% blocktrans %}Registrarse{% endblocktrans %}</a>
-                        {% endif %}
-                    </nav>
-                    <div class="language-switcher">
-                        <form action="{% url 'set_language' %}" method="post">
-                            {% csrf_token %}
-                            <select name="language" onchange="this.form.submit();">
-                                    <option value="es" {% if request.LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
-                                    <option value="fr" {% if request.LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
-                            </select>
-                        </form>
-                    </div>
-                </div>
-            </header>
-        {% if messages %}
-            <ul class="alert-list">
-                {% for m in messages %}
-                    <li class="alert">{{ m }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-      <!-- Modal de Selección de Región -->
-        <div class="modal fade" id="regionModal" tabindex="-1" aria-labelledby="regionModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                <h5 class="modal-title" id="regionModalLabel">{% blocktrans %}Selecciona una Región{% endblocktrans %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                </div>
-                <div class="modal-body">
-                <label for="regionSelect" class="form-label">{% blocktrans %}Elige una región:{% endblocktrans %}</label>
-                <select id="regionSelect" class="form-select">
-                    <option value="all">{% blocktrans %}Todos{% endblocktrans %}</option>
-                    {% for region in regiones %}
-                    <option value="{{ region }}">{{ region }}</option>
-                    {% endfor %}
-                </select>
-                </div>
-                <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="irAEventosConFiltro()">{% blocktrans %}Ver Eventos{% endblocktrans %}</button>
-                </div>
-            </div>
-            </div>
-        </div>
-        <div class="calendar-wrapper">
-            <!-- Top actions: botones y filtros (ahora visibles arriba) -->
-            <div class="top-actions container-inner">
-                <div class="actions-left">
-                    {% if user.is_authenticated %}
-                        <button id="addEventBtn" class="btn btn-primary"
-                                data-bs-toggle="modal" data-bs-target="#addEventModal">
-                            {% blocktrans %}Añadir Evento{% endblocktrans %}
-                        </button>
-                    {% endif %}
+{% block extra_head %}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
+{% endblock %}
 
-                    <button id="changeRegionBtn" class="btn btn-secondary"
-                            data-bs-toggle="modal" data-bs-target="#regionModal">
-                        {% blocktrans %}Cambiar Región{% endblocktrans %}
-                    </button>
-                </div>
+{% block content %}
+  <section class="module-panel calendar-hero">
+    <div class="section-heading">
+      <div>
+        <span class="hero-kicker">{% trans "Agenda CoBien" %}</span>
+        <h1>{% trans "Calendario común y personal en una sola vista" %}</h1>
+        <p class="lead-text">
+          {% trans "Consulta los eventos públicos, filtra los dirigidos a muebles concretos y añade nuevos contenidos sin salir del calendario." %}
+        </p>
+      </div>
+    </div>
+  </section>
 
-                <div class="actions-right">
-                    <div class="filters-area">
-                        <div class="filters-bar">
-                            <div class="segmented" id="modeSelector">
-                                <input type="radio" class="sgmt-input" name="mode" id="modeGlobal" value="global">
-                                <label class="sgmt" for="modeGlobal">{% blocktrans %}Global{% endblocktrans %}</label>
+  <div class="top-actions">
+    <div class="actions-left">
+      {% if user.is_authenticated %}
+        <button id="addEventBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
+          {% trans "Añadir evento" %}
+        </button>
+      {% endif %}
 
-                                <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
-                                <label class="sgmt" for="modePersonal">{% blocktrans %}Personal{% endblocktrans %}</label>
-                            </div>
-                        </div>
-                        <div class="legend compact-legend">
-                            {% for d in my_device_colors %}
-                                <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.name }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="calendar">
-                <!-- Contenedor -->
-                <section class="main-container" > 
-                <!-- Modal para mostrar detalles del evento -->
-                    <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="eventModalLabel">{% blocktrans %}Detalles del Evento{% endblocktrans %}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p><strong>{% blocktrans %}Título:{% endblocktrans %}</strong> <span id="modal-title"></span></p>
-                                    <p><strong>{% blocktrans %}Fecha:{% endblocktrans %}</strong> <span id="modal-date"></span></p>
-                                    <p><strong>{% blocktrans %}Localización:{% endblocktrans %}</strong> <span id="modal-location"></span></p>
-                                    <p><strong>{% blocktrans %}Descripción:{% endblocktrans %}</strong> <span id="modal-description"></span></p>
-                                    <p id="modal-createdby-row" style="display:none;"> <strong>{% blocktrans %}Añadido por:{% endblocktrans %}</strong> <span id="modal-createdby"></span> </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <h2 id="currentRegion" class="h5 text-center my-3"></h2>
-                    <!-- Modal para agregar un evento (mantener donde estaba) -->
-                    {% if user.is_authenticated %}
-                        <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="addEventModalLabel">{% blocktrans %}Añadir Nuevo Evento{% endblocktrans %}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <form id="addEventForm">
-                                            <div class="mb-3">
-                                                <label for="eventImage" class="form-label">{% blocktrans %}Subir Imagen{% endblocktrans %}</label>
-                                                <input type="file" class="form-control" id="eventImage" accept="image/*">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="eventTitle" class="form-label">{% blocktrans %}Título{% endblocktrans %}</label>
-                                                <input type="text" class="form-control" id="eventTitle" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="eventDate" class="form-label">{% blocktrans %}Fecha{% endblocktrans %}</label>
-                                                <input type="date" class="form-control" id="eventDate" required>
-                                            </div>
-                                            <div class="mb-3">
-                                            <label for="eventLocationSelect" class="form-label">{% blocktrans %}Localización{% endblocktrans %}</label>
-                                            <select id="eventLocationSelect" class="form-select">
-                                                <option value="">{% blocktrans %}— Selecciona —{% endblocktrans %}</option>
-                                                {% for region in regiones %}
-                                                <option value="{{ region }}">{{ region }}</option>
-                                                {% endfor %}
-                                                <option value="_new">+ {% blocktrans %}Nueva ubicación…{% endblocktrans %}</option>
-                                            </select>
-                                            </div>
-
-                                            <div class="mb-3" id="eventLocationCustomGroup" style="display:none;">
-                                            <label for="eventLocationCustom" class="form-label">{% blocktrans %}Nueva ubicación{% endblocktrans %}</label>
-                                            <input type="text" class="form-control" id="eventLocationCustom" placeholder="{% blocktrans %}Escribe una nueva ubicación{% endblocktrans %}">
-                                            <div class="form-text">
-                                                {% blocktrans %}Si eliges “Nueva ubicación…”, se guardará el texto que escribas aquí.{% endblocktrans %}
-                                            </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="eventDescription" class="form-label">{% blocktrans %}Descripción{% endblocktrans %}</label>
-                                                <textarea class="form-control" id="eventDescription" rows="3"></textarea>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="audienceSelect" class="form-label">{% blocktrans %}Dirigido a{% endblocktrans %}</label>
-                                                <select id="audienceSelect" class="form-select">
-                                                    <option value="all">{% blocktrans %}Todos{% endblocktrans %}</option>
-                                                    <option value="device">{% blocktrans %}Usuario de mueble{% endblocktrans %}</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3" id="targetDeviceGroup" style="display:none;">
-                                                <label for="targetDevice" class="form-label">{% blocktrans %}Usuario de mueble{% endblocktrans %}</label>
-                                                <input type="text" class="form-control" id="targetDevice"
-                                                        placeholder="p. ej. abuela-carmen"
-                                                        value="{{ linked_device|default:'' }}">
-                                                <div class="form-text">
-                                                    {% blocktrans %}Se autocompleta con tu mueble si lo tienes guardado; puedes cambiarlo.{% endblocktrans %}
-                                                </div>
-                                            </div>                                    
-                                            <button type="submit" class="btn btn-success">{% blocktrans %}Guardar Evento{% endblocktrans %}</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
-                </section>
-            </div>
-        </div>
-        
+      <button id="changeRegionBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#regionModal">
+        {% trans "Cambiar región" %}
+      </button>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
-    <script>
-        // Debe coincidir con la del servidor
-        const PALETTE = ["#A3E635","#F472B6","#F59E0B","#34D399","#F87171","#C084FC","#FB7185","#FBBF24"];
-        function colorForDevice(name) {
-            if (!name) return "#9CA3AF";
-            let h = 0;
-            for (let i = 0; i < name.length; i++) {
-            h = ((h * 31) + name.charCodeAt(i)) >>> 0;
-            }
-            return PALETTE[h % PALETTE.length];
+    <div class="actions-right">
+      <div class="filters-area">
+        <div class="filters-bar">
+          <div class="segmented" id="modeSelector">
+            <input type="radio" class="sgmt-input" name="mode" id="modeGlobal" value="global">
+            <label class="sgmt" for="modeGlobal">{% trans "Global" %}</label>
+
+            <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
+            <label class="sgmt" for="modePersonal">{% trans "Personal" %}</label>
+          </div>
+
+          {% if my_devices %}
+            <div id="personalPicker" class="personal-picker">
+              <button id="personalToggle" type="button" class="btn btn-ghost">
+                <span id="personalLabel">{% trans "Todos los destinatarios" %}</span>
+              </button>
+              <div id="personalPanel" class="personal-panel" style="display:none;">
+                <label class="form-label" for="targetSearch">{% trans "Buscar mueble" %}</label>
+                <input id="targetSearch" type="text" placeholder="{% trans 'Filtrar por nombre o ID' %}">
+                <ul class="target-list">
+                  <li>
+                    <label class="legend-badge">
+                      <input id="targets_all" type="checkbox" checked>
+                      {% trans "Todos los destinatarios" %}
+                    </label>
+                  </li>
+                  {% for device in my_devices %}
+                    <li>
+                      <label class="legend-badge">
+                        <input class="target-item" type="checkbox" value="{{ device }}">
+                        {{ device }}
+                      </label>
+                    </li>
+                  {% endfor %}
+                </ul>
+                <div class="bottom-action-bar">
+                  <button id="targets_clear" type="button" class="btn btn-ghost">{% trans "Limpiar" %}</button>
+                  <button id="targets_apply" type="button" class="btn btn-primary">{% trans "Aplicar" %}</button>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if my_device_colors %}
+          <div class="legend compact-legend">
+            {% for d in my_device_colors %}
+              <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.name }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <section class="content-card calendar-board">
+    <div class="calendar-board-head">
+      <h2 id="currentRegion" class="video-page-title"></h2>
+      <p class="muted">{% trans "Cambia entre calendario global y vistas personales usando los filtros superiores." %}</p>
+    </div>
+    <div id="calendar"></div>
+  </section>
+
+  <div class="modal fade" id="regionModal" tabindex="-1" aria-labelledby="regionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="regionModalLabel">{% trans "Selecciona una región" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
+        </div>
+        <div class="modal-body">
+          <label for="regionSelect" class="form-label">{% trans "Elige una región" %}</label>
+          <select id="regionSelect" class="form-select">
+            <option value="all">{% trans "Todos" %}</option>
+            {% for region in regiones %}
+              <option value="{{ region }}">{{ region }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" onclick="irAEventosConFiltro()">{% trans "Ver eventos" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="eventModalLabel">{% trans "Detalles del evento" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>{% trans "Título:" %}</strong> <span id="modal-title"></span></p>
+          <p><strong>{% trans "Fecha:" %}</strong> <span id="modal-date"></span></p>
+          <p><strong>{% trans "Localización:" %}</strong> <span id="modal-location"></span></p>
+          <p><strong>{% trans "Descripción:" %}</strong> <span id="modal-description"></span></p>
+          <p id="modal-createdby-row" style="display:none;"><strong>{% trans "Añadido por:" %}</strong> <span id="modal-createdby"></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if user.is_authenticated %}
+    <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addEventModalLabel">{% trans "Añadir nuevo evento" %}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
+          </div>
+          <div class="modal-body">
+            <form id="addEventForm" class="section-stack">
+              <div>
+                <label for="eventImage" class="form-label">{% trans "Subir imagen" %}</label>
+                <input type="file" class="form-control" id="eventImage" accept="image/*">
+              </div>
+              <div>
+                <label for="eventTitle" class="form-label">{% trans "Título" %}</label>
+                <input type="text" class="form-control" id="eventTitle" required>
+              </div>
+              <div>
+                <label for="eventDate" class="form-label">{% trans "Fecha" %}</label>
+                <input type="date" class="form-control" id="eventDate" required>
+              </div>
+              <div>
+                <label for="eventLocationSelect" class="form-label">{% trans "Localización" %}</label>
+                <select id="eventLocationSelect" class="form-select">
+                  <option value="">{% trans "— Selecciona —" %}</option>
+                  {% for region in regiones %}
+                    <option value="{{ region }}">{{ region }}</option>
+                  {% endfor %}
+                  <option value="_new">+ {% trans "Nueva ubicación…" %}</option>
+                </select>
+              </div>
+
+              <div id="eventLocationCustomGroup" style="display:none;">
+                <label for="eventLocationCustom" class="form-label">{% trans "Nueva ubicación" %}</label>
+                <input type="text" class="form-control" id="eventLocationCustom" placeholder="{% trans 'Escribe una nueva ubicación' %}">
+                <div class="form-text">
+                  {% trans "Si eliges “Nueva ubicación…”, se guardará el texto que escribas aquí." %}
+                </div>
+              </div>
+
+              <div>
+                <label for="eventDescription" class="form-label">{% trans "Descripción" %}</label>
+                <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+              </div>
+              <div>
+                <label for="audienceSelect" class="form-label">{% trans "Dirigido a" %}</label>
+                <select id="audienceSelect" class="form-select">
+                  <option value="all">{% trans "Todos" %}</option>
+                  <option value="device">{% trans "Usuario de mueble" %}</option>
+                </select>
+              </div>
+              <div id="targetDeviceGroup" style="display:none;">
+                <label for="targetDevice" class="form-label">{% trans "Usuario de mueble" %}</label>
+                <input type="text" class="form-control" id="targetDevice" placeholder="p. ej. abuela-carmen" value="{{ linked_device|default:'' }}">
+                <div class="form-text">
+                  {% trans "Se autocompleta con tu mueble si lo tienes guardado; puedes cambiarlo." %}
+                </div>
+              </div>
+              <button type="submit" class="btn btn-success">{% trans "Guardar evento" %}</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
+  <script>
+    let calendar;
+
+    const PALETTE = ["#A3E635", "#F472B6", "#F59E0B", "#34D399", "#F87171", "#C084FC", "#FB7185", "#FBBF24"];
+    function colorForDevice(name) {
+      if (!name) return "#9CA3AF";
+      let h = 0;
+      for (let i = 0; i < name.length; i++) {
+        h = ((h * 31) + name.charCodeAt(i)) >>> 0;
+      }
+      return PALETTE[h % PALETTE.length];
+    }
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const heading = document.getElementById('currentRegion');
+      if (heading) {
+        const loc = new URLSearchParams(location.search).get('location');
+        heading.textContent = (!loc || loc === 'all')
+          ? 'Eventos de todas las regiones'
+          : `Eventos de ${decodeURIComponent(loc)}`;
+      }
+
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        height: 'auto',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: [
+          {% for evento in eventos %}
+            {
+              title: "{{ evento.title|escapejs }}",
+              start: "{{ evento.date }}",
+              description: "{{ evento.description|escapejs }}",
+              location: "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
+              color: "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
+              target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.created_by %},
+              created_by: "{{ evento.created_by|escapejs }}"{% endif %}
+            },
+          {% endfor %}
+        ],
+        eventClick: function(info) {
+          document.getElementById('modal-title').textContent = info.event.title;
+          document.getElementById('modal-date').textContent = info.event.start.toISOString().split('T')[0];
+          document.getElementById('modal-description').textContent = info.event.extendedProps.description;
+          document.getElementById('modal-location').textContent = info.event.extendedProps.location || '';
+
+          const isPersonal = !!info.event.extendedProps.target_device;
+          const createdBy = info.event.extendedProps.created_by;
+          const row = document.getElementById('modal-createdby-row');
+
+          if (isPersonal && createdBy) {
+            document.getElementById('modal-createdby').textContent = createdBy;
+            row.style.display = 'block';
+          } else {
+            row.style.display = 'none';
+          }
+
+          const eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+          eventModal.show();
         }
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            /* ─── 1. Poner la frase de la región ─────────────────────────── */
-            const heading = document.getElementById('currentRegion');   // <h2 id="currentRegion">
-            if (heading) {
-                const loc = new URLSearchParams(location.search).get('location');
-                heading.textContent = (!loc || loc === 'all')
-                    ? 'Eventos de todas las regiones'
-                    : `Eventos de ${decodeURIComponent(loc)}`;
-            }
-            const calendarEl = document.getElementById('calendar');
-            calendar   = new FullCalendar.Calendar(calendarEl, {
-                initialView  : 'dayGridMonth',
-                locale       : 'es',
-                headerToolbar: {
-                    left  : 'prev,next today',
-                    center: 'title',
-                    right : 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                events: [
-                    {% for evento in eventos %}
-                    {
-                        title      : "{{ evento.title|escapejs }}",
-                        start      : "{{ evento.date }}",
-                        description: "{{ evento.description|escapejs }}",
-                        location   : "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
-                        color      : "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
-                        target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.created_by %},
-                        created_by : "{{ evento.created_by|escapejs }}"{% endif %}
-                    },
-                    {% endfor %}
-                ],
-                eventClick: function(info) {
-                    // Mostrar los detalles en el modal
-                    document.getElementById('modal-title').textContent = info.event.title;
-                    document.getElementById('modal-date').textContent = info.event.start.toISOString().split('T')[0];
-                    document.getElementById('modal-description').textContent = info.event.extendedProps.description;
-                    document.getElementById('modal-location').textContent = info.event.extendedProps.location || '';
+      });
 
-                    const isPersonal = !!info.event.extendedProps.target_device;
-                    const createdBy  = info.event.extendedProps.created_by;
-                    const row        = document.getElementById('modal-createdby-row');
+      calendar.render();
+    });
 
-                    if (isPersonal && createdBy) {
-                        document.getElementById('modal-createdby').textContent = createdBy;
-                        row.style.display = 'block';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                    
-                    const eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
-                    eventModal.show();
-                }
-            });
-        
-            calendar.render();
-        });
+    {% if user.is_authenticated %}
+      document.getElementById('addEventForm').addEventListener('submit', function(e) {
+        e.preventDefault();
 
+        const title = document.getElementById('eventTitle').value;
+        const date = document.getElementById('eventDate').value;
+        const description = document.getElementById('eventDescription').value;
+        const locSelectEl = document.getElementById('eventLocationSelect');
+        const locCustomEl = document.getElementById('eventLocationCustom');
+        const audience = document.getElementById('audienceSelect').value;
+        const targetDevice = document.getElementById('targetDevice')?.value || "";
+        const color = (audience === 'device') ? colorForDevice(targetDevice) : null;
 
-
-
-        document.getElementById('addEventForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Evita que la página se recargue
-        
-            const title = document.getElementById('eventTitle').value;
-            const date = document.getElementById('eventDate').value;
-            const description = document.getElementById('eventDescription').value;
-            const locSelectEl  = document.getElementById('eventLocationSelect');
-            const locCustomEl  = document.getElementById('eventLocationCustom');
-            const audience = document.getElementById('audienceSelect').value;            
-            const targetDevice = document.getElementById('targetDevice')?.value || "";
-            const color = (audience === 'device') ? colorForDevice(targetDevice) : null;      
-
-            // Verificar en la consola que los valores se capturan
-            console.log('Título:', title);
-            console.log('Fecha:', date);
-            console.log('Descripción:', description);
-            console.log('audience:', audience);
-            console.log('targetDevice:', targetDevice);
-
-            let eventLocation;
-            if (locSelectEl.value === '_new') {
-            eventLocation = (locCustomEl.value || '').trim();
-            } else {
-            eventLocation = (locSelectEl.value || '').trim();
-            }
-
-            // Validación sencilla
-            if (!eventLocation) {
-            alert('Selecciona una ubicación o escribe una nueva.');
-            return;
-            }
-
-            // Enviar los datos a Django con fetch
-            fetch('/api/guardar_evento/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({
-                    title, date, description, 
-                    location: eventLocation,
-                    audience,
-                    target_device: audience === 'device' ? targetDevice : ''
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                // Lo añadimos al calendario para no recargar
-                calendar.addEvent({
-                    title: title,
-                    start: date,
-                    description: description,
-                    location: eventLocation,
-                    ...(color ? { color } : {})
-                });
-                document.getElementById('addEventForm').reset();
-                document.getElementById('eventLocationSelect').value = '';
-                document.getElementById('eventLocationCustom').value = '';
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addEventModal'));
-                modal.hide();
-                } else {
-                alert('Error al guardar el evento: ' + (data.error || ''));
-                }
-            })
-            .catch(err => console.error('Error en la solicitud:', err));
-        });
-
-        document.getElementById('eventImage').addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                const formData = new FormData();
-                formData.append('image', file);
-        
-                fetch('/api/extraer_evento/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Datos recibidos:', data);  // Verifica la respuesta
-                    if (data.success) {
-                        document.getElementById('eventTitle').value = data.title || '';
-                        document.getElementById('eventDate').value = data.date || '';  // yyyy-mm-dd
-                        document.getElementById('eventDescription').value = data.description || '';
-                    } else {
-                        alert('Error al procesar la imagen: ' + data.error);
-                    }
-                })
-                .catch(error => console.error('Error en la solicitud:', error));
-            }
-        });
-    </script>
-    <script>
-        // Mostrar automáticamente el modal al entrar a eventos.html si no hay filtro
-        window.addEventListener('DOMContentLoaded', function () {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (!urlParams.has('location')) {
-                const modal = new bootstrap.Modal(document.getElementById('regionModal'));
-                modal.show();
-            }
-        });
-      
-        function irAEventosConFiltro() {
-            const seleccion = document.getElementById('regionSelect').value;
-            if (seleccion === "all") {
-                window.location.href = "/eventos/?location=all";
-            } else if (seleccion) {
-                window.location.href = `/eventos/?location=${encodeURIComponent(seleccion)}`;
-            }
+        let eventLocation;
+        if (locSelectEl.value === '_new') {
+          eventLocation = (locCustomEl.value || '').trim();
+        } else {
+          eventLocation = (locSelectEl.value || '').trim();
         }
-    </script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.querySelector('.menu-toggle');
-        const nav       = document.querySelector('.main-nav');
-        if (!toggleBtn || !nav) {
-          console.warn('No se encontró .menu-toggle o .main-nav');
+
+        if (!eventLocation) {
+          alert('Selecciona una ubicación o escribe una nueva.');
           return;
         }
-        toggleBtn.addEventListener('click', function() {
-          nav.classList.toggle('active');
-        });
-      });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const audienceSelect = document.getElementById('audienceSelect');
-            const targetGroup    = document.getElementById('targetDeviceGroup');
 
-            if (audienceSelect) {
-            const toggle = () => {
-                targetGroup.style.display = (audienceSelect.value === 'device') ? 'block' : 'none';
-            };
-            audienceSelect.addEventListener('change', toggle);
-            toggle(); // estado inicial
-            }
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const locSelect   = document.getElementById('eventLocationSelect');
-            const customGroup = document.getElementById('eventLocationCustomGroup');
-            const customInput = document.getElementById('eventLocationCustom');
-
-            if (!locSelect) return;
-
-            // Si quieres, preselecciona la región actual del filtro (si existe en la URL)
-            const params = new URLSearchParams(window.location.search);
-            const currentLoc = params.get('location');
-            if (currentLoc && currentLoc !== 'all') {
-            const opt = Array.from(locSelect.options).find(o => o.value === currentLoc);
-            if (opt) locSelect.value = currentLoc;
-            }
-
-            const toggleCustom = () => {
-            const isNew = (locSelect.value === '_new');
-            customGroup.style.display = isNew ? 'block' : 'none';
-            if (!isNew) customInput.value = '';
-            };
-
-            locSelect.addEventListener('change', toggleCustom);
-            toggleCustom();
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-        const params = new URLSearchParams(window.location.search);
-        const serverMode    = "{{ mode_selected|default:'' }}";
-        const serverTargets = ({{ selected_targets|default:'[]'|safe }});
-
-        let mode    = params.get('mode') || serverMode || 'global';
-        let targets = (params.get('targets') || '').trim();
-
-        // UI
-        const modeGlobal    = document.getElementById('modeGlobal');
-        const modePersonal  = document.getElementById('modePersonal');
-        const personalBox   = document.getElementById('personalPicker');
-        const btnToggle     = document.getElementById('personalToggle');
-        const panel         = document.getElementById('personalPanel');
-        const labelBtn      = document.getElementById('personalLabel');
-        const checkAll      = document.getElementById('targets_all');
-        const targetChecks  = Array.from(document.querySelectorAll('.target-item'));
-        const btnApply      = document.getElementById('targets_apply');
-        const btnClear      = document.getElementById('targets_clear');
-        const inputSearch   = document.getElementById('targetSearch');
-
-        // Inicializar modo
-        (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
-        personalBox.style.display = (mode === 'personal') ? 'inline-block' : 'none';
-
-        // Helpers
-        function setChecksFromValue(list){
-            if (!list || list === 'all'){
-            checkAll.checked = true; targetChecks.forEach(c => c.checked = false);
-            updateSummary(); return;
-            }
-            const wanted = new Set(list.split(',').filter(Boolean));
-            checkAll.checked = false;
-            targetChecks.forEach(c => c.checked = wanted.has(c.value));
-            updateSummary();
-        }
-        function currentSelectionCSV(){
-            return checkAll.checked ? 'all'
-            : targetChecks.filter(c => c.checked).map(c => c.value).join(',');
-        }
-        function updateSummary(){
-            const csv = currentSelectionCSV();
-            if (csv === 'all' || csv === '') { labelBtn.textContent = 'Todos los destinatarios'; return; }
-            const count = csv.split(',').length;
-            labelBtn.textContent = `Seleccionados (${count})`;
-        }
-        function navigate(nextMode, targetsCSV){
-            const p = new URLSearchParams(window.location.search);
-            p.set('mode', nextMode);
-            if (nextMode === 'personal'){
-            p.set('targets', (targetsCSV && targetsCSV.length) ? targetsCSV : 'all');
+        fetch('/api/guardar_evento/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            title, date, description,
+            location: eventLocation,
+            audience,
+            target_device: audience === 'device' ? targetDevice : ''
+          })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              calendar.addEvent({
+                title: title,
+                start: date,
+                description: description,
+                location: eventLocation,
+                ...(color ? { color } : {})
+              });
+              document.getElementById('addEventForm').reset();
+              document.getElementById('eventLocationSelect').value = '';
+              document.getElementById('eventLocationCustom').value = '';
+              const modal = bootstrap.Modal.getInstance(document.getElementById('addEventModal'));
+              modal.hide();
             } else {
-            p.delete('targets');
+              alert('Error al guardar el evento: ' + (data.error || ''));
             }
-            window.location.search = p.toString();
+          })
+          .catch(err => console.error('Error en la solicitud:', err));
+      });
+
+      document.getElementById('eventImage').addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('/api/extraer_evento/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              document.getElementById('eventTitle').value = data.title || '';
+              document.getElementById('eventDate').value = data.date || '';
+              document.getElementById('eventDescription').value = data.description || '';
+            } else {
+              alert('Error al procesar la imagen: ' + data.error);
+            }
+          })
+          .catch(error => console.error('Error en la solicitud:', error));
+      });
+    {% endif %}
+  </script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('location')) {
+        const modal = new bootstrap.Modal(document.getElementById('regionModal'));
+        modal.show();
+      }
+    });
+
+    function irAEventosConFiltro() {
+      const seleccion = document.getElementById('regionSelect').value;
+      if (seleccion === "all") {
+        window.location.href = "/eventos/?location=all";
+      } else if (seleccion) {
+        window.location.href = `/eventos/?location=${encodeURIComponent(seleccion)}`;
+      }
+    }
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const audienceSelect = document.getElementById('audienceSelect');
+      const targetGroup = document.getElementById('targetDeviceGroup');
+
+      if (!audienceSelect || !targetGroup) return;
+
+      const toggle = () => {
+        targetGroup.style.display = (audienceSelect.value === 'device') ? 'block' : 'none';
+      };
+      audienceSelect.addEventListener('change', toggle);
+      toggle();
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const locSelect = document.getElementById('eventLocationSelect');
+      const customGroup = document.getElementById('eventLocationCustomGroup');
+      const customInput = document.getElementById('eventLocationCustom');
+
+      if (!locSelect) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const currentLoc = params.get('location');
+      if (currentLoc && currentLoc !== 'all') {
+        const opt = Array.from(locSelect.options).find(o => o.value === currentLoc);
+        if (opt) locSelect.value = currentLoc;
+      }
+
+      const toggleCustom = () => {
+        const isNew = (locSelect.value === '_new');
+        customGroup.style.display = isNew ? 'block' : 'none';
+        if (!isNew) customInput.value = '';
+      };
+
+      locSelect.addEventListener('change', toggleCustom);
+      toggleCustom();
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const params = new URLSearchParams(window.location.search);
+      const serverMode = "{{ mode_selected|default:'' }}";
+      const serverTargets = ({{ selected_targets|default:'[]'|safe }});
+
+      let mode = params.get('mode') || serverMode || 'global';
+      let targets = (params.get('targets') || '').trim();
+
+      const modeGlobal = document.getElementById('modeGlobal');
+      const modePersonal = document.getElementById('modePersonal');
+      const personalBox = document.getElementById('personalPicker');
+      const btnToggle = document.getElementById('personalToggle');
+      const panel = document.getElementById('personalPanel');
+      const labelBtn = document.getElementById('personalLabel');
+      const checkAll = document.getElementById('targets_all');
+      const targetChecks = Array.from(document.querySelectorAll('.target-item'));
+      const btnApply = document.getElementById('targets_apply');
+      const btnClear = document.getElementById('targets_clear');
+      const inputSearch = document.getElementById('targetSearch');
+
+      if (!(modeGlobal && modePersonal)) return;
+
+      (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
+      if (personalBox) {
+        personalBox.style.display = (mode === 'personal') ? 'inline-block' : 'none';
+      }
+
+      function setChecksFromValue(list) {
+        if (!(checkAll && targetChecks.length)) return;
+        if (!list || list === 'all') {
+          checkAll.checked = true;
+          targetChecks.forEach(c => c.checked = false);
+          updateSummary();
+          return;
         }
+        const wanted = new Set(list.split(',').filter(Boolean));
+        checkAll.checked = false;
+        targetChecks.forEach(c => c.checked = wanted.has(c.value));
+        updateSummary();
+      }
 
-        // Estado inicial desde URL o servidor
-        if (targets) setChecksFromValue(targets);
-        else if (serverTargets && serverTargets.length) setChecksFromValue(serverTargets.join(','));
-        else setChecksFromValue('all');
+      function currentSelectionCSV() {
+        if (!checkAll) return 'all';
+        return checkAll.checked ? 'all' : targetChecks.filter(c => c.checked).map(c => c.value).join(',');
+      }
 
-        // Eventos modo
-        modeGlobal.addEventListener('change', () => {
-            personalBox.style.display = 'none';
-            navigate('global', '');
-        });
-        modePersonal.addEventListener('change', () => {
-            personalBox.style.display = 'inline-block';
-            // NO navegamos todavía; el usuario abrirá el desplegable y aplicará
-        });
-
-        // Abre/cierra desplegable
-        let open = false;
-        function setOpen(v){
-            open = v;
-            panel.style.display = open ? 'block' : 'none';
+      function updateSummary() {
+        if (!labelBtn) return;
+        const csv = currentSelectionCSV();
+        if (csv === 'all' || csv === '') {
+          labelBtn.textContent = 'Todos los destinatarios';
+          return;
         }
-        setOpen(false);
+        const count = csv.split(',').length;
+        labelBtn.textContent = `Seleccionados (${count})`;
+      }
+
+      function navigate(nextMode, targetsCSV) {
+        const p = new URLSearchParams(window.location.search);
+        p.set('mode', nextMode);
+        if (nextMode === 'personal') {
+          p.set('targets', (targetsCSV && targetsCSV.length) ? targetsCSV : 'all');
+        } else {
+          p.delete('targets');
+        }
+        window.location.search = p.toString();
+      }
+
+      if (targets) setChecksFromValue(targets);
+      else if (serverTargets && serverTargets.length) setChecksFromValue(serverTargets.join(','));
+      else setChecksFromValue('all');
+
+      modeGlobal.addEventListener('change', () => {
+        if (personalBox) personalBox.style.display = 'none';
+        navigate('global', '');
+      });
+
+      modePersonal.addEventListener('change', () => {
+        if (personalBox) personalBox.style.display = 'inline-block';
+      });
+
+      let open = false;
+      function setOpen(v) {
+        if (!panel) return;
+        open = v;
+        panel.style.display = open ? 'block' : 'none';
+      }
+      setOpen(false);
+
+      if (btnToggle) {
         btnToggle.addEventListener('click', () => setOpen(!open));
-        document.addEventListener('click', (e) => {
-            if (!open) return;
-            if (!personalBox.contains(e.target)) setOpen(false);
-        });
+      }
+      document.addEventListener('click', (e) => {
+        if (!open || !personalBox) return;
+        if (!personalBox.contains(e.target)) setOpen(false);
+      });
 
-        // Buscador de destinatarios
+      if (inputSearch) {
         inputSearch.addEventListener('input', () => {
-            const q = inputSearch.value.toLowerCase();
-            document.querySelectorAll('.target-list li').forEach(li => {
+          const q = inputSearch.value.toLowerCase();
+          document.querySelectorAll('.target-list li').forEach(li => {
             const name = li.textContent.trim().toLowerCase();
             li.style.display = name.includes(q) ? '' : 'none';
-            });
+          });
         });
+      }
 
-        // Lógica checks
+      if (checkAll) {
         checkAll.addEventListener('change', () => {
-            if (checkAll.checked) targetChecks.forEach(c => c.checked = false);
-            updateSummary();
+          if (checkAll.checked) targetChecks.forEach(c => c.checked = false);
+          updateSummary();
         });
-        targetChecks.forEach(c => {
-            c.addEventListener('change', () => {
+      }
+
+      targetChecks.forEach(c => {
+        c.addEventListener('change', () => {
+          if (checkAll) {
             if (targetChecks.some(t => t.checked)) checkAll.checked = false;
             else checkAll.checked = true;
-            updateSummary();
-            });
+          }
+          updateSummary();
         });
+      });
 
-        // Acciones
+      if (btnClear) {
         btnClear.addEventListener('click', () => {
-            checkAll.checked = true;
-            targetChecks.forEach(c => c.checked = false);
-            updateSummary();
+          if (checkAll) checkAll.checked = true;
+          targetChecks.forEach(c => c.checked = false);
+          updateSummary();
         });
+      }
+
+      if (btnApply) {
         btnApply.addEventListener('click', () => {
-            navigate('personal', currentSelectionCSV());
+          navigate('personal', currentSelectionCSV());
         });
-        });
-    </script>
-    <footer>
-        <!-- LINKS -->
-        <div class="footer-icons">
-            <a href="https://www.instagram.com/" target="_blank">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="height: 40px;">
-            </a>
-            <a href="https://www.facebook.com/" target="_blank">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="height: 40px;">
-            </a>
-        </div>
-        <!-- END OF LINKS -->
-        <p>&copy; 2024 CoBien. {% blocktrans %}Todos los derechos reservados.{% endblocktrans %}</p>
-    </footer>  
-</body>
-</html>
+      }
+    });
+  </script>
+{% endblock %}
