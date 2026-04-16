@@ -706,9 +706,14 @@
         };
       } catch (error) {
         console.error("❌ Error en la videollamada:", error);
-        const mensaje = error.message.includes("Failed to get access to local camera")
-          ? "No se puede acceder a la cámara o micrófono. Por favor otorga permisos al navegador."
-          : "Ocurrió un error al iniciar la videollamada: " + error.message;
+        const msg = String(error && error.message ? error.message : '');
+        const mensaje = (
+          msg.includes("Failed to get access to local camera") ||
+          msg.includes("Requested device not found") ||
+          msg.includes("NotFoundError")
+        )
+          ? "No se ha encontrado una cámara o un micrófono disponibles en este equipo. Revisa que estén conectados y que el navegador tenga permisos."
+          : "Ocurrió un error al iniciar la videollamada: " + msg;
         alert(mensaje);
         window.location.href = HOME_URL;
       }

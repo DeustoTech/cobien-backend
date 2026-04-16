@@ -12,12 +12,19 @@
           <h1 class="pz-h2">{% trans "Inventario de muebles" %}</h1>
           <p class="lead-text">{% trans "Controla altas, estado y configuración básica de cada dispositivo desde un único panel." %}</p>
         </div>
+        <div class="newpost-cta">
+          {% if show_hidden %}
+            <a class="btn-outline" href="{% url 'pizarra_devices_admin' %}">{% trans "Ocultar elementos ocultos" %}</a>
+          {% else %}
+            <a class="btn-outline" href="{% url 'pizarra_devices_admin' %}?show_hidden=1">{% trans "Mostrar también ocultos" %}</a>
+          {% endif %}
+        </div>
       </div>
 
       <form method="post" class="section-stack" style="margin-top: 20px;">
         {% csrf_token %}
         <input type="hidden" name="action" value="create">
-        <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+        <div class="grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
           <div>
             <label class="form-label" for="device_id">{% trans "ID del mueble" %}</label>
             <input type="text" id="device_id" name="device_id" placeholder="CoBien4" required>
@@ -30,6 +37,12 @@
             <label class="legend-badge">
               <input type="checkbox" name="enabled" value="1" checked>
               {% trans "Habilitado" %}
+            </label>
+          </div>
+          <div style="display:flex; align-items:end;">
+            <label class="legend-badge">
+              <input type="checkbox" name="hidden_in_admin" value="1">
+              {% trans "Oculto en el panel" %}
             </label>
           </div>
         </div>
@@ -59,12 +72,15 @@
                   <div>
                     <strong>{{ device.device_id }}</strong>
                     <span class="legend-badge" style="margin-left:10px;">{{ device.status }}</span>
+                    {% if device.hidden_in_admin %}
+                      <span class="legend-badge" style="margin-left:10px;">{% trans "Oculto" %}</span>
+                    {% endif %}
                     {% if device.last_seen_at %}
                       <span class="muted" style="margin-left:10px;">{{ device.last_seen_at }}</span>
                     {% endif %}
                   </div>
                 </div>
-                <div class="grid" style="grid-template-columns: 1.3fr .7fr;">
+                <div class="grid" style="grid-template-columns: 1.2fr .6fr .6fr;">
                   <div>
                     <label class="form-label">{% trans "Nombre visible" %}</label>
                     <input type="text" name="display_name" value="{{ device.display_name }}">
@@ -73,6 +89,12 @@
                     <label class="legend-badge">
                       <input type="checkbox" name="enabled" value="1" {% if device.enabled %}checked{% endif %}>
                       {% trans "Habilitado" %}
+                    </label>
+                  </div>
+                  <div style="display:flex; align-items:end;">
+                    <label class="legend-badge">
+                      <input type="checkbox" name="hidden_in_admin" value="1" {% if device.hidden_in_admin %}checked{% endif %}>
+                      {% trans "Oculto en el panel" %}
                     </label>
                   </div>
                 </div>

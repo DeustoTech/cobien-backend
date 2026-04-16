@@ -239,7 +239,7 @@ def replace_device_assignments(device_id, usernames, default_username=""):
         )
 
 
-def create_device(device_id, display_name="", enabled=True):
+def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -252,6 +252,7 @@ def create_device(device_id, display_name="", enabled=True):
             "device_id": device_id,
             "display_name": str(display_name or device_id).strip() or device_id,
             "enabled": bool(enabled),
+            "hidden_in_admin": bool(hidden_in_admin),
             "contacts": [],
             "created_at": now,
             "updated_at": now,
@@ -260,7 +261,7 @@ def create_device(device_id, display_name="", enabled=True):
     )
 
 
-def update_device_metadata(device_id, display_name="", enabled=True):
+def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -270,6 +271,7 @@ def update_device_metadata(device_id, display_name="", enabled=True):
             "$set": {
                 "display_name": str(display_name or device_id).strip() or device_id,
                 "enabled": bool(enabled),
+                "hidden_in_admin": bool(hidden_in_admin),
                 "updated_at": datetime.now(timezone.utc),
             }
         },

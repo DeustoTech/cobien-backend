@@ -4,34 +4,6 @@
 {% block title %}CoBien{% endblock %}
 
 {% block content %}
-  <section class="hero-panel">
-    <div>
-      <span class="hero-kicker">{% trans "Plataforma CoBien" %}</span>
-      <h1 class="hero-title">{% trans "Una web más clara para coordinar eventos, videollamadas, pizarra y gestión de muebles." %}</h1>
-      <p class="hero-text">
-        {% trans "Accede a las funciones principales desde una navegación única, con mejor visibilidad del estado de los dispositivos y recorridos más directos para usuarios y administradores." %}
-      </p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="{% url 'lista_eventos' %}">{% trans "Ver eventos" %}</a>
-        <a class="btn btn-secondary" href="{% url 'videocall' %}">{% trans "Abrir videollamadas" %}</a>
-        <a class="btn btn-ghost" href="{% url 'pizarra_home' %}">{% trans "Ir a la pizarra" %}</a>
-      </div>
-    </div>
-
-    <aside class="hero-side">
-      <div class="metric-card">
-        <span class="metric-value">4</span>
-        <strong>{% trans "Módulos principales" %}</strong>
-        <p class="muted">{% trans "Eventos, videollamadas, pizarra y asociación conectados bajo la misma experiencia." %}</p>
-      </div>
-      <div class="metric-card">
-        <span class="metric-value">{% if user.is_authenticated %}24/7{% else %}1{% endif %}</span>
-        <strong>{% trans "Acceso operativo" %}</strong>
-        <p class="muted">{% trans "La interfaz prioriza acceso rápido a las acciones frecuentes y a la supervisión de muebles." %}</p>
-      </div>
-    </aside>
-  </section>
-
   <section class="section-stack">
     <div class="section-heading">
       <div>

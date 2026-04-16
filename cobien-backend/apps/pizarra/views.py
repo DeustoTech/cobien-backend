@@ -360,6 +360,7 @@ def devices_admin(request):
                     request.POST.get("device_id", ""),
                     display_name=request.POST.get("display_name", ""),
                     enabled=request.POST.get("enabled") == "1",
+                    hidden_in_admin=request.POST.get("hidden_in_admin") == "1",
                 )
                 messages.success(request, "Dispositivo creado.")
             elif action == "update":
@@ -367,6 +368,7 @@ def devices_admin(request):
                     request.POST.get("device_id", ""),
                     display_name=request.POST.get("display_name", ""),
                     enabled=request.POST.get("enabled") == "1",
+                    hidden_in_admin=request.POST.get("hidden_in_admin") == "1",
                 )
                 messages.success(request, "Dispositivo actualizado.")
             else:
@@ -375,19 +377,23 @@ def devices_admin(request):
             messages.error(request, str(exc))
         return redirect(reverse("pizarra_devices_admin"))
 
+    show_hidden = request.GET.get("show_hidden", "0") in ("1", "true", "True")
     devices = []
     for item in list_known_devices():
+        if item.get("hidden_in_admin") and not show_hidden:
+            continue
         devices.append(
             {
                 "device_id": item.get("device_id"),
                 "display_name": item.get("display_name") or item.get("device_id"),
                 "enabled": item.get("enabled", True),
+                "hidden_in_admin": item.get("hidden_in_admin", False),
                 "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
                 "status": device_online_status(item),
             }
         )
 
-    return render(request, "pizarra/devices_admin.html", {"devices": devices})
+    return render(request, "pizarra/devices_admin.html", {"devices": devices, "show_hidden": show_hidden})
 
 
 @login_required
