@@ -1,6 +1,9 @@
+import json
 import os
+import secrets
 from datetime import datetime, timezone, timedelta
 
+from django.contrib.auth.hashers import check_password
 from pymongo import MongoClient
 
 
@@ -9,6 +12,25 @@ _db = _client[os.getenv("DB_NAME", "LabasAppDB")]
 
 col_devices = _db["devices"]
 col_user_device_access = _db["user_device_access"]
+
+
+def _device_keys_from_env():
+    raw = (os.getenv("COBIEN_DEVICE_VIDEOCALL_KEYS") or "").strip()
+    if not raw:
+        return {}
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    normalized = {}
+    for key, value in payload.items():
+        device_id = str(key or "").strip()
+        device_key = str(value or "").strip()
+        if device_id and device_key:
+            normalized[device_id] = device_key
+    return normalized
 
 
 def normalize_contacts_list(raw_contacts):
@@ -296,3 +318,52 @@ def touch_device_heartbeat(device_id, payload=None):
         },
     )
     return col_devices.find_one({"device_id": device_id})
+
+
+def get_device_videocall_context(device_id):
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        return None
+
+    device = col_devices.find_one({"device_id": device_id})
+    if not device:
+        return None
+    if device.get("enabled", True) is False:
+        return None
+
+    allowed_room = str(device.get("videocall_room") or device_id).strip() or device_id
+    return {
+        "device": device,
+        "device_id": device_id,
+        "allowed_room": allowed_room,
+        "display_name": str(device.get("display_name") or device_id).strip() or device_id,
+    }
+
+
+def verify_device_videocall_key(device_id, provided_key):
+    provided_key = str(provided_key or "").strip()
+    if not provided_key:
+        return False
+
+    ctx = get_device_videocall_context(device_id)
+    if not ctx:
+        return False
+
+    device = ctx["device"]
+    stored_hash = str(device.get("videocall_device_key_hash") or "").strip()
+    if stored_hash:
+        try:
+            return check_password(provided_key, stored_hash)
+        except Exception:
+            return False
+
+    env_keys = _device_keys_from_env()
+    env_value = env_keys.get(ctx["device_id"])
+    if env_value:
+        return secrets.compare_digest(provided_key, env_value)
+
+    shared_key = str(os.getenv("COBIEN_DEVICE_VIDEOCALL_KEY") or "").strip()
+    if shared_key:
+        return secrets.compare_digest(provided_key, shared_key)
+
+    return False

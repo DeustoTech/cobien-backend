@@ -25,7 +25,12 @@ from django.urls import reverse
 import paho.mqtt.publish as mqtt_publish
 from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
-from apps.pizarra.device_registry import get_accessible_device_ids, get_default_device_id
+from apps.pizarra.device_registry import (
+    get_accessible_device_ids,
+    get_default_device_id,
+    get_device_videocall_context,
+    verify_device_videocall_key,
+)
 
 
 
@@ -551,6 +556,75 @@ def videocall(request):
         "default_room": prefill,
         "available_rooms": accessible_devices,
     })
+
+
+def videocall_device(request):
+    return render(
+        request,
+        "videocall.html",
+        {
+            "identity": "",
+            "default_room": "",
+            "available_rooms": [],
+            "device_mode": True,
+        },
+    )
+
+
+@csrf_exempt
+def device_videocall_session(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+
+    device_id = str(
+        request.headers.get("X-DEVICE-ID")
+        or payload.get("device_id")
+        or ""
+    ).strip()
+    device_key = str(
+        request.headers.get("X-DEVICE-KEY")
+        or payload.get("device_key")
+        or ""
+    ).strip()
+    requested_room = str(payload.get("room") or "").strip()
+
+    if not device_id:
+        return JsonResponse({"error": "Missing device_id"}, status=400)
+    if not verify_device_videocall_key(device_id, device_key):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    ctx = get_device_videocall_context(device_id)
+    if not ctx:
+        return JsonResponse({"error": "Unknown or disabled device"}, status=404)
+
+    allowed_room = ctx["allowed_room"]
+    room_name = requested_room or allowed_room
+    if room_name != allowed_room:
+        return JsonResponse({"error": "Room not allowed for this device"}, status=403)
+
+    token = AccessToken(
+        settings.TWILIO_ACCOUNT_SID,
+        settings.TWILIO_API_KEY,
+        settings.TWILIO_API_SECRET,
+        identity=device_id,
+    )
+    token.ttl = 600
+    token.add_grant(VideoGrant(room=room_name))
+
+    return JsonResponse(
+        {
+            "token": str(token.to_jwt()),
+            "room_name": room_name,
+            "identity": device_id,
+            "device_name": ctx["display_name"],
+            "call_answered_url": request.build_absolute_uri(reverse("call_answered")),
+        }
+    )
 
 def send_mqtt_notification(room_name: str, caller: str) -> None:
     """

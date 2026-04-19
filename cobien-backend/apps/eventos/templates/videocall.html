@@ -508,6 +508,26 @@
 
   <script>
     const HOME_URL = "{% url 'home' %}";
+    const DEVICE_MODE = {% if device_mode %}true{% else %}false{% endif %};
+
+    function getBootstrapFromHash() {
+      const raw = String(window.location.hash || '').replace(/^#/, '');
+      if (!raw) {
+        return null;
+      }
+      const params = new URLSearchParams(raw);
+      const token = params.get('token');
+      const room = params.get('room');
+      const identityValue = params.get('identity');
+      if (!token || !room || !identityValue) {
+        return null;
+      }
+      return {
+        token: token,
+        room_name: room,
+        identity: identityValue
+      };
+    }
 
     function isCoBienDevice(username) {
       const cobienNames = ['cobien', 'cobien1', 'cobien2'];
@@ -601,27 +621,43 @@
     }
 
     async function startVideoCall() {
-      identity = "{{ identity|escapejs }}";
-      if (!identity || !identity.trim()) {
-        window.location.href = HOME_URL;
-        return;
-      }
-
-      roomName = prompt(
-        I18N_VIDEOCALL.roomPrompt,
-        "{{ default_room|escapejs }}"
-      );
-      if (!roomName || !roomName.trim()) {
-        window.location.href = HOME_URL;
-        return;
-      }
-
       try {
         document.body.classList.add('in-call');
+        const bootstrap = getBootstrapFromHash();
+        let token = null;
+        let room_name = null;
 
-        const response = await fetch(`/api/generate-token/${identity}/${roomName}/`);
-        if (!response.ok) throw new Error("No se pudo obtener el token");
-        const { token, room_name } = await response.json();
+        if (bootstrap) {
+          token = bootstrap.token;
+          room_name = bootstrap.room_name;
+          identity = bootstrap.identity;
+          roomName = room_name;
+        } else {
+          identity = "{{ identity|escapejs }}";
+          if (!identity || !identity.trim()) {
+            window.location.href = HOME_URL;
+            return;
+          }
+
+          roomName = prompt(
+            I18N_VIDEOCALL.roomPrompt,
+            "{{ default_room|escapejs }}"
+          );
+          if (!roomName || !roomName.trim()) {
+            window.location.href = HOME_URL;
+            return;
+          }
+
+          const response = await fetch(`/api/generate-token/${identity}/${roomName}/`);
+          if (!response.ok) throw new Error("No se pudo obtener el token");
+          const payload = await response.json();
+          token = payload.token;
+          room_name = payload.room_name;
+        }
+
+        if (!token || !room_name || !identity) {
+          throw new Error(DEVICE_MODE ? "No se pudo inicializar la sesión del dispositivo" : "No se pudo obtener la sesión de videollamada");
+        }
 
         window.identity = identity;
         window.roomName = room_name;

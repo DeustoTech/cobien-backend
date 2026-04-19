@@ -1,7 +1,18 @@
 import os
 from django.contrib import admin
 from django.urls import path, include
-from apps.eventos.views import lista_eventos, home, app2, guardar_evento,extraer_evento, generate_video_token,videocall, toggle_emotion_detection
+from apps.eventos.views import (
+    lista_eventos,
+    home,
+    app2,
+    guardar_evento,
+    extraer_evento,
+    generate_video_token,
+    videocall,
+    videocall_device,
+    device_videocall_session,
+    toggle_emotion_detection,
+)
 from django.views.i18n import set_language
 from django.conf import settings
 from django.conf.urls.static import static
@@ -20,7 +31,9 @@ urlpatterns = [
     path('', home, name='home'),
     path('api/extraer_evento/', extraer_evento, name='extraer_evento'),
     path('api/generate-token/<str:identity>/<str:room_name>/', generate_video_token, name='generate_video_token'),
+    path('api/device-videocall-session/', device_videocall_session, name='device_videocall_session'),
     path('videocall/', videocall, name='videocall'),
+    path('videocall/device/', videocall_device, name='videocall_device'),
     path('api/emotion-toggle/', toggle_emotion_detection, name='toggle_emotion'),
     path('accounts/signup/',  SignUpView.as_view(),      name='signup'),
     path('accounts/login/',   CustomLoginView.as_view(), name='login'),
