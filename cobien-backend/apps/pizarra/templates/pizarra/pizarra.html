@@ -129,7 +129,7 @@
                       {% endif %}
                     </div>
                     <div class="notif-sub">
-                      {% if n.to_user and (request.user.is_staff or request.user.is_superuser) %}
+                      {% if n.to_user and request.user.is_staff or n.to_user and request.user.is_superuser %}
                         <strong>{% trans "Para" %}: {{ n.to_user }}</strong>{% if n.from_device %} — {% endif %}
                       {% endif %}
                       {% if n.from_device %}<strong>{{ n.from_device }}</strong> — {% endif %}

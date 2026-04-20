@@ -328,13 +328,23 @@ def _serialize_usernames_text(raw_usernames):
     return "\n".join(normalize_username_list(raw_usernames))
 
 
-def _publish_contacts_sync(target):
+def _publish_contacts_sync(target, contacts=None, request=None):
     mqtt_payload = {
         "type": "contacts_updated",
         "to": target,
         "from": "cobien-admin",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    normalized_contacts = normalize_contacts_list(contacts or [])
+    if normalized_contacts:
+        mqtt_payload["contacts"] = normalized_contacts
+    if request is not None:
+        try:
+            mqtt_payload["contacts_url"] = request.build_absolute_uri(
+                f"{reverse('pizarra_api_contacts')}?device_id={target}"
+            )
+        except Exception:
+            pass
     mqtt_publish.single(
         topic=settings.MQTT_TOPIC_GENERAL,
         payload=json.dumps(mqtt_payload),
@@ -571,6 +581,7 @@ def device_contacts_admin(request):
                 raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
             cleaned = form.cleaned_data
 
+            contacts = []
             if action in {"save", "save_and_sync"}:
                 contacts = _parse_contact_rows(request, selected_device, (device_doc or {}).get("contacts", []))
                 display_name = cleaned.get("display_name") or selected_device
@@ -591,13 +602,15 @@ def device_contacts_admin(request):
                     assigned_users,
                     default_username=default_username,
                 )
-                messages.success(request, f"Contactos guardados para {selected_device}.")
+                if action == "save":
+                    messages.success(request, f"Contactos guardados para {selected_device}.")
 
-            if action in {"sync", "save_and_sync"}:
-                _publish_contacts_sync(selected_device)
+            if action in {"save", "sync", "save_and_sync"}:
+                sync_contacts = contacts or normalize_contacts_list((get_or_create_device(selected_device) or {}).get("contacts", []))
+                _publish_contacts_sync(selected_device, contacts=sync_contacts, request=request)
                 if action == "sync":
                     messages.success(request, f"Sincronización enviada a {selected_device}.")
-                else:
+                elif action == "save_and_sync":
                     messages.success(request, f"Sincronización enviada a {selected_device}.")
             elif action not in {"save", "save_and_sync"}:
                 messages.error(request, "Acción no soportada.")
