@@ -324,6 +324,25 @@ def _contacts_for_template(raw_contacts):
     return contacts
 
 
+def _contacts_for_api(raw_contacts, request=None):
+    contacts = []
+    for item in normalize_contacts_list(raw_contacts):
+        image_url = item.get("image_url", "")
+        if request is not None and image_url and str(image_url).startswith("/"):
+            try:
+                image_url = request.build_absolute_uri(image_url)
+            except Exception:
+                pass
+        contacts.append(
+            {
+                "display_name": item["display_name"],
+                "user_name": item["user_name"],
+                "image_url": image_url,
+            }
+        )
+    return contacts
+
+
 def _serialize_usernames_text(raw_usernames):
     return "\n".join(normalize_username_list(raw_usernames))
 
@@ -949,7 +968,7 @@ def api_contacts_for_device(request):
     if not device_id:
         return JsonResponse({"error": "device_id requerido"}, status=400)
 
-    contacts = get_device_contacts(device_id)
+    contacts = _contacts_for_api(get_device_contacts(device_id), request=request)
     if not contacts:
         return JsonResponse({"device_id": device_id, "contacts": []})
 
