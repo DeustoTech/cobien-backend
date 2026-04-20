@@ -1008,6 +1008,51 @@ def api_trigger_contacts_sync(request):
 
     return JsonResponse({"ok": True, "published": mqtt_payload})
 
+
+@csrf_exempt
+def api_mqtt_diagnostic(request):
+    """
+    Publish a diagnostic MQTT message targeted to one furniture device.
+    Useful to verify the full backend -> broker -> furniture delivery path.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    target = (
+        payload.get("to")
+        or payload.get("target_device")
+        or payload.get("recipient")
+        or ""
+    ).strip()
+    if not target:
+        return JsonResponse({"error": "to/target_device requerido"}, status=400)
+
+    mqtt_payload = {
+        "type": "mqtt_diagnostic",
+        "to": target,
+        "from": payload.get("from") or "cobien-admin",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "check_id": str(payload.get("check_id") or uuid.uuid4().hex),
+    }
+
+    try:
+        mqtt_publish.single(
+            topic=settings.MQTT_TOPIC_GENERAL,
+            payload=json.dumps(mqtt_payload),
+            hostname=settings.MQTT_BROKER_URL,
+            port=settings.MQTT_BROKER_PORT,
+            auth=_mqtt_auth(),
+            qos=1,
+        )
+    except Exception as exc:
+        return JsonResponse({"error": f"MQTT publish failed: {exc}"}, status=502)
+
+    return JsonResponse({"ok": True, "published": mqtt_payload})
+
 @login_required
 def api_notifications(request):
     only_unread = request.GET.get("only_unread", "1") not in ("0", "false", "False")
