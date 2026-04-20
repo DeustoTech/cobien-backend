@@ -1,5 +1,6 @@
 from django import forms
 
+
 class PizarraPostForm(forms.Form):
     recipient_key = forms.CharField(max_length=150)
     content = forms.CharField(widget=forms.Textarea, required=False)
@@ -14,3 +15,49 @@ class PizarraPostForm(forms.Form):
         if image and image.size > 5 * 1024 * 1024:
             raise forms.ValidationError("La imagen no puede superar 5MB.")
         return cleaned
+
+
+class DeviceAdminForm(forms.Form):
+    device_id = forms.CharField(max_length=150)
+    display_name = forms.CharField(max_length=150, required=False)
+    videocall_room = forms.CharField(max_length=150, required=False)
+    enabled = forms.BooleanField(required=False)
+    hidden_in_admin = forms.BooleanField(required=False)
+
+    def clean_device_id(self):
+        value = str(self.cleaned_data.get("device_id") or "").strip()
+        if not value:
+            raise forms.ValidationError("device_id requerido")
+        return value
+
+    def clean_display_name(self):
+        return str(self.cleaned_data.get("display_name") or "").strip()
+
+    def clean_videocall_room(self):
+        return str(self.cleaned_data.get("videocall_room") or "").strip()
+
+
+class DeviceContactsAdminForm(forms.Form):
+    device_id = forms.CharField(max_length=150)
+    display_name = forms.CharField(max_length=150, required=False)
+    videocall_room = forms.CharField(max_length=150, required=False)
+    enabled = forms.BooleanField(required=False)
+    hidden_in_admin = forms.BooleanField(required=False)
+    contacts = forms.CharField(widget=forms.Textarea, required=False)
+    assigned_users = forms.CharField(widget=forms.Textarea, required=False)
+    default_username = forms.CharField(max_length=150, required=False)
+
+    def clean_device_id(self):
+        value = str(self.cleaned_data.get("device_id") or "").strip()
+        if not value:
+            raise forms.ValidationError("Selecciona un dispositivo.")
+        return value
+
+    def clean_display_name(self):
+        return str(self.cleaned_data.get("display_name") or "").strip()
+
+    def clean_videocall_room(self):
+        return str(self.cleaned_data.get("videocall_room") or "").strip()
+
+    def clean_default_username(self):
+        return str(self.cleaned_data.get("default_username") or "").strip()

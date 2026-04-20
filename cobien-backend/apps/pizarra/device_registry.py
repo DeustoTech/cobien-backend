@@ -71,6 +71,21 @@ def normalize_contacts_list(raw_contacts):
     return contacts
 
 
+def normalize_username_list(raw_usernames):
+    usernames = []
+    seen = set()
+    for item in raw_usernames or []:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        usernames.append(value)
+    return usernames
+
+
 def _legacy_profile_for_username(username="", email=""):
     for colname in ("auth_user", "users"):
         col = _db[colname]
@@ -123,7 +138,18 @@ def get_or_create_device(device_id):
 
     col_devices.update_one(
         {"device_id": device_id},
-        {"$setOnInsert": {"device_id": device_id, "display_name": display_name, "contacts": contacts}},
+        {
+            "$setOnInsert": {
+                "device_id": device_id,
+                "display_name": display_name,
+                "videocall_room": device_id,
+                "enabled": True,
+                "hidden_in_admin": False,
+                "contacts": contacts,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
         upsert=True,
     )
     return col_devices.find_one({"device_id": device_id})
@@ -236,7 +262,7 @@ def list_device_assignments(device_id):
 
 def replace_device_assignments(device_id, usernames, default_username=""):
     device_id = str(device_id or "").strip()
-    usernames = [str(value).strip() for value in usernames if str(value).strip()]
+    usernames = normalize_username_list(usernames)
     default_username = str(default_username or "").strip()
 
     col_user_device_access.delete_many({"device_id": device_id})
@@ -261,7 +287,7 @@ def replace_device_assignments(device_id, usernames, default_username=""):
         )
 
 
-def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False):
+def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room=""):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -273,6 +299,7 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
         {
             "device_id": device_id,
             "display_name": str(display_name or device_id).strip() or device_id,
+            "videocall_room": str(videocall_room or device_id).strip() or device_id,
             "enabled": bool(enabled),
             "hidden_in_admin": bool(hidden_in_admin),
             "contacts": [],
@@ -283,7 +310,7 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
     )
 
 
-def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False):
+def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room=""):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -292,6 +319,7 @@ def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_a
         {
             "$set": {
                 "display_name": str(display_name or device_id).strip() or device_id,
+                "videocall_room": str(videocall_room or device_id).strip() or device_id,
                 "enabled": bool(enabled),
                 "hidden_in_admin": bool(hidden_in_admin),
                 "updated_at": datetime.now(timezone.utc),

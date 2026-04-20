@@ -106,7 +106,13 @@
       <aside class="section-stack">
         <section class="pz-card">
           <div class="notifs-head">
-            <h2>{% trans "Notificaciones entrantes" %}</h2>
+            <h2>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% trans "Solicitudes de llamada y notificaciones globales" %}
+              {% else %}
+                {% trans "Notificaciones entrantes" %}
+              {% endif %}
+            </h2>
             <span class="badge">{% if unread_count %}{{ unread_count }}{% else %}0{% endif %}</span>
           </div>
 
@@ -123,6 +129,9 @@
                       {% endif %}
                     </div>
                     <div class="notif-sub">
+                      {% if n.to_user and (request.user.is_staff or request.user.is_superuser) %}
+                        <strong>{% trans "Para" %}: {{ n.to_user }}</strong>{% if n.from_device %} — {% endif %}
+                      {% endif %}
                       {% if n.from_device %}<strong>{{ n.from_device }}</strong> — {% endif %}
                       {{ n.created_at|date:"Y-m-d H:i" }}
                     </div>

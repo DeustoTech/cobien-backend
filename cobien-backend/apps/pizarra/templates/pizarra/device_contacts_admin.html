@@ -10,7 +10,7 @@
       <div class="section-heading">
         <div>
           <h1 class="pz-h2">{% trans "Contactos por dispositivo" %}</h1>
-          <p class="lead-text">{% trans "Gestiona los contactos visibles en cada mueble y quién puede acceder a ellos desde la web." %}</p>
+          <p class="lead-text">{% trans "Gestiona los parámetros del mueble, los contactos visibles y quién puede acceder a ellos desde la web." %}</p>
         </div>
       </div>
 
@@ -37,13 +37,29 @@
         <div class="section-heading">
           <div>
             <h2>{{ selected_device }}</h2>
-            <p class="lead-text">{% trans "Edita nombre visible, contactos sincronizados y usuarios con acceso para este dispositivo." %}</p>
+            <p class="lead-text">{% trans "Edita nombre visible, sala de videollamada, estado operativo, contactos sincronizados y usuarios con acceso para este dispositivo." %}</p>
           </div>
         </div>
 
-        <form method="post" class="section-stack" style="margin-top:20px;">
+        <div class="grid" style="grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 20px;">
+          <div class="legend-badge" style="justify-content:center; padding: 14px;">
+            {% trans "Estado" %}: {{ status }}
+          </div>
+          <div class="legend-badge" style="justify-content:center; padding: 14px;">
+            {% trans "Último heartbeat" %}: {{ last_seen_at|default:"-" }}
+          </div>
+          <div class="legend-badge" style="justify-content:center; padding: 14px;">
+            {% trans "Contactos" %}: {{ contacts_count }}
+          </div>
+          <div class="legend-badge" style="justify-content:center; padding: 14px;">
+            {% trans "Usuarios con acceso" %}: {{ assignments_count }}
+          </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top:20px;">
           {% csrf_token %}
           <input type="hidden" name="device_id" value="{{ selected_device }}">
+          <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
 
           <div class="grid" style="grid-template-columns: 1fr 1fr;">
             <div>
@@ -51,16 +67,77 @@
               <input type="text" id="display_name" name="display_name" value="{{ profile_source|default:selected_device }}" placeholder="María">
             </div>
             <div>
+              <label class="form-label" for="videocall_room">{% trans "Sala videollamada" %}</label>
+              <input type="text" id="videocall_room" name="videocall_room" value="{{ videocall_room }}" placeholder="{{ selected_device }}">
+              <small class="muted">{% trans "Es la sala permitida para la conexión automática del mueble." %}</small>
+            </div>
+          </div>
+
+          <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div style="display:flex; align-items:end;">
+              <label class="legend-badge">
+                <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
+                {% trans "Mueble habilitado" %}
+              </label>
+            </div>
+            <div style="display:flex; align-items:end;">
+              <label class="legend-badge">
+                <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
+                {% trans "Oculto en el panel" %}
+              </label>
+            </div>
+            <div>
               <label class="form-label" for="default_username">{% trans "Usuario por defecto" %}</label>
               <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
+              <small class="muted">{% trans "Si no está en la lista de accesos, se añadirá automáticamente como acceso por defecto." %}</small>
             </div>
           </div>
 
           <div class="grid" style="grid-template-columns: 1fr 1fr;">
             <div>
-              <label class="form-label" for="contacts">{% trans "Contactos" %}</label>
-              <textarea id="contacts" name="contacts" rows="14" placeholder="Maria=maria&#10;Paula=paula">{{ contacts_text }}</textarea>
-              <small class="muted">{% trans "Una línea por contacto con formato NombreVisible=username." %}</small>
+              <div class="section-heading" style="margin-bottom: 10px;">
+                <div>
+                  <label class="form-label" for="contacts-grid">{% trans "Contactos" %}</label>
+                  <small class="muted">{% trans "Edita nombre, usuario e imagen de cada contacto que verá el mueble." %}</small>
+                </div>
+                <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
+              </div>
+              <div id="contacts-grid" class="section-stack">
+                {% for contact in contact_rows %}
+                  <div class="pz-card contact-row" data-row-index="{{ forloop.counter0 }}" style="padding:16px;">
+                    <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                      <div>
+                        <label class="form-label">{% trans "Nombre visible" %}</label>
+                        <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
+                      </div>
+                      <div>
+                        <label class="form-label">{% trans "Username web" %}</label>
+                        <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
+                      </div>
+                    </div>
+                    <div class="grid" style="grid-template-columns: 1fr auto;">
+                      <div>
+                        <label class="form-label">{% trans "Imagen" %}</label>
+                        <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*">
+                        {% if contact.image_url %}
+                          <div style="margin-top: 8px;">
+                            <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}" style="max-height: 90px; border-radius: 12px;">
+                          </div>
+                        {% endif %}
+                      </div>
+                      <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
+                        <label class="legend-badge">
+                          <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1">
+                          {% trans "Quitar imagen" %}
+                        </label>
+                        <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
             </div>
             <div>
               <label class="form-label" for="assigned_users">{% trans "Usuarios con acceso" %}</label>
@@ -73,9 +150,80 @@
             <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
             <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
             <button class="btn-secondary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+            <a class="btn-outline" href="{% url 'pizarra_devices_admin' %}?show_hidden=1">{% trans "Volver al inventario" %}</a>
           </div>
         </form>
       </section>
     {% endif %}
   </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function () {
+      const grid = document.getElementById('contacts-grid');
+      const totalInput = document.getElementById('contact_rows_total');
+      const addBtn = document.getElementById('add-contact-row');
+      if (!grid || !totalInput || !addBtn) return;
+
+      function nextIndex() {
+        return Number(totalInput.value || 0);
+      }
+
+      function syncTotal() {
+        totalInput.value = String(grid.querySelectorAll('.contact-row').length);
+      }
+
+      function bindRow(row) {
+        const removeBtn = row.querySelector('.remove-contact-row');
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            row.remove();
+            syncTotal();
+          });
+        }
+      }
+
+      Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
+      syncTotal();
+
+      addBtn.addEventListener('click', function () {
+        const index = nextIndex();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pz-card contact-row';
+        wrapper.setAttribute('data-row-index', String(index));
+        wrapper.style.padding = '16px';
+        wrapper.innerHTML = `
+          <input type="hidden" name="contact_existing_image_url_${index}" value="">
+          <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+              <label class="form-label">{% trans "Nombre visible" %}</label>
+              <input type="text" name="contact_display_name_${index}" placeholder="María">
+            </div>
+            <div>
+              <label class="form-label">{% trans "Username web" %}</label>
+              <input type="text" name="contact_user_name_${index}" placeholder="maria">
+            </div>
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr auto;">
+            <div>
+              <label class="form-label">{% trans "Imagen" %}</label>
+              <input type="file" name="contact_image_${index}" accept="image/*">
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
+              <label class="legend-badge">
+                <input type="checkbox" name="contact_remove_image_${index}" value="1">
+                {% trans "Quitar imagen" %}
+              </label>
+              <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+            </div>
+          </div>
+        `;
+        grid.appendChild(wrapper);
+        totalInput.value = String(index + 1);
+        bindRow(wrapper);
+        syncTotal();
+      });
+    })();
+  </script>
 {% endblock %}

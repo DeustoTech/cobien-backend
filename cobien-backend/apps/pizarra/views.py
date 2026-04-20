@@ -2,6 +2,8 @@ import os
 import gridfs
 import json
 import pprint
+import re
+import uuid
 from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from django.views.decorators.csrf import csrf_exempt
@@ -14,7 +16,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
 from django.http import FileResponse, Http404, JsonResponse
-from .forms import PizarraPostForm
+from .forms import DeviceAdminForm, DeviceContactsAdminForm, PizarraPostForm
 from .device_registry import (
     col_devices,
     col_user_device_access,
@@ -27,6 +29,7 @@ from .device_registry import (
     list_device_assignments,
     list_known_devices,
     normalize_contacts_list,
+    normalize_username_list,
     replace_device_assignments,
     touch_device_heartbeat,
     update_device_metadata,
@@ -206,6 +209,125 @@ def _serialize_contacts_text(raw_contacts):
     return "\n".join(lines)
 
 
+def _contact_media_dir():
+    target = os.path.join(settings.MEDIA_ROOT, "pizarra_contacts")
+    os.makedirs(target, exist_ok=True)
+    return target
+
+
+def _contact_media_url(filename):
+    return f"{settings.MEDIA_URL.rstrip('/')}/pizarra_contacts/{filename}"
+
+
+def _contact_storage_name(device_id, display_name, filename):
+    safe_device = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(device_id or "").strip()) or "device"
+    safe_contact = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(display_name or "").strip()) or "contact"
+    ext = os.path.splitext(str(filename or ""))[1].lower() or ".jpg"
+    return f"{safe_device}-{safe_contact}-{uuid.uuid4().hex[:10]}{ext}"
+
+
+def _delete_managed_contact_image(image_url):
+    if not image_url:
+        return
+    media_prefix = f"{settings.MEDIA_URL.rstrip('/')}/pizarra_contacts/"
+    if not str(image_url).startswith(media_prefix):
+        return
+    filename = str(image_url).split("/pizarra_contacts/", 1)[-1]
+    path = os.path.join(_contact_media_dir(), filename)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _save_contact_image(device_id, display_name, uploaded_file):
+    if not uploaded_file:
+        return ""
+    target_name = _contact_storage_name(device_id, display_name, uploaded_file.name)
+    target_path = os.path.join(_contact_media_dir(), target_name)
+    with open(target_path, "wb") as fh:
+        for chunk in uploaded_file.chunks():
+            fh.write(chunk)
+    return _contact_media_url(target_name)
+
+
+def _parse_contact_rows(request, device_id, existing_contacts):
+    indices = set()
+    for key in request.POST.keys():
+        match = re.match(r"^contact_display_name_(\d+)$", str(key))
+        if match:
+            indices.add(int(match.group(1)))
+    for key in request.FILES.keys():
+        match = re.match(r"^contact_image_(\d+)$", str(key))
+        if match:
+            indices.add(int(match.group(1)))
+
+    contacts = []
+    previous_by_key = {}
+    for item in normalize_contacts_list(existing_contacts):
+        previous_by_key[(item["display_name"], item["user_name"])] = item
+
+    seen = set()
+    for idx in sorted(indices):
+        display_name = str(request.POST.get(f"contact_display_name_{idx}", "") or "").strip()
+        user_name = str(request.POST.get(f"contact_user_name_{idx}", "") or "").strip()
+        previous_image_url = str(request.POST.get(f"contact_existing_image_url_{idx}", "") or "").strip()
+        remove_image = request.POST.get(f"contact_remove_image_{idx}") == "1"
+        uploaded_file = request.FILES.get(f"contact_image_{idx}")
+
+        if not display_name and not user_name and not previous_image_url and not uploaded_file:
+            continue
+        if not display_name or not user_name:
+            raise ValueError(f"Cada contacto debe tener nombre visible y username (fila {idx + 1}).")
+
+        key = (display_name.casefold(), user_name.casefold())
+        if key in seen:
+            raise ValueError(f"Contacto duplicado: {display_name}={user_name}")
+        seen.add(key)
+
+        image_url = previous_image_url
+        if remove_image:
+            _delete_managed_contact_image(previous_image_url)
+            image_url = ""
+        if uploaded_file:
+            _delete_managed_contact_image(previous_image_url)
+            image_url = _save_contact_image(device_id, display_name, uploaded_file)
+
+        contacts.append(
+            {
+                "display_name": display_name,
+                "user_name": user_name,
+                "image_url": image_url,
+            }
+        )
+
+    current_keys = {(item["display_name"], item["user_name"]) for item in contacts}
+    for item in normalize_contacts_list(existing_contacts):
+        original_key = (item["display_name"], item["user_name"])
+        if original_key not in current_keys:
+            _delete_managed_contact_image(item.get("image_url", ""))
+
+    return contacts
+
+
+def _contacts_for_template(raw_contacts):
+    contacts = []
+    for item in normalize_contacts_list(raw_contacts):
+        contacts.append(
+            {
+                "display_name": item["display_name"],
+                "user_name": item["user_name"],
+                "image_url": item.get("image_url", ""),
+            }
+        )
+    return contacts
+
+
+def _serialize_usernames_text(raw_usernames):
+    return "\n".join(normalize_username_list(raw_usernames))
+
+
 def _publish_contacts_sync(target):
     mqtt_payload = {
         "type": "contacts_updated",
@@ -274,18 +396,22 @@ def pizarra_home(request):
             })
 
     # --- Inbox de notificaciones para el usuario web ---
-    notifs_cursor = col_notifications.find(
-        {"to_user": request.user.username, "read": False}
-    ).sort("created_at", DESCENDING).limit(50)
+    notifications_filter = {"read": False}
+    if not _staff_required(request.user):
+        notifications_filter["to_user"] = request.user.username
+
+    notifs_cursor = col_notifications.find(notifications_filter).sort("created_at", DESCENDING).limit(100)
 
     notifications = []
     for d in notifs_cursor:
         notifications.append({
             "id": str(d["_id"]),
             "from_device": d.get("from_device") or d.get("from") or "",
+            "to_user": d.get("to_user") or "",
             "kind": d.get("kind", "call_ready"),
             "message": d.get("message", "Disponible para llamada"),
             "created_at": d.get("created_at"),
+            "read": d.get("read", False),
         })
 
     unread_count = len(notifications)
@@ -355,20 +481,26 @@ def devices_admin(request):
     if request.method == "POST":
         action = (request.POST.get("action") or "create").strip()
         try:
+            form = DeviceAdminForm(request.POST)
+            if not form.is_valid():
+                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
+            cleaned = form.cleaned_data
             if action == "create":
                 create_device(
-                    request.POST.get("device_id", ""),
-                    display_name=request.POST.get("display_name", ""),
-                    enabled=request.POST.get("enabled") == "1",
-                    hidden_in_admin=request.POST.get("hidden_in_admin") == "1",
+                    cleaned["device_id"],
+                    display_name=cleaned.get("display_name", ""),
+                    videocall_room=cleaned.get("videocall_room", ""),
+                    enabled=cleaned.get("enabled", False),
+                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
                 )
                 messages.success(request, "Dispositivo creado.")
             elif action == "update":
                 update_device_metadata(
-                    request.POST.get("device_id", ""),
-                    display_name=request.POST.get("display_name", ""),
-                    enabled=request.POST.get("enabled") == "1",
-                    hidden_in_admin=request.POST.get("hidden_in_admin") == "1",
+                    cleaned["device_id"],
+                    display_name=cleaned.get("display_name", ""),
+                    videocall_room=cleaned.get("videocall_room", ""),
+                    enabled=cleaned.get("enabled", False),
+                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
                 )
                 messages.success(request, "Dispositivo actualizado.")
             else:
@@ -388,8 +520,11 @@ def devices_admin(request):
                 "display_name": item.get("display_name") or item.get("device_id"),
                 "enabled": item.get("enabled", True),
                 "hidden_in_admin": item.get("hidden_in_admin", False),
+                "videocall_room": str(item.get("videocall_room") or item.get("device_id") or "").strip(),
                 "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
                 "status": device_online_status(item),
+                "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
+                "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
             }
         )
 
@@ -406,9 +541,18 @@ def device_contacts_admin(request):
 
     device_doc = get_or_create_device(selected_device) if selected_device else None
     contacts_text = _serialize_contacts_text((device_doc or {}).get("contacts", []))
+    contact_rows = _contacts_for_template((device_doc or {}).get("contacts", []))
     profile_source = str((device_doc or {}).get("display_name") or "").strip()
+    videocall_room = str((device_doc or {}).get("videocall_room") or selected_device or "").strip()
+    enabled = bool((device_doc or {}).get("enabled", True))
+    hidden_in_admin = bool((device_doc or {}).get("hidden_in_admin", False))
     assignments = list_device_assignments(selected_device) if selected_device else []
-    assigned_users_text = "\n".join(sorted([str(item.get("username") or "").strip() for item in assignments if str(item.get("username") or "").strip()], key=str.casefold))
+    assigned_users_text = _serialize_usernames_text(
+        sorted(
+            [str(item.get("username") or "").strip() for item in assignments if str(item.get("username") or "").strip()],
+            key=str.casefold,
+        )
+    )
     default_username = ""
     for item in assignments:
         if item.get("is_default"):
@@ -422,15 +566,30 @@ def device_contacts_admin(request):
             return redirect(reverse("pizarra_device_contacts_admin"))
 
         try:
+            form = DeviceContactsAdminForm(request.POST)
+            if not form.is_valid():
+                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
+            cleaned = form.cleaned_data
+
             if action in {"save", "save_and_sync"}:
-                contacts = _parse_contacts_text(request.POST.get("contacts", ""))
-                display_name = (request.POST.get("display_name") or selected_device).strip()
+                contacts = _parse_contact_rows(request, selected_device, (device_doc or {}).get("contacts", []))
+                display_name = cleaned.get("display_name") or selected_device
+                assigned_users = normalize_username_list(
+                    str(cleaned.get("assigned_users", "")).splitlines()
+                )
+                default_username = cleaned.get("default_username", "")
                 update_device_contacts(selected_device, contacts, display_name=display_name)
-                assigned_users = [line.strip() for line in str(request.POST.get("assigned_users", "")).splitlines() if line.strip()]
+                update_device_metadata(
+                    selected_device,
+                    display_name=display_name,
+                    videocall_room=cleaned.get("videocall_room", ""),
+                    enabled=cleaned.get("enabled", False),
+                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                )
                 replace_device_assignments(
                     selected_device,
                     assigned_users,
-                    default_username=(request.POST.get("default_username") or "").strip(),
+                    default_username=default_username,
                 )
                 messages.success(request, f"Contactos guardados para {selected_device}.")
 
@@ -454,9 +613,17 @@ def device_contacts_admin(request):
             "device_ids": device_ids,
             "selected_device": selected_device,
             "contacts_text": contacts_text,
+            "contact_rows": contact_rows,
             "profile_source": profile_source,
+            "videocall_room": videocall_room,
+            "enabled": enabled,
+            "hidden_in_admin": hidden_in_admin,
             "assigned_users_text": assigned_users_text,
             "default_username": default_username,
+            "assignments_count": len(assignments),
+            "contacts_count": len(normalize_contacts_list((device_doc or {}).get("contacts", []))),
+            "last_seen_at": _serialize_datetime((device_doc or {}).get("last_seen_at")),
+            "status": device_online_status(device_doc or {}),
         },
     )
 
@@ -831,7 +998,9 @@ def api_trigger_contacts_sync(request):
 @login_required
 def api_notifications(request):
     only_unread = request.GET.get("only_unread", "1") not in ("0", "false", "False")
-    filt = {"to_user": request.user.username}
+    filt = {}
+    if not _staff_required(request.user):
+        filt["to_user"] = request.user.username
     if only_unread:
         filt["read"] = False
 
@@ -841,6 +1010,7 @@ def api_notifications(request):
         items.append({
             "id": str(d["_id"]),
             "from_device": d.get("from_device"),
+            "to_user": d.get("to_user"),
             "kind": d.get("kind"),
             "message": d.get("message"),
             "created_at": d.get("created_at").isoformat(),
@@ -952,10 +1122,10 @@ def notification_mark_read(request, notif_id: str):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    col_notifications.update_one(
-        {"_id": ObjectId(notif_id), "to_user": request.user.username},
-        {"$set": {"read": True, "read_at": datetime.now(timezone.utc)}}
-    )
+    filt = {"_id": ObjectId(notif_id)}
+    if not _staff_required(request.user):
+        filt["to_user"] = request.user.username
+    col_notifications.update_one(filt, {"$set": {"read": True, "read_at": datetime.now(timezone.utc)}})
     return redirect("pizarra_home")
 
 @login_required
@@ -963,8 +1133,8 @@ def notification_mark_all(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    col_notifications.update_many(
-        {"to_user": request.user.username, "read": False},
-        {"$set": {"read": True, "read_at": datetime.now(timezone.utc)}}
-    )
+    filt = {"read": False}
+    if not _staff_required(request.user):
+        filt["to_user"] = request.user.username
+    col_notifications.update_many(filt, {"$set": {"read": True, "read_at": datetime.now(timezone.utc)}})
     return redirect("pizarra_home")
