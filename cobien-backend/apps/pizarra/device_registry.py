@@ -368,6 +368,33 @@ def get_device_videocall_context(device_id):
     }
 
 
+def resolve_device_id_for_queue_target(target):
+    value = str(target or "").strip()
+    if not value:
+        return ""
+
+    direct = col_devices.find_one({"device_id": value})
+    if direct:
+        return str(direct.get("device_id") or "").strip()
+
+    by_room = col_devices.find_one({"videocall_room": value})
+    if by_room:
+        return str(by_room.get("device_id") or "").strip()
+
+    by_name = col_devices.find_one({"display_name": value})
+    if by_name:
+        return str(by_name.get("device_id") or "").strip()
+
+    lowered = value.casefold()
+    for doc in col_devices.find({}, {"device_id": 1, "videocall_room": 1, "display_name": 1}):
+        for field in ("device_id", "videocall_room", "display_name"):
+            candidate = str(doc.get(field) or "").strip()
+            if candidate and candidate.casefold() == lowered:
+                return str(doc.get("device_id") or "").strip()
+
+    return value
+
+
 def verify_device_videocall_key(device_id, provided_key):
     provided_key = str(provided_key or "").strip()
     if not provided_key:

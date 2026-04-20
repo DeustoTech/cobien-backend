@@ -29,6 +29,7 @@ from apps.pizarra.device_registry import (
     get_accessible_device_ids,
     get_default_device_id,
     get_device_videocall_context,
+    resolve_device_id_for_queue_target,
     verify_device_videocall_key,
 )
 
@@ -609,17 +610,19 @@ def enqueue_videocall_notification(room_name: str, caller: str) -> None:
     }
     """
     try:
+        target_device_id = resolve_device_id_for_queue_target(room_name)
         payload = {
             "type": "videocall",
             "from": caller,
-            "to": room_name,  # Le destinataire = la room
+            "to": target_device_id or room_name,
             "room": room_name,
             "timestamp": datetime.now().isoformat()
         }
-        enqueue_notification(room_name, payload)
+        enqueue_notification(target_device_id or room_name, payload)
         print(f"[DEVICE QUEUE VIDEOCALL] ✓ Notification enqueued")
         print(f"[DEVICE QUEUE VIDEOCALL]   From: {caller}")
-        print(f"[DEVICE QUEUE VIDEOCALL]   To: {room_name}")
+        print(f"[DEVICE QUEUE VIDEOCALL]   To room: {room_name}")
+        print(f"[DEVICE QUEUE VIDEOCALL]   Target device: {target_device_id or room_name}")
         print(f"[DEVICE QUEUE VIDEOCALL]   Type: videocall")
         print(f"[DEVICE QUEUE VIDEOCALL]   Payload: {json.dumps(payload)}")
 
