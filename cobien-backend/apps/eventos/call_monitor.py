@@ -14,7 +14,8 @@ from datetime import datetime
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
 from django.conf import settings
-import paho.mqtt.publish as mqtt_publish
+
+from apps.pizarra.device_queue import enqueue_notification
 
 
 class CallMonitor:
@@ -217,7 +218,7 @@ class CallMonitor:
     
     def _send_missed_call_notification(self, room_name: str, caller: str, timestamp: str):
         """
-        Envoie une notification MQTT d'appel manqué.
+        Envoie une notification de file d'attente pour appel manqué.
         
         Args:
             room_name: Nom de la room (ex: "maria")
@@ -225,39 +226,22 @@ class CallMonitor:
             timestamp: Timestamp de début d'appel
         """
         try:
-            payload = json.dumps({
+            payload = {
                 "type": "missed_call",
                 "from": caller,
                 "to": room_name,
                 "room": room_name,
                 "timestamp": timestamp
-            })
-            
-            auth = None
-            if settings.MQTT_USERNAME:
-                auth = {
-                    "username": settings.MQTT_USERNAME,
-                    "password": settings.MQTT_PASSWORD
-                }
-            
-            mqtt_publish.single(
-                topic=settings.MQTT_TOPIC_GENERAL,  # "tarjeta"
-                payload=payload,
-                hostname=settings.MQTT_BROKER_URL,
-                port=settings.MQTT_BROKER_PORT,
-                auth=auth,
-                qos=1
-            )
-            
-            print(f"[CALL MONITOR] ✓ Notification MQTT envoyée")
+            }
+            enqueue_notification(room_name, payload)
+            print(f"[CALL MONITOR] ✓ Notification queue envoyée")
             print(f"[CALL MONITOR]   Type: missed_call")
             print(f"[CALL MONITOR]   From: {caller}")
             print(f"[CALL MONITOR]   To: {room_name}")
-            print(f"[CALL MONITOR]   Topic: {settings.MQTT_TOPIC_GENERAL}")
-            print(f"[CALL MONITOR]   Payload: {payload}")
+            print(f"[CALL MONITOR]   Payload: {json.dumps(payload)}")
         
         except Exception as e:
-            print(f"[CALL MONITOR] ✗ Erreur MQTT: {e}")
+            print(f"[CALL MONITOR] ✗ Erreur queue: {e}")
             import traceback
             traceback.print_exc()
 

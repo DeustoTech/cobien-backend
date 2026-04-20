@@ -22,9 +22,9 @@ from django.contrib import messages
 from functools import wraps
 from pymongo import MongoClient
 from django.urls import reverse
-import paho.mqtt.publish as mqtt_publish
 from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
+from apps.pizarra.device_queue import enqueue_broadcast_notification, enqueue_notification
 from apps.pizarra.device_registry import (
     get_accessible_device_ids,
     get_default_device_id,
@@ -46,16 +46,6 @@ PALETTE = [
     "#A3E635", "#F472B6", "#F59E0B", "#34D399",
     "#F87171", "#C084FC", "#FB7185", "#FBBF24"
 ]
-
-
-def _mqtt_auth():
-    if settings.MQTT_USERNAME:
-        return {
-            "username": settings.MQTT_USERNAME,
-            "password": settings.MQTT_PASSWORD,
-        }
-    return None
-
 def color_for_device(name: str) -> str:
     if not name:
         return "#9CA3AF"  # gris neutro fallback
@@ -309,11 +299,10 @@ def guardar_evento(request):
 
             db["eventos"].insert_one(doc)
             
-            # ========== NOTIFICATION MQTT UNIFIÉE ==========
+            # ========== NOTIFICATION DEVICE QUEUE ==========
             try:
                 if audience == 'device' and target_device:
-                    # 📍 ÉVÉNEMENT PERSONNEL
-                    payload = json.dumps({
+                    payload = {
                         "type": "new_event",
                         "to": target_device,
                         "title": title,
@@ -321,26 +310,15 @@ def guardar_evento(request):
                         "description": description,
                         "location": location,
                         "timestamp": datetime.now().isoformat()
-                    })
-                    
-                    mqtt_publish.single(
-                        topic=settings.MQTT_TOPIC_GENERAL,
-                        payload=payload,
-                        hostname=settings.MQTT_BROKER_URL,
-                        port=settings.MQTT_BROKER_PORT,
-                        auth=_mqtt_auth(),
-                        qos=1
-                    )
-                    
-                    print(f"[MQTT EVENTOS] ✓ Notification personnel envoyée")
-                    print(f"[MQTT EVENTOS]   To: {target_device}")
-                    print(f"[MQTT EVENTOS]   Type: new_event")
-                    print(f"[MQTT EVENTOS]   Topic: {settings.MQTT_TOPIC_GENERAL}")
-                    print(f"[MQTT EVENTOS]   Payload: {payload}")
+                    }
+                    enqueue_notification(target_device, payload)
+                    print(f"[DEVICE QUEUE EVENTOS] ✓ Notification personnelle enqueued")
+                    print(f"[DEVICE QUEUE EVENTOS]   To: {target_device}")
+                    print(f"[DEVICE QUEUE EVENTOS]   Type: new_event")
+                    print(f"[DEVICE QUEUE EVENTOS]   Payload: {json.dumps(payload)}")
                 
                 elif audience == 'all':
-                    # 📢 ÉVÉNEMENT PUBLIC
-                    payload = json.dumps({
+                    payload = {
                         "type": "new_event",
                         "to": "all",
                         "title": title,
@@ -348,25 +326,16 @@ def guardar_evento(request):
                         "description": description,
                         "location": location,
                         "timestamp": datetime.now().isoformat()
-                    })
-                    
-                    mqtt_publish.single(
-                        topic=settings.MQTT_TOPIC_GENERAL,
-                        payload=payload,
-                        hostname=settings.MQTT_BROKER_URL,
-                        port=settings.MQTT_BROKER_PORT,
-                        auth=_mqtt_auth(),
-                        qos=1
-                    )
-                    
-                    print(f"[MQTT EVENTOS] ✓ Notification publique envoyée")
-                    print(f"[MQTT EVENTOS]   To: all")
-                    print(f"[MQTT EVENTOS]   Type: new_event")
-                    print(f"[MQTT EVENTOS]   Topic: {settings.MQTT_TOPIC_GENERAL}")
-                    print(f"[MQTT EVENTOS]   Payload: {payload}")
+                    }
+                    inserted = enqueue_broadcast_notification(payload)
+                    print(f"[DEVICE QUEUE EVENTOS] ✓ Notification pública enqueued")
+                    print(f"[DEVICE QUEUE EVENTOS]   To: all")
+                    print(f"[DEVICE QUEUE EVENTOS]   Type: new_event")
+                    print(f"[DEVICE QUEUE EVENTOS]   Fanout: {len(inserted)} device(s)")
+                    print(f"[DEVICE QUEUE EVENTOS]   Payload: {json.dumps(payload)}")
 
             except Exception as e:
-                print(f"[MQTT EVENTOS] ✗ Erreur MQTT: {e}")
+                print(f"[DEVICE QUEUE EVENTOS] ✗ Erreur queue: {e}")
                 import traceback
                 traceback.print_exc()
             # =============================================
@@ -497,7 +466,7 @@ def generate_video_token(request, identity, room_name):
         token.add_grant(video_grant)
 
         print(f"Token generado JWT: {token.to_jwt()}")  
-        send_mqtt_notification(room_name, identity) 
+        enqueue_videocall_notification(room_name, identity) 
 
         # Devolver el token como JSON
         return JsonResponse({
@@ -626,9 +595,9 @@ def device_videocall_session(request):
         }
     )
 
-def send_mqtt_notification(room_name: str, caller: str) -> None:
+def enqueue_videocall_notification(room_name: str, caller: str) -> None:
     """
-    Envoie notification videocall unifiée sur topic 'tarjeta'
+    Enqueue unified videocall notification for one furniture device.
     
     NOUVEAU FORMAT:
     {
@@ -640,35 +609,24 @@ def send_mqtt_notification(room_name: str, caller: str) -> None:
     }
     """
     try:
-        # ✅ NOTIFICATION UNIFIÉE
-        payload = json.dumps({
+        payload = {
             "type": "videocall",
             "from": caller,
             "to": room_name,  # Le destinataire = la room
             "room": room_name,
             "timestamp": datetime.now().isoformat()
-        })
-        
-        mqtt_publish.single(
-            topic=settings.MQTT_TOPIC_GENERAL,  # "tarjeta"
-            payload=payload,
-            hostname=settings.MQTT_BROKER_URL,
-            port=settings.MQTT_BROKER_PORT,
-            auth=_mqtt_auth(),
-            qos=1
-        )
-        
-        print(f"[MQTT VIDEOCALL] ✓ Notification envoyée")
-        print(f"[MQTT VIDEOCALL]   From: {caller}")
-        print(f"[MQTT VIDEOCALL]   To: {room_name}")
-        print(f"[MQTT VIDEOCALL]   Type: videocall")
-        print(f"[MQTT VIDEOCALL]   Topic: {settings.MQTT_TOPIC_GENERAL}")
-        print(f"[MQTT VIDEOCALL]   Payload: {payload}")
+        }
+        enqueue_notification(room_name, payload)
+        print(f"[DEVICE QUEUE VIDEOCALL] ✓ Notification enqueued")
+        print(f"[DEVICE QUEUE VIDEOCALL]   From: {caller}")
+        print(f"[DEVICE QUEUE VIDEOCALL]   To: {room_name}")
+        print(f"[DEVICE QUEUE VIDEOCALL]   Type: videocall")
+        print(f"[DEVICE QUEUE VIDEOCALL]   Payload: {json.dumps(payload)}")
 
         call_monitor.add_call(room_name=room_name, caller=caller)
     
     except Exception as e:
-        print(f"[MQTT VIDEOCALL] ✗ Erreur MQTT: {e}")
+        print(f"[DEVICE QUEUE VIDEOCALL] ✗ Erreur queue: {e}")
         import traceback
         traceback.print_exc()
 
@@ -706,7 +664,7 @@ call_monitor.start()
 
 
 """ ================= Solution espanol =================="""
-#def send_mqtt_notification(room_name: str, caller: str) -> None:
+#def enqueue_videocall_notification(room_name: str, caller: str) -> None:
 #    """Lanza la notificación al broker en los 3 topics necesarios."""
 #
 #    # 1) Mensaje detallado (por sala) – mantiene compatibilidad con diseño inicial

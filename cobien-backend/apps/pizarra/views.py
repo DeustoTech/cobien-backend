@@ -37,7 +37,7 @@ from .device_registry import (
     update_device_metadata,
     update_device_contacts,
 )
-import paho.mqtt.publish as mqtt_publish
+from .device_queue import claim_pending_notifications, enqueue_broadcast_notification, enqueue_notification
 
 # --- Mongo / GridFS ---
 _client = MongoClient(os.getenv("MONGO_URI"))
@@ -68,15 +68,6 @@ try:
     col_icso_events.create_index([("created_at", DESCENDING)])
 except Exception:
     pass
-
-
-def _mqtt_auth():
-    if settings.MQTT_USERNAME:
-        return {
-            "username": settings.MQTT_USERNAME,
-            "password": settings.MQTT_PASSWORD,
-        }
-    return None
 
 
 def _require_api_key(request):
@@ -370,7 +361,7 @@ def _serialize_usernames_text(raw_usernames):
 
 
 def _publish_contacts_sync(target, contacts=None, request=None):
-    mqtt_payload = {
+    queue_payload = {
         "type": "contacts_updated",
         "to": target,
         "from": "cobien-admin",
@@ -378,23 +369,16 @@ def _publish_contacts_sync(target, contacts=None, request=None):
     }
     normalized_contacts = normalize_contacts_list(contacts or [])
     if normalized_contacts:
-        mqtt_payload["contacts"] = normalized_contacts
+        queue_payload["contacts"] = normalized_contacts
     if request is not None:
         try:
-            mqtt_payload["contacts_url"] = request.build_absolute_uri(
+            queue_payload["contacts_url"] = request.build_absolute_uri(
                 f"{reverse('pizarra_api_contacts')}?device_id={target}"
             )
         except Exception:
             pass
-    mqtt_publish.single(
-        topic=settings.MQTT_TOPIC_GENERAL,
-        payload=json.dumps(mqtt_payload),
-        hostname=settings.MQTT_BROKER_URL,
-        port=settings.MQTT_BROKER_PORT,
-        auth=_mqtt_auth(),
-        qos=1,
-    )
-    return mqtt_payload
+    enqueue_notification(target, queue_payload)
+    return queue_payload
 
 
 @login_required
@@ -827,28 +811,11 @@ def pizarra_create(request):
     }
     col_messages.insert_one(doc)
 
-    # ========== NOUVEAU : Envoyer notification MQTT au meuble ==========
-    print(f"[MQTT PIZARRA] 🚀 Début envoi notification...")
-    print(f"[MQTT PIZARRA]    From: {request.user.username}")
-    print(f"[MQTT PIZARRA]    To: {doc['recipient_key']}")
+    print(f"[DEVICE QUEUE] 🚀 Enqueue notification...")
+    print(f"[DEVICE QUEUE]    From: {request.user.username}")
+    print(f"[DEVICE QUEUE]    To: {doc['recipient_key']}")
 
     try:
-        # ✅ Vérifier si settings existent
-        print(f"[MQTT PIZARRA] 📋 Vérification settings:")
-        
-        broker_url = getattr(settings, 'MQTT_BROKER_URL', None)
-        broker_port = getattr(settings, 'MQTT_BROKER_PORT', None)
-        topic = getattr(settings, 'MQTT_TOPIC_GENERAL', None)
-        
-        print(f"[MQTT PIZARRA]    MQTT_BROKER_URL: {broker_url}")
-        print(f"[MQTT PIZARRA]    MQTT_BROKER_PORT: {broker_port}")
-        print(f"[MQTT PIZARRA]    MQTT_TOPIC_GENERAL: {topic}")
-        
-        if not broker_url or not broker_port or not topic:
-            print(f"[MQTT PIZARRA] ❌ ERREUR: Settings MQTT manquants !")
-            print(f"[MQTT PIZARRA]    Vérifier cobien_backend/settings.py")
-            raise ValueError("Settings MQTT non configurés")
-        
         payload = json.dumps({
             "type": "new_message",
             "from": request.user.username,
@@ -857,27 +824,17 @@ def pizarra_create(request):
             "image": bool(file_id),
             "timestamp": doc["created_at"].isoformat()
         })
-        
-        print(f"[MQTT PIZARRA] 📦 Payload: {payload}")
-        
-        mqtt_publish.single(
-            topic=topic,
-            payload=payload,
-            hostname=broker_url,
-            port=broker_port,
-            auth=_mqtt_auth(),
-            qos=1
-        )
-        
-        print(f"[MQTT PIZARRA] ✅ Notification envoyée avec succès !")
+        queue_payload = json.loads(payload)
+        enqueue_notification(doc["recipient_key"], queue_payload)
+        print(f"[DEVICE QUEUE] 📦 Payload: {payload}")
+        print(f"[DEVICE QUEUE] ✅ Notification enqueued avec succès !")
         
     except Exception as e:
-        print(f"[MQTT PIZARRA] ❌ ERREUR: {e}")
+        print(f"[DEVICE QUEUE] ❌ ERREUR: {e}")
         import traceback
         traceback.print_exc()
 
-    print(f"[MQTT PIZARRA] 🏁 Fin envoi notification")
-    # ===================================================================
+    print(f"[DEVICE QUEUE] 🏁 Fin enqueue notification")
 
     messages.success(request, "¡Mensaje guardado!")
     return redirect(f"{reverse('pizarra_home')}?to={doc['recipient_key']}")
@@ -1109,7 +1066,7 @@ def api_trigger_contacts_sync(request):
     if not target:
         return JsonResponse({"error": "to/target_device requerido"}, status=400)
 
-    mqtt_payload = {
+    queue_payload = {
         "type": "contacts_updated",
         "to": target,
         "from": payload.get("from") or "cobien",
@@ -1117,25 +1074,44 @@ def api_trigger_contacts_sync(request):
     }
 
     try:
-        mqtt_publish.single(
-            topic=settings.MQTT_TOPIC_GENERAL,
-            payload=json.dumps(mqtt_payload),
-            hostname=settings.MQTT_BROKER_URL,
-            port=settings.MQTT_BROKER_PORT,
-            auth=_mqtt_auth(),
-            qos=1,
-        )
+        enqueue_notification(target, queue_payload)
     except Exception as exc:
-        return JsonResponse({"error": f"MQTT publish failed: {exc}"}, status=502)
+        return JsonResponse({"error": f"Queue enqueue failed: {exc}"}, status=502)
 
-    return JsonResponse({"ok": True, "published": mqtt_payload})
+    return JsonResponse({"ok": True, "published": queue_payload})
 
 
 @csrf_exempt
-def api_mqtt_diagnostic(request):
+def api_device_poll(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido. Usa GET."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    device_id = (request.GET.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    limit = request.GET.get("limit", 50)
+    try:
+        notifications = claim_pending_notifications(device_id, limit=limit)
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({
+        "ok": True,
+        "device_id": device_id,
+        "notifications": notifications,
+        "count": len(notifications),
+    })
+
+
+@csrf_exempt
+def api_device_delivery_diagnostic(request):
     """
-    Publish a diagnostic MQTT message targeted to one furniture device.
-    Useful to verify the full backend -> broker -> furniture delivery path.
+    Enqueue a diagnostic message targeted to one furniture device.
+    Useful to verify the full backend -> device delivery path.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
@@ -1153,8 +1129,8 @@ def api_mqtt_diagnostic(request):
     if not target:
         return JsonResponse({"error": "to/target_device requerido"}, status=400)
 
-    mqtt_payload = {
-        "type": "mqtt_diagnostic",
+    queue_payload = {
+        "type": "backend_delivery_diagnostic",
         "to": target,
         "from": payload.get("from") or "cobien-admin",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1162,18 +1138,11 @@ def api_mqtt_diagnostic(request):
     }
 
     try:
-        mqtt_publish.single(
-            topic=settings.MQTT_TOPIC_GENERAL,
-            payload=json.dumps(mqtt_payload),
-            hostname=settings.MQTT_BROKER_URL,
-            port=settings.MQTT_BROKER_PORT,
-            auth=_mqtt_auth(),
-            qos=1,
-        )
+        enqueue_notification(target, queue_payload)
     except Exception as exc:
-        return JsonResponse({"error": f"MQTT publish failed: {exc}"}, status=502)
+        return JsonResponse({"error": f"Queue enqueue failed: {exc}"}, status=502)
 
-    return JsonResponse({"ok": True, "published": mqtt_payload})
+    return JsonResponse({"ok": True, "published": queue_payload})
 
 @login_required
 def api_notifications(request):
