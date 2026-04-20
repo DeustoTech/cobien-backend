@@ -7,6 +7,7 @@ urlpatterns = [
     path('icso/', views.icso_dashboard, name='pizarra_icso_dashboard'),
     path('devices/', views.devices_admin, name='pizarra_devices_admin'),
     path('devices/contacts/', views.device_contacts_admin, name='pizarra_device_contacts_admin'),
+    path('contact-images/<str:filename>/', views.contact_image, name='pizarra_contact_image'),
     path('nuevo/', views.pizarra_create, name='pizarra_create'),
     path('delete/<str:post_id>/', views.pizarra_delete, name='pizarra_delete'),
     path('img/<str:file_id>/', views.pizarra_image, name='pizarra_image'),

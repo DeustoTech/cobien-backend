@@ -216,7 +216,23 @@ def _contact_media_dir():
 
 
 def _contact_media_url(filename):
-    return f"{settings.MEDIA_URL.rstrip('/')}/pizarra_contacts/{filename}"
+    return reverse("pizarra_contact_image", kwargs={"filename": filename})
+
+
+def _contact_image_path_from_url(image_url):
+    if not image_url:
+        return ""
+    filename = os.path.basename(str(image_url).split("?", 1)[0].rstrip("/"))
+    if not filename:
+        return ""
+    return os.path.join(_contact_media_dir(), filename)
+
+
+def _normalize_contact_image_url(image_url):
+    path = _contact_image_path_from_url(image_url)
+    if not path or not os.path.exists(path):
+        return ""
+    return _contact_media_url(os.path.basename(path))
 
 
 def _contact_storage_name(device_id, display_name, filename):
@@ -227,13 +243,7 @@ def _contact_storage_name(device_id, display_name, filename):
 
 
 def _delete_managed_contact_image(image_url):
-    if not image_url:
-        return
-    media_prefix = f"{settings.MEDIA_URL.rstrip('/')}/pizarra_contacts/"
-    if not str(image_url).startswith(media_prefix):
-        return
-    filename = str(image_url).split("/pizarra_contacts/", 1)[-1]
-    path = os.path.join(_contact_media_dir(), filename)
+    path = _contact_image_path_from_url(image_url)
     if os.path.exists(path):
         try:
             os.remove(path)
@@ -314,11 +324,12 @@ def _parse_contact_rows(request, device_id, existing_contacts):
 def _contacts_for_template(raw_contacts):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
+        image_url = _normalize_contact_image_url(item.get("image_url", ""))
         contacts.append(
             {
                 "display_name": item["display_name"],
                 "user_name": item["user_name"],
-                "image_url": item.get("image_url", ""),
+                "image_url": image_url,
             }
         )
     return contacts
@@ -327,7 +338,7 @@ def _contacts_for_template(raw_contacts):
 def _contacts_for_api(raw_contacts, request=None):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
-        image_url = item.get("image_url", "")
+        image_url = _normalize_contact_image_url(item.get("image_url", ""))
         if request is not None and image_url and str(image_url).startswith("/"):
             try:
                 image_url = request.build_absolute_uri(image_url)
@@ -341,6 +352,15 @@ def _contacts_for_api(raw_contacts, request=None):
             }
         )
     return contacts
+
+
+def contact_image(request, filename):
+    path = os.path.join(_contact_media_dir(), os.path.basename(str(filename or "")))
+    if not os.path.exists(path):
+        raise Http404("Imagen no encontrada")
+    if not (getattr(request.user, "is_authenticated", False) or _require_api_key(request)):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    return FileResponse(open(path, "rb"))
 
 
 def _serialize_usernames_text(raw_usernames):
