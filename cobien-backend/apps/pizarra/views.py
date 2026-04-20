@@ -1,3 +1,5 @@
+import csv
+import io
 import os
 import gridfs
 import json
@@ -15,7 +17,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from .forms import DeviceAdminForm, DeviceContactsAdminForm, PizarraPostForm
 from .device_registry import (
     col_devices,
@@ -478,6 +480,20 @@ def pizarra_home(request):
     return render(request, "pizarra/pizarra.html", ctx)
 
 
+def _payload_items(payload: dict) -> list:
+    items = []
+    if not isinstance(payload, dict):
+        return items
+    for k, v in payload.items():
+        if isinstance(v, (dict, list)):
+            items.append({"key": k, "value": json.dumps(v, indent=2, default=str, ensure_ascii=False), "complex": True})
+        elif v is None:
+            items.append({"key": k, "value": "—", "complex": False})
+        else:
+            items.append({"key": k, "value": str(v), "complex": False})
+    return items
+
+
 @login_required
 @user_passes_test(_staff_required)
 def icso_dashboard(request):
@@ -491,6 +507,7 @@ def icso_dashboard(request):
 
     snapshot = None
     events = []
+    sources = []
     if selected_device:
         snapshot_doc = col_icso_snapshots.find_one({"device_id": selected_device})
         if snapshot_doc:
@@ -498,19 +515,23 @@ def icso_dashboard(request):
             snapshot = {
                 "device_id": snapshot_doc.get("device_id"),
                 "updated_at": _serialize_datetime(snapshot_doc.get("updated_at")),
-                "payload_pretty": pprint.pformat(payload, width=100, sort_dicts=True),
+                "captured_at": _serialize_datetime(snapshot_doc.get("captured_at")),
+                "payload_items": _payload_items(payload),
+                "payload_json": json.dumps(payload, indent=2, default=str, ensure_ascii=False),
+                "payload_count": len(payload) if isinstance(payload, dict) else 0,
             }
 
         cursor = col_icso_events.find({"device_id": selected_device}).sort("logged_at", DESCENDING).limit(100)
         for doc in cursor:
             item = _serialize_doc(doc)
-            events.append(
-                {
-                    "source": item.get("source", ""),
-                    "logged_at": item.get("logged_at") or item.get("created_at") or "",
-                    "message": item.get("message", ""),
-                }
-            )
+            src = item.get("source", "") or "icso"
+            events.append({
+                "source": src,
+                "logged_at": item.get("logged_at") or item.get("created_at") or "",
+                "message": item.get("message", ""),
+            })
+            if src not in sources:
+                sources.append(src)
 
     return render(
         request,
@@ -520,8 +541,70 @@ def icso_dashboard(request):
             "selected_device": selected_device,
             "snapshot": snapshot,
             "events": events,
+            "sources": sources,
+            "events_count": len(events),
         },
     )
+
+
+@login_required
+@user_passes_test(_staff_required)
+def icso_download_events(request):
+    device_id = (request.GET.get("device_id") or "").strip()
+    fmt = (request.GET.get("format") or "csv").strip().lower()
+    if not device_id:
+        return HttpResponse("Falta el parámetro device_id.", status=400, content_type="text/plain")
+
+    cursor = col_icso_events.find({"device_id": device_id}).sort("logged_at", DESCENDING).limit(5000)
+    events = []
+    for doc in cursor:
+        item = _serialize_doc(doc)
+        events.append({
+            "device_id": device_id,
+            "source": item.get("source", "") or "icso",
+            "logged_at": item.get("logged_at") or item.get("created_at") or "",
+            "message": item.get("message", ""),
+        })
+
+    safe_device = re.sub(r"[^\w\-]", "_", device_id)
+
+    if fmt == "json":
+        content = json.dumps(events, indent=2, default=str, ensure_ascii=False)
+        response = HttpResponse(content, content_type="application/json; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="icso_events_{safe_device}.json"'
+        return response
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=["device_id", "source", "logged_at", "message"])
+    writer.writeheader()
+    writer.writerows(events)
+    response = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="icso_events_{safe_device}.csv"'
+    return response
+
+
+@login_required
+@user_passes_test(_staff_required)
+def icso_download_snapshot(request):
+    device_id = (request.GET.get("device_id") or "").strip()
+    if not device_id:
+        return HttpResponse("Falta el parámetro device_id.", status=400, content_type="text/plain")
+
+    snapshot_doc = col_icso_snapshots.find_one({"device_id": device_id})
+    if not snapshot_doc:
+        return HttpResponse("No hay snapshot para este dispositivo.", status=404, content_type="text/plain")
+
+    data = {
+        "device_id": snapshot_doc.get("device_id"),
+        "captured_at": _serialize_datetime(snapshot_doc.get("captured_at")),
+        "updated_at": _serialize_datetime(snapshot_doc.get("updated_at")),
+        "payload": snapshot_doc.get("payload", {}),
+    }
+    content = json.dumps(data, indent=2, default=str, ensure_ascii=False)
+    safe_device = re.sub(r"[^\w\-]", "_", device_id)
+    response = HttpResponse(content, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="icso_snapshot_{safe_device}.json"'
+    return response
 
 
 @login_required

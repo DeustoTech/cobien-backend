@@ -4,70 +4,389 @@
 {% block title %}CoBien · ICSO{% endblock %}
 {% block page_class %}pizarra{% endblock %}
 
+{% block extra_head %}
+<style>
+.icso-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.icso-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: .82rem;
+  color: var(--muted);
+}
+.icso-stat strong { color: var(--text); font-weight: 700; }
+.icso-stat svg { flex-shrink: 0; }
+
+.kv-table {
+  display: grid;
+  grid-template-columns: minmax(100px, auto) 1fr;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 18px;
+  font-size: .875rem;
+}
+.kv-row { display: contents; }
+.kv-row:not(:last-child) .kv-key,
+.kv-row:not(:last-child) .kv-val { border-bottom: 1px solid var(--border); }
+.kv-key {
+  padding: 10px 16px;
+  background: var(--surface-muted);
+  font-weight: 600;
+  color: var(--muted);
+  font-family: monospace;
+  font-size: .82rem;
+  word-break: break-word;
+}
+.kv-val {
+  padding: 10px 16px;
+  color: var(--text);
+  word-break: break-all;
+}
+.kv-val pre {
+  margin: 0;
+  font-size: .78rem;
+  white-space: pre-wrap;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.raw-json-block {
+  display: none;
+  margin-top: 14px;
+}
+.raw-json-block pre {
+  margin: 0;
+  padding: 18px;
+  background: var(--surface-muted);
+  font-size: .8rem;
+  white-space: pre-wrap;
+  color: var(--muted);
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  line-height: 1.6;
+}
+
+.btn-ghost {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .8rem;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  white-space: nowrap;
+}
+.btn-ghost:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
+.btn-ghost.active {
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+  background: var(--brand-blue-soft);
+}
+
+.snapshot-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.snapshot-meta {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: .82rem;
+  color: var(--muted);
+}
+.snapshot-meta strong { color: var(--text); }
+
+.events-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.events-head h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--brand-blue);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.source-filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.notif-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.notif-time { font-size: .78rem; color: var(--muted); margin-left: auto; }
+.notif-message-text { font-size: .875rem; color: var(--text); line-height: 1.5; }
+.event-source-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.events-scroll {
+  max-height: 580px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.empty-hint svg { opacity: .35; }
+</style>
+{% endblock %}
+
 {% block content %}
-  <div class="pz-wrap">
-    <section class="pz-card">
-      <div class="section-heading">
+<div class="pz-wrap">
+
+  <!-- ── Header ── -->
+  <section class="pz-card">
+    <div class="section-heading">
+      <div>
+        <h1 class="pz-h2">ICSO</h1>
+        <p class="lead-text">{% trans "Consulta el último estado sincronizado por cada mueble y los eventos recientes asociados." %}</p>
+      </div>
+    </div>
+
+    <form method="get" style="margin-top: 20px;">
+      <div class="grid" style="grid-template-columns: 1fr auto; gap: 12px;">
         <div>
-          <h1 class="pz-h2">ICSO</h1>
-          <p class="lead-text">{% trans "Consulta el último estado sincronizado por cada mueble y los eventos recientes asociados." %}</p>
+          <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
+          <input type="text" id="device_id" name="device_id" value="{{ selected_device }}"
+                 list="devices-list" placeholder="CoBien1" autocomplete="off">
+          <datalist id="devices-list">
+            {% for dev in devices %}<option value="{{ dev }}">{% endfor %}
+          </datalist>
+        </div>
+        <div style="display:flex; align-items:end;">
+          <button class="btn-main" type="submit">{% trans "Consultar" %}</button>
         </div>
       </div>
+    </form>
 
-      <form method="get" class="section-stack" style="margin-top: 20px;">
-        <div class="grid" style="grid-template-columns: 1fr auto;">
-          <div>
-            <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
-            <input type="text" id="device_id" name="device_id" value="{{ selected_device }}" list="devices-list" placeholder="CoBien1">
-            <datalist id="devices-list">
-              {% for dev in devices %}<option value="{{ dev }}">{% endfor %}
-            </datalist>
-          </div>
-          <div style="display:flex; align-items:end;">
-            <button class="btn-main" type="submit">{% trans "Consultar" %}</button>
-          </div>
-        </div>
-      </form>
-    </section>
+    {% if devices %}
+    <div class="icso-stats">
+      <span class="icso-stat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <strong>{{ devices|length }}</strong>&nbsp;{% trans "dispositivos" %}
+      </span>
+      {% if snapshot %}
+      <span class="icso-stat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        {% trans "Snapshot" %}:&nbsp;<strong>{{ snapshot.updated_at }}</strong>
+      </span>
+      {% if snapshot.payload_count %}
+      <span class="icso-stat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <strong>{{ snapshot.payload_count }}</strong>&nbsp;{% trans "campos" %}
+      </span>
+      {% endif %}
+      {% endif %}
+      {% if events_count %}
+      <span class="icso-stat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <strong>{{ events_count }}</strong>&nbsp;{% trans "eventos" %}
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
 
-    <div class="pz-grid">
-      <section class="pz-card">
-        <div class="section-heading">
-          <div>
-            <h2>{% trans "Último snapshot" %}</h2>
-            {% if snapshot %}
-              <p class="lead-text">{{ snapshot.device_id }} · {{ snapshot.updated_at }}</p>
-            {% else %}
-              <p class="lead-text">{% trans "Todavía no hay snapshot para el dispositivo seleccionado." %}</p>
+  {% if selected_device %}
+  <div class="pz-grid">
+
+    <!-- ── Snapshot ── -->
+    <section class="pz-card">
+      <div class="snapshot-head">
+        <div style="flex:1; min-width:0;">
+          <h2>{% trans "Último snapshot" %}</h2>
+          {% if snapshot %}
+          <div class="snapshot-meta">
+            <strong>{{ snapshot.device_id }}</strong>
+            {% if snapshot.captured_at %}
+            <span>{% trans "Capturado" %}: <strong>{{ snapshot.captured_at }}</strong></span>
             {% endif %}
+            <span>{% trans "Actualizado" %}: <strong>{{ snapshot.updated_at }}</strong></span>
           </div>
+          {% else %}
+          <p class="lead-text" style="margin-top:6px;">{% trans "Todavía no hay snapshot para el dispositivo seleccionado." %}</p>
+          {% endif %}
         </div>
         {% if snapshot %}
-          <pre>{{ snapshot.payload_pretty }}</pre>
-        {% endif %}
-      </section>
-
-      <aside class="pz-card">
-        <div class="section-heading">
-          <div>
-            <h2>{% trans "Eventos recientes" %}</h2>
-            <p class="lead-text">{% trans "Actividad ICSO asociada al dispositivo consultado." %}</p>
-          </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button class="btn-ghost" id="json-toggle-btn" onclick="toggleRaw()">{% trans "Ver JSON" %}</button>
+          <a class="btn-ghost" href="{% url 'pizarra_icso_download_snapshot' %}?device_id={{ selected_device }}" download title="{% trans 'Descargar snapshot como JSON' %}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>JSON
+          </a>
         </div>
-        {% if events %}
-          <ul class="notif-list">
-            {% for event in events %}
-              <li class="notif-item">
-                <div class="notif-title">{{ event.source }}</div>
-                <div class="notif-sub">{{ event.logged_at }}</div>
-                <div class="notif-message">{{ event.message }}</div>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="muted">{% trans "No hay eventos ICSO sincronizados para este dispositivo." %}</p>
         {% endif %}
-      </aside>
-    </div>
+      </div>
+
+      {% if snapshot %}
+        {% if snapshot.payload_items %}
+        <div class="kv-table">
+          {% for item in snapshot.payload_items %}
+          <div class="kv-row">
+            <div class="kv-key">{{ item.key }}</div>
+            <div class="kv-val">
+              {% if item.complex %}<pre>{{ item.value }}</pre>{% else %}{{ item.value }}{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted" style="margin-top:16px;">{% trans "El payload está vacío." %}</p>
+        {% endif %}
+
+        <div class="raw-json-block" id="raw-json">
+          <pre>{{ snapshot.payload_json }}</pre>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- ── Events ── -->
+    <aside class="pz-card">
+      <div class="events-head">
+        <h2>
+          {% trans "Eventos recientes" %}
+          {% if events_count %}<span class="count-badge">{{ events_count }}</span>{% endif %}
+        </h2>
+        {% if events %}
+        <div style="display:flex; gap:7px; flex-shrink:0;">
+          <a class="btn-ghost" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv" download title="{% trans 'Descargar como CSV' %}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV
+          </a>
+          <a class="btn-ghost" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json" download title="{% trans 'Descargar como JSON' %}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>JSON
+          </a>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if sources|length > 1 %}
+      <div class="source-filters">
+        <button class="btn-ghost active" onclick="filterSource(this, '')">{% trans "Todos" %}</button>
+        {% for src in sources %}
+        <button class="btn-ghost" onclick="filterSource(this, '{{ src }}')">{{ src }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if events %}
+        <div class="notif-list events-scroll">
+          {% for event in events %}
+          <div class="notif-item" data-event-source="{{ event.source }}">
+            <div class="notif-meta">
+              <span class="event-source-pill" data-src="{{ event.source }}">{{ event.source }}</span>
+              <span class="notif-time">{{ event.logged_at }}</span>
+            </div>
+            <div class="notif-message-text">{{ event.message }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-hint">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          {% trans "No hay eventos ICSO sincronizados para este dispositivo." %}
+        </div>
+      {% endif %}
+    </aside>
+
   </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const PALETTE = [
+    ['#1f6f9d', '#dff3fb'],
+    ['#e79c14', '#fff8ea'],
+    ['#1f9d5d', '#dcf5ea'],
+    ['#8b5cf6', '#ede9fe'],
+    ['#cb4f4f', '#fdecea'],
+  ];
+
+  const pills = document.querySelectorAll('.event-source-pill[data-src]');
+  const seenSources = [];
+  pills.forEach(function (el) {
+    const src = el.dataset.src;
+    if (!seenSources.includes(src)) seenSources.push(src);
+    const idx = seenSources.indexOf(src);
+    const srcLower = src.toLowerCase();
+    let pair;
+    if (srcLower.includes('error') || srcLower.includes('err')) pair = PALETTE[4];
+    else if (srcLower.includes('warn')) pair = PALETTE[1];
+    else pair = PALETTE[idx % PALETTE.length];
+    el.style.color = pair[0];
+    el.style.background = pair[1];
+  });
+
+  window.toggleRaw = function () {
+    const block = document.getElementById('raw-json');
+    const btn = document.getElementById('json-toggle-btn');
+    if (!block || !btn) return;
+    const visible = block.style.display === 'block';
+    block.style.display = visible ? 'none' : 'block';
+    btn.classList.toggle('active', !visible);
+    btn.textContent = visible ? '{% trans "Ver JSON" %}' : '{% trans "Ocultar JSON" %}';
+  };
+
+  window.filterSource = function (btn, src) {
+    document.querySelectorAll('.source-filters .btn-ghost').forEach(function (b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    document.querySelectorAll('[data-event-source]').forEach(function (el) {
+      el.style.display = (!src || el.dataset.eventSource === src) ? '' : 'none';
+    });
+  };
+})();
+</script>
 {% endblock %}
