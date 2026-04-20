@@ -212,8 +212,9 @@ if not DEBUG:  # Only in production
 NOTIFY_API_KEY    = os.getenv("NOTIFY_API_KEY", "")  
 NOTIFY_TTL_HOURS  = int(os.getenv("NOTIFY_TTL_HOURS", "24"))
 
-# MQTT configuration
-MQTT_BROKER_URL  = os.getenv('MQTT_BROKER_URL', 'broker.hivemq.com')
+# Legacy MQTT configuration kept only for backwards-compatible local flows.
+# The production furniture delivery path now uses pizarra device polling.
+MQTT_BROKER_URL  = os.getenv('MQTT_BROKER_URL', 'localhost')
 MQTT_BROKER_PORT = int(os.getenv('MQTT_BROKER_PORT', 1883))
 MQTT_USERNAME    = os.getenv('MQTT_USERNAME', '')
 MQTT_PASSWORD    = os.getenv('MQTT_PASSWORD', '')
