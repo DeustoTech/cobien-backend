@@ -14,7 +14,19 @@
           <p class="lead-text">{% trans "Envía mensajes o imágenes al mueble y consulta rápidamente el histórico y las notificaciones pendientes." %}</p>
         </div>
       </div>
-      {% if contacts %}
+
+      {% if device_cards %}
+        <div class="pz-device-grid" style="margin-top: 18px;">
+          {% for card in device_cards %}
+            <a class="pz-device-card{% if card.is_selected %} is-selected{% endif %}"
+               href="?to={{ card.device_id|urlencode }}"
+               title="{{ card.device_id }}">
+              <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+              <span class="pz-device-name">{{ card.display_name }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% elif contacts %}
         <div class="chips" style="margin-top: 18px;">
           {% for c in contacts %}
             <a class="chip" href="?to={{ c|urlencode }}">{{ c }}</a>
@@ -37,6 +49,7 @@
                      list="recipients-list" placeholder="Ej.: maria, paula, salón…" required>
               <datalist id="recipients-list">
                 {% for c in contacts %}<option value="{{ c }}">{% endfor %}
+                {% for card in device_cards %}<option value="{{ card.device_id }}">{% endfor %}
               </datalist>
               <small class="muted">{% trans "Debe coincidir con el destinatario que usará la app del mueble para consultar." %}</small>
             </div>
@@ -148,6 +161,24 @@
         const ta = document.getElementById('content');
         if (ta) ta.focus();
       }
+    })();
+
+    // Device card click fills recipient input without navigating
+    (function () {
+      const cards = document.querySelectorAll('.pz-device-card');
+      const recipientInput = document.getElementById('recipient_key');
+      if (!cards.length || !recipientInput) return;
+      cards.forEach(function (card) {
+        card.addEventListener('click', function (e) {
+          e.preventDefault();
+          const deviceId = card.getAttribute('href').replace('?to=', '');
+          recipientInput.value = decodeURIComponent(deviceId);
+          cards.forEach(function (c) { c.classList.remove('is-selected'); });
+          card.classList.add('is-selected');
+          const ta = document.getElementById('content');
+          if (ta) ta.focus();
+        });
+      });
     })();
   </script>
 {% endblock %}

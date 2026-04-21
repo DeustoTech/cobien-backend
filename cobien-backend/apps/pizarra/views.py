@@ -697,6 +697,7 @@ def _publish_contacts_sync(target, contacts=None, request=None):
 @login_required
 def pizarra_home(request):
     contacts_server = set()
+    is_admin = _staff_required(request.user)
     accessible_devices = get_accessible_device_ids(
         username=getattr(request.user, "username", ""),
         email=getattr(request.user, "email", ""),
@@ -723,6 +724,26 @@ def pizarra_home(request):
 
     selected_contact = (request.GET.get("to") or linked_device or "").strip()
 
+    # Build device cards for the visual selector
+    if is_admin:
+        all_devices = list_known_devices()
+        visible_devices = [d for d in all_devices if not d.get("hidden_in_admin")]
+    else:
+        visible_devices = [get_or_create_device(did) for did in accessible_devices]
+        visible_devices = [d for d in visible_devices if d]
+
+    device_cards = []
+    for device in visible_devices:
+        did = str(device.get("device_id") or "").strip()
+        if not did:
+            continue
+        device_cards.append({
+            "device_id": did,
+            "display_name": str(device.get("display_name") or did).strip() or did,
+            "status": device_online_status(device),
+            "is_selected": did == selected_contact,
+        })
+
     # Histórico
     posts = []
     if selected_contact:
@@ -745,7 +766,7 @@ def pizarra_home(request):
 
     # --- Inbox de notificaciones para el usuario web ---
     notifications_filter = {"read": False}
-    if not _staff_required(request.user):
+    if not is_admin:
         notifications_filter["to_user"] = request.user.username
 
     notifs_cursor = col_notifications.find(notifications_filter).sort("created_at", DESCENDING).limit(100)
@@ -769,6 +790,7 @@ def pizarra_home(request):
         "selected_contact": selected_contact,
         "linked_device": linked_device,
         "contacts": sorted(contacts_server, key=str.casefold),
+        "device_cards": device_cards,
         "posts": posts,
         "form": form,
         "notifications": notifications,

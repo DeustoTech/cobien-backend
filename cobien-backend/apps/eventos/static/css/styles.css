@@ -841,3 +841,43 @@ pre {
   white-space: nowrap;
 }
 .btn-danger:hover { background: #fecaca; border-color: #f87171; }
+
+/* ── Pizarra device selector grid ──────────────────────────────── */
+.pz-device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.pz-device-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-size: .9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pz-device-card:hover {
+  border-color: var(--brand-blue);
+  background: var(--brand-blue-soft);
+  box-shadow: var(--shadow-md);
+}
+.pz-device-card.is-selected {
+  border-color: var(--brand-blue);
+  background: var(--brand-blue-soft);
+  box-shadow: 0 0 0 3px rgba(37,150,190,.18);
+}
+.pz-device-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
