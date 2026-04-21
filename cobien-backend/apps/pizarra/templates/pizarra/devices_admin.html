@@ -4,13 +4,101 @@
 {% block title %}CoBien · {% trans "Muebles" %}{% endblock %}
 {% block page_class %}pizarra{% endblock %}
 
+{% block extra_head %}
+<style>
+.device-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.device-selector-card {
+  display: block;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
+}
+.device-selector-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-blue);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+.device-selector-card.is-active {
+  border-color: var(--brand-blue);
+  background: var(--brand-blue-soft);
+}
+.device-selector-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+.device-selector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.device-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+  gap: 18px;
+}
+.device-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.mini-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mini-card {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+.mini-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+}
+.hardware-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.hardware-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+}
+.hardware-card strong { display: block; margin-bottom: 8px; }
+.icso-event-list {
+  max-height: 480px;
+  overflow-y: auto;
+}
+@media (max-width: 1100px) {
+  .device-shell { grid-template-columns: 1fr; }
+  .mini-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hardware-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
   <div class="pz-wrap">
     <section class="pz-card">
       <div class="section-heading">
         <div>
-          <h1 class="pz-h2">{% trans "Inventario de muebles" %}</h1>
-          <p class="lead-text">{% trans "Controla altas, estado y parámetros operativos de cada dispositivo desde un único panel." %}</p>
+          <h1 class="pz-h2">{% trans "Gestión integral de muebles" %}</h1>
+          <p class="lead-text">{% trans "Selecciona un mueble y gestiona desde una sola vista su identidad, contactos, datos ICSO e inventario hardware." %}</p>
         </div>
         <div class="newpost-cta">
           {% if show_hidden %}
@@ -21,7 +109,7 @@
         </div>
       </div>
 
-      <form method="post" class="section-stack" style="margin-top: 20px;">
+      <form method="post" class="section-stack" style="margin-top: 18px;">
         {% csrf_token %}
         <input type="hidden" name="action" value="create">
         <div class="grid" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
@@ -54,92 +142,325 @@
           <button class="btn-main" type="submit">{% trans "Crear mueble" %}</button>
         </div>
       </form>
-    </section>
-
-    <section class="pz-card">
-      <div class="section-heading">
-        <div>
-          <h2>{% trans "Muebles registrados" %}</h2>
-          <p class="lead-text">{% trans "Visualiza de un vistazo el estado, nombre operativo, sala de videollamada y acceso rápido a la configuración avanzada." %}</p>
-        </div>
-      </div>
 
       {% if devices %}
-        <div class="history-list">
+        <div class="device-selector-grid">
           {% for device in devices %}
-            <article class="post-card">
-              <form method="post" class="section-stack">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update">
-                <input type="hidden" name="device_id" value="{{ device.device_id }}">
-                <div class="post-meta">
-                  <div>
-                    <strong>{{ device.device_id }}</strong>
-                    <span class="legend-badge" style="margin-left:10px;">{{ device.status }}</span>
-                    {% if device.hidden_in_admin %}
-                      <span class="legend-badge" style="margin-left:10px;">{% trans "Oculto" %}</span>
-                    {% endif %}
-                    {% if device.last_seen_at %}
-                      <span class="muted" style="margin-left:10px;">{{ device.last_seen_at }}</span>
-                    {% endif %}
-                  </div>
+            <a
+              class="device-selector-card {% if device.device_id == selected_device %}is-active{% endif %}"
+              href="{% url 'pizarra_devices_admin' %}?device_id={{ device.device_id|urlencode }}{% if show_hidden %}&show_hidden=1{% endif %}"
+            >
+              <h3>{{ device.display_name }}</h3>
+              <div class="muted">{{ device.device_id }}</div>
+              <div class="device-selector-meta" style="margin-top: 10px;">
+                <span class="legend-badge">{{ device.status }}</span>
+                <span>{% trans "Sala" %}: {{ device.videocall_room }}</span>
+                <span>{{ device.contacts_count }} {% trans "contactos" %}</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    {% if selected_device %}
+      <div class="device-shell">
+        <div class="device-column">
+          <section class="pz-card">
+            <div class="section-heading">
+              <div>
+                <h2>{{ selected_device }}</h2>
+                <p class="lead-text">{% trans "Panel principal de configuración y operación del mueble seleccionado." %}</p>
+              </div>
+            </div>
+
+            <div class="mini-cards" style="margin-top: 18px;">
+              <div class="mini-card">{% trans "Estado" %}<strong>{{ status }}</strong></div>
+              <div class="mini-card">{% trans "Último heartbeat" %}<strong>{{ last_seen_at|default:"-" }}</strong></div>
+              <div class="mini-card">{% trans "Contactos" %}<strong>{{ contacts_count }}</strong></div>
+              <div class="mini-card">{% trans "Eventos ICSO" %}<strong>{{ events_count }}</strong></div>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top:20px;">
+              {% csrf_token %}
+              <input type="hidden" name="device_id" value="{{ selected_device }}">
+              <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
+
+              <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                <div>
+                  <label class="form-label" for="display_name_device">{% trans "Nombre visible" %}</label>
+                  <input type="text" id="display_name_device" name="display_name" value="{{ profile_source|default:selected_device }}">
                 </div>
-                <div class="grid" style="grid-template-columns: 1.1fr 1fr .6fr .6fr;">
-                  <div>
-                    <label class="form-label">{% trans "Nombre visible" %}</label>
-                    <input type="text" name="display_name" value="{{ device.display_name }}">
-                  </div>
-                  <div>
-                    <label class="form-label">{% trans "Sala videollamada" %}</label>
-                    <input type="text" name="videocall_room" value="{{ device.videocall_room }}" placeholder="{{ device.device_id }}">
-                  </div>
-                  <div style="display:flex; align-items:end;">
-                    <label class="legend-badge">
-                      <input type="checkbox" name="enabled" value="1" {% if device.enabled %}checked{% endif %}>
-                      {% trans "Habilitado" %}
-                    </label>
-                  </div>
-                  <div style="display:flex; align-items:end;">
-                    <label class="legend-badge">
-                      <input type="checkbox" name="hidden_in_admin" value="1" {% if device.hidden_in_admin %}checked{% endif %}>
-                      {% trans "Oculto en el panel" %}
-                    </label>
-                  </div>
+                <div>
+                  <label class="form-label" for="videocall_room_device">{% trans "Sala videollamada" %}</label>
+                  <input type="text" id="videocall_room_device" name="videocall_room" value="{{ videocall_room }}" placeholder="{{ selected_device }}">
                 </div>
-                <div class="post-meta">
-                  <div class="muted">
-                    {% blocktrans with contacts=device.contacts_count users=device.assigned_users_count %}
-                      {{ contacts }} contactos sincronizados · {{ users }} usuarios con acceso
-                    {% endblocktrans %}
-                    {% if device.hardware_reported_at %}
-                      · {% trans "Hardware reportado" %}: {{ device.hardware_reported_at }}
-                    {% endif %}
-                  </div>
+              </div>
+
+              <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div style="display:flex; align-items:end;">
+                  <label class="legend-badge">
+                    <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
+                    {% trans "Mueble habilitado" %}
+                  </label>
                 </div>
-                {% if device.hardware_sections %}
-                  <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
-                    {% for item in device.hardware_sections %}
-                      <div class="legend-badge" style="display:block; padding: 12px; line-height: 1.5;">
-                        <strong>{{ item.label }}</strong><br>
-                        {% if item.hardware %}<span>{{ item.hardware }}</span>{% endif %}
-                        {% if item.driver %}
-                          <br><span class="muted">{% trans "Driver" %}: {{ item.driver }}</span>
-                        {% endif %}
+                <div style="display:flex; align-items:end;">
+                  <label class="legend-badge">
+                    <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
+                    {% trans "Oculto en el panel" %}
+                  </label>
+                </div>
+                <div>
+                  <label class="form-label" for="default_username">{% trans "Usuario por defecto" %}</label>
+                  <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
+                </div>
+              </div>
+
+              <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                <div>
+                  <div class="section-heading" style="margin-bottom: 10px;">
+                    <div>
+                      <label class="form-label" for="contacts-grid">{% trans "Contactos" %}</label>
+                      <small class="muted">{% trans "Edita nombre, usuario e imagen de cada contacto que verá el mueble." %}</small>
+                    </div>
+                    <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
+                  </div>
+                  <div id="contacts-grid" class="section-stack">
+                    {% for contact in contact_rows %}
+                      <div class="pz-card contact-row" data-row-index="{{ forloop.counter0 }}" style="padding:16px;">
+                        <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                          <div>
+                            <label class="form-label">{% trans "Nombre visible" %}</label>
+                            <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
+                          </div>
+                          <div>
+                            <label class="form-label">{% trans "Username web" %}</label>
+                            <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
+                          </div>
+                        </div>
+                        <div class="grid" style="grid-template-columns: 1fr auto;">
+                          <div>
+                            <label class="form-label">{% trans "Imagen" %}</label>
+                            <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*">
+                            {% if contact.image_url %}
+                              <div style="margin-top: 8px;">
+                                <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}" style="max-height: 90px; border-radius: 12px;">
+                              </div>
+                            {% endif %}
+                          </div>
+                          <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
+                            <label class="legend-badge">
+                              <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1">
+                              {% trans "Quitar imagen" %}
+                            </label>
+                            <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+                          </div>
+                        </div>
                       </div>
                     {% endfor %}
                   </div>
-                {% endif %}
-                <div class="newpost-cta">
-                  <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
-                  <a class="btn-main" href="{% url 'pizarra_device_contacts_admin' %}?device_id={{ device.device_id|urlencode }}">{% trans "Cambiar parámetros" %}</a>
+                  <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
                 </div>
-              </form>
-            </article>
-          {% endfor %}
+
+                <div>
+                  <label class="form-label" for="assigned_users">{% trans "Usuarios con acceso" %}</label>
+                  <textarea id="assigned_users" name="assigned_users" rows="14" placeholder="maria&#10;paula">{{ assigned_users_text }}</textarea>
+                  <small class="muted">{% trans "Un username por línea." %}</small>
+                </div>
+              </div>
+
+              <div class="newpost-cta">
+                <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
+                <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
+                <button class="btn-secondary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="pz-card">
+            <div class="section-heading">
+              <div>
+                <h2>{% trans "Datos ICSO" %}</h2>
+                <p class="lead-text">{% trans "Último snapshot y eventos recientes asociados al mueble." %}</p>
+              </div>
+            </div>
+
+            {% if snapshot %}
+              <div class="post-meta">
+                <div class="muted">
+                  {% trans "Capturado" %}: {{ snapshot.captured_at|default:"-" }} ·
+                  {% trans "Actualizado" %}: {{ snapshot.updated_at|default:"-" }} ·
+                  {{ snapshot.payload_count }} {% trans "campos" %}
+                </div>
+              </div>
+              {% if snapshot.payload_items %}
+                <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px;">
+                  {% for item in snapshot.payload_items %}
+                    <div class="legend-badge" style="display:block; padding: 12px;">
+                      <strong>{{ item.key }}</strong><br>
+                      {% if item.complex %}
+                        <pre style="white-space: pre-wrap; margin-top: 8px;">{{ item.value }}</pre>
+                      {% else %}
+                        <span>{{ item.value }}</span>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <details style="margin-top: 14px;">
+                <summary class="muted" style="cursor:pointer;">{% trans "Ver snapshot completo (JSON)" %}</summary>
+                <pre style="white-space: pre-wrap; margin-top: 12px;">{{ snapshot.payload_json }}</pre>
+              </details>
+            {% else %}
+              <p class="muted">{% trans "Todavía no hay snapshot para este dispositivo." %}</p>
+            {% endif %}
+
+            <div class="section-heading" style="margin-top: 20px;">
+              <div>
+                <h3>{% trans "Eventos recientes" %}</h3>
+              </div>
+              {% if events %}
+                <div class="newpost-cta">
+                  <a class="btn-outline" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv">{% trans "CSV" %}</a>
+                  <a class="btn-outline" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json">{% trans "JSON" %}</a>
+                </div>
+              {% endif %}
+            </div>
+
+            {% if events %}
+              <div class="history-list icso-event-list">
+                {% for event in events %}
+                  <article class="post-card">
+                    <div class="post-meta">
+                      <div><strong>{{ event.source }}</strong></div>
+                      <div class="muted">{{ event.logged_at }}</div>
+                    </div>
+                    <div>{{ event.message }}</div>
+                  </article>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">{% trans "No hay eventos ICSO recientes para este dispositivo." %}</p>
+            {% endif %}
+          </section>
         </div>
-      {% else %}
-        <p class="muted">{% trans "No hay muebles registrados todavía." %}</p>
-      {% endif %}
-    </section>
+
+        <div class="device-column">
+          <section class="pz-card">
+            <div class="section-heading">
+              <div>
+                <h2>{% trans "Inventario hardware" %}</h2>
+                <p class="lead-text">
+                  {% if hardware_reported_at %}
+                    {% trans "Último inventario recibido" %}: {{ hardware_reported_at }}
+                  {% else %}
+                    {% trans "Este mueble todavía no ha enviado inventario hardware." %}
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+
+            {% if hardware_sections %}
+              <div class="hardware-grid">
+                {% for item in hardware_sections %}
+                  <div class="hardware-card">
+                    <strong>{{ item.label }}</strong>
+                    {% if item.hardware %}<div>{{ item.hardware }}</div>{% endif %}
+                    {% if item.driver %}<div class="muted" style="margin-top: 8px;">{% trans "Driver" %}: {{ item.driver }}</div>{% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              <details style="margin-top: 16px;">
+                <summary class="muted" style="cursor:pointer;">{% trans "Ver inventario completo (JSON)" %}</summary>
+                <pre style="white-space: pre-wrap; margin-top: 12px;">{{ hardware_inventory_json }}</pre>
+              </details>
+            {% endif %}
+          </section>
+
+          <section class="pz-card">
+            <div class="section-heading">
+              <div>
+                <h2>{% trans "Acceso rápido" %}</h2>
+                <p class="lead-text">{% trans "Acciones auxiliares y navegación operativa del mueble." %}</p>
+              </div>
+            </div>
+            <div class="newpost-cta">
+              <a class="btn-outline" href="{% url 'pizarra_icso_dashboard' %}?device_id={{ selected_device|urlencode }}">{% trans "Abrir vista ICSO clásica" %}</a>
+            </div>
+          </section>
+        </div>
+      </div>
+    {% endif %}
   </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function () {
+      const grid = document.getElementById('contacts-grid');
+      const totalInput = document.getElementById('contact_rows_total');
+      const addBtn = document.getElementById('add-contact-row');
+      if (!grid || !totalInput || !addBtn) return;
+
+      function nextIndex() {
+        return Number(totalInput.value || 0);
+      }
+
+      function syncTotal() {
+        totalInput.value = String(grid.querySelectorAll('.contact-row').length);
+      }
+
+      function bindRow(row) {
+        const removeBtn = row.querySelector('.remove-contact-row');
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            row.remove();
+            syncTotal();
+          });
+        }
+      }
+
+      Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
+      syncTotal();
+
+      addBtn.addEventListener('click', function () {
+        const index = nextIndex();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pz-card contact-row';
+        wrapper.setAttribute('data-row-index', String(index));
+        wrapper.style.padding = '16px';
+        wrapper.innerHTML = `
+          <input type="hidden" name="contact_existing_image_url_${index}" value="">
+          <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+              <label class="form-label">{% trans "Nombre visible" %}</label>
+              <input type="text" name="contact_display_name_${index}" placeholder="María">
+            </div>
+            <div>
+              <label class="form-label">{% trans "Username web" %}</label>
+              <input type="text" name="contact_user_name_${index}" placeholder="maria">
+            </div>
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr auto;">
+            <div>
+              <label class="form-label">{% trans "Imagen" %}</label>
+              <input type="file" name="contact_image_${index}" accept="image/*">
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
+              <label class="legend-badge">
+                <input type="checkbox" name="contact_remove_image_${index}" value="1">
+                {% trans "Quitar imagen" %}
+              </label>
+              <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+            </div>
+          </div>
+        `;
+        grid.appendChild(wrapper);
+        totalInput.value = String(index + 1);
+        bindRow(wrapper);
+        syncTotal();
+      });
+    })();
+  </script>
 {% endblock %}

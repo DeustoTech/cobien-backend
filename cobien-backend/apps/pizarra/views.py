@@ -121,6 +121,116 @@ def _device_hardware_sections(device):
     return sections
 
 
+def _device_icso_payload(device_id):
+    snapshot = None
+    events = []
+    sources = []
+    if not device_id:
+        return {"snapshot": None, "events": [], "sources": [], "events_count": 0}
+
+    snapshot_doc = col_icso_snapshots.find_one({"device_id": device_id})
+    if snapshot_doc:
+        payload = snapshot_doc.get("payload", {})
+        snapshot = {
+            "device_id": snapshot_doc.get("device_id"),
+            "updated_at": _serialize_datetime(snapshot_doc.get("updated_at")),
+            "captured_at": _serialize_datetime(snapshot_doc.get("captured_at")),
+            "payload_items": _payload_items(payload),
+            "payload_json": json.dumps(payload, indent=2, default=str, ensure_ascii=False),
+            "payload_count": len(payload) if isinstance(payload, dict) else 0,
+        }
+
+    cursor = col_icso_events.find({"device_id": device_id}).sort("logged_at", DESCENDING).limit(100)
+    for doc in cursor:
+        item = _serialize_doc(doc)
+        src = item.get("source", "") or "icso"
+        events.append({
+            "source": src,
+            "logged_at": item.get("logged_at") or item.get("created_at") or "",
+            "message": item.get("message", ""),
+        })
+        if src not in sources:
+            sources.append(src)
+
+    return {
+        "snapshot": snapshot,
+        "events": events,
+        "sources": sources,
+        "events_count": len(events),
+    }
+
+
+def _build_device_management_context(selected_device, show_hidden=False):
+    devices = []
+    for item in list_known_devices():
+        if item.get("hidden_in_admin") and not show_hidden:
+            continue
+        devices.append(
+            {
+                "device_id": item.get("device_id"),
+                "display_name": item.get("display_name") or item.get("device_id"),
+                "enabled": item.get("enabled", True),
+                "hidden_in_admin": item.get("hidden_in_admin", False),
+                "videocall_room": str(item.get("videocall_room") or item.get("device_id") or "").strip(),
+                "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
+                "status": device_online_status(item),
+                "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
+                "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
+                "hardware_sections": _device_hardware_sections(item),
+                "hardware_reported_at": _serialize_datetime(item.get("hardware_reported_at")),
+            }
+        )
+
+    device_ids = [item["device_id"] for item in devices]
+    if not selected_device and device_ids:
+        selected_device = device_ids[0]
+
+    device_doc = get_or_create_device(selected_device) if selected_device else None
+    contacts_text = _serialize_contacts_text((device_doc or {}).get("contacts", []))
+    contact_rows = _contacts_for_template((device_doc or {}).get("contacts", []))
+    profile_source = str((device_doc or {}).get("display_name") or "").strip()
+    videocall_room = str((device_doc or {}).get("videocall_room") or selected_device or "").strip()
+    enabled = bool((device_doc or {}).get("enabled", True))
+    hidden_in_admin = bool((device_doc or {}).get("hidden_in_admin", False))
+    assignments = list_device_assignments(selected_device) if selected_device else []
+    assigned_users_text = _serialize_usernames_text(
+        sorted(
+            [str(item.get("username") or "").strip() for item in assignments if str(item.get("username") or "").strip()],
+            key=str.casefold,
+        )
+    )
+    default_username = ""
+    for item in assignments:
+        if item.get("is_default"):
+            default_username = str(item.get("username") or "").strip()
+            break
+
+    icso_payload = _device_icso_payload(selected_device)
+
+    return {
+        "devices": devices,
+        "device_ids": device_ids,
+        "selected_device": selected_device,
+        "show_hidden": show_hidden,
+        "contacts_text": contacts_text,
+        "contact_rows": contact_rows,
+        "profile_source": profile_source,
+        "videocall_room": videocall_room,
+        "enabled": enabled,
+        "hidden_in_admin": hidden_in_admin,
+        "assigned_users_text": assigned_users_text,
+        "default_username": default_username,
+        "assignments_count": len(assignments),
+        "contacts_count": len(normalize_contacts_list((device_doc or {}).get("contacts", []))),
+        "last_seen_at": _serialize_datetime((device_doc or {}).get("last_seen_at")),
+        "status": device_online_status(device_doc or {}),
+        "hardware_sections": _device_hardware_sections(device_doc or {}),
+        "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
+        "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
+        **icso_payload,
+    }
+
+
 def _parse_datetime_value(value, fallback=None):
     if isinstance(value, datetime):
         return value
@@ -620,160 +730,87 @@ def icso_download_snapshot(request):
 def devices_admin(request):
     if request.method == "POST":
         action = (request.POST.get("action") or "create").strip()
+        selected_device = (request.POST.get("device_id") or "").strip()
         try:
-            form = DeviceAdminForm(request.POST)
-            if not form.is_valid():
-                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
-            cleaned = form.cleaned_data
-            if action == "create":
-                create_device(
-                    cleaned["device_id"],
-                    display_name=cleaned.get("display_name", ""),
-                    videocall_room=cleaned.get("videocall_room", ""),
-                    enabled=cleaned.get("enabled", False),
-                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
-                )
-                messages.success(request, "Dispositivo creado.")
-            elif action == "update":
-                update_device_metadata(
-                    cleaned["device_id"],
-                    display_name=cleaned.get("display_name", ""),
-                    videocall_room=cleaned.get("videocall_room", ""),
-                    enabled=cleaned.get("enabled", False),
-                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
-                )
-                messages.success(request, "Dispositivo actualizado.")
+            if action in {"save", "sync", "save_and_sync"}:
+                if not selected_device:
+                    raise ValueError("Selecciona un dispositivo.")
+                form = DeviceContactsAdminForm(request.POST)
+                if not form.is_valid():
+                    raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
+                cleaned = form.cleaned_data
+                device_doc = get_or_create_device(selected_device) or {}
+                contacts = []
+                if action in {"save", "save_and_sync"}:
+                    contacts = _parse_contact_rows(request, selected_device, device_doc.get("contacts", []))
+                    display_name = cleaned.get("display_name") or selected_device
+                    assigned_users = normalize_username_list(str(cleaned.get("assigned_users", "")).splitlines())
+                    default_username = cleaned.get("default_username", "")
+                    update_device_contacts(selected_device, contacts, display_name=display_name)
+                    update_device_metadata(
+                        selected_device,
+                        display_name=display_name,
+                        videocall_room=cleaned.get("videocall_room", ""),
+                        enabled=cleaned.get("enabled", False),
+                        hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                    )
+                    replace_device_assignments(selected_device, assigned_users, default_username=default_username)
+                    if action == "save":
+                        messages.success(request, f"Configuración guardada para {selected_device}.")
+                if action in {"save", "sync", "save_and_sync"}:
+                    sync_contacts = contacts or normalize_contacts_list((get_or_create_device(selected_device) or {}).get("contacts", []))
+                    _publish_contacts_sync(selected_device, contacts=sync_contacts, request=request)
+                    if action == "sync":
+                        messages.success(request, f"Sincronización enviada a {selected_device}.")
+                    elif action == "save_and_sync":
+                        messages.success(request, f"Configuración y sincronización enviadas a {selected_device}.")
             else:
-                messages.error(request, "Acción no soportada.")
+                form = DeviceAdminForm(request.POST)
+                if not form.is_valid():
+                    raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
+                cleaned = form.cleaned_data
+                if action == "create":
+                    create_device(
+                        cleaned["device_id"],
+                        display_name=cleaned.get("display_name", ""),
+                        videocall_room=cleaned.get("videocall_room", ""),
+                        enabled=cleaned.get("enabled", False),
+                        hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                    )
+                    selected_device = cleaned["device_id"]
+                    messages.success(request, "Dispositivo creado.")
+                elif action == "update":
+                    update_device_metadata(
+                        cleaned["device_id"],
+                        display_name=cleaned.get("display_name", ""),
+                        videocall_room=cleaned.get("videocall_room", ""),
+                        enabled=cleaned.get("enabled", False),
+                        hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                    )
+                    selected_device = cleaned["device_id"]
+                    messages.success(request, "Dispositivo actualizado.")
+                else:
+                    messages.error(request, "Acción no soportada.")
         except Exception as exc:
             messages.error(request, str(exc))
-        return redirect(reverse("pizarra_devices_admin"))
+        redirect_url = reverse("pizarra_devices_admin")
+        if selected_device:
+            redirect_url = f"{redirect_url}?device_id={selected_device}"
+        return redirect(redirect_url)
 
     show_hidden = request.GET.get("show_hidden", "0") in ("1", "true", "True")
-    devices = []
-    for item in list_known_devices():
-        if item.get("hidden_in_admin") and not show_hidden:
-            continue
-        devices.append(
-            {
-                "device_id": item.get("device_id"),
-                "display_name": item.get("display_name") or item.get("device_id"),
-                "enabled": item.get("enabled", True),
-                "hidden_in_admin": item.get("hidden_in_admin", False),
-                "videocall_room": str(item.get("videocall_room") or item.get("device_id") or "").strip(),
-                "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
-                "status": device_online_status(item),
-                "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
-                "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
-                "hardware_sections": _device_hardware_sections(item),
-                "hardware_reported_at": _serialize_datetime(item.get("hardware_reported_at")),
-            }
-        )
-
-    return render(request, "pizarra/devices_admin.html", {"devices": devices, "show_hidden": show_hidden})
+    selected_device = (request.GET.get("device_id") or "").strip()
+    return render(request, "pizarra/devices_admin.html", _build_device_management_context(selected_device, show_hidden=show_hidden))
 
 
 @login_required
 @user_passes_test(_staff_required)
 def device_contacts_admin(request):
-    device_ids = _list_known_device_ids()
     selected_device = (request.GET.get("device_id") or request.POST.get("device_id") or "").strip()
-    if not selected_device and device_ids:
-        selected_device = device_ids[0]
-
-    device_doc = get_or_create_device(selected_device) if selected_device else None
-    contacts_text = _serialize_contacts_text((device_doc or {}).get("contacts", []))
-    contact_rows = _contacts_for_template((device_doc or {}).get("contacts", []))
-    profile_source = str((device_doc or {}).get("display_name") or "").strip()
-    videocall_room = str((device_doc or {}).get("videocall_room") or selected_device or "").strip()
-    enabled = bool((device_doc or {}).get("enabled", True))
-    hidden_in_admin = bool((device_doc or {}).get("hidden_in_admin", False))
-    assignments = list_device_assignments(selected_device) if selected_device else []
-    assigned_users_text = _serialize_usernames_text(
-        sorted(
-            [str(item.get("username") or "").strip() for item in assignments if str(item.get("username") or "").strip()],
-            key=str.casefold,
-        )
-    )
-    default_username = ""
-    for item in assignments:
-        if item.get("is_default"):
-            default_username = str(item.get("username") or "").strip()
-            break
-
-    if request.method == "POST":
-        action = (request.POST.get("action") or "save").strip()
-        if not selected_device:
-            messages.error(request, "Selecciona un dispositivo.")
-            return redirect(reverse("pizarra_device_contacts_admin"))
-
-        try:
-            form = DeviceContactsAdminForm(request.POST)
-            if not form.is_valid():
-                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
-            cleaned = form.cleaned_data
-
-            contacts = []
-            if action in {"save", "save_and_sync"}:
-                contacts = _parse_contact_rows(request, selected_device, (device_doc or {}).get("contacts", []))
-                display_name = cleaned.get("display_name") or selected_device
-                assigned_users = normalize_username_list(
-                    str(cleaned.get("assigned_users", "")).splitlines()
-                )
-                default_username = cleaned.get("default_username", "")
-                update_device_contacts(selected_device, contacts, display_name=display_name)
-                update_device_metadata(
-                    selected_device,
-                    display_name=display_name,
-                    videocall_room=cleaned.get("videocall_room", ""),
-                    enabled=cleaned.get("enabled", False),
-                    hidden_in_admin=cleaned.get("hidden_in_admin", False),
-                )
-                replace_device_assignments(
-                    selected_device,
-                    assigned_users,
-                    default_username=default_username,
-                )
-                if action == "save":
-                    messages.success(request, f"Contactos guardados para {selected_device}.")
-
-            if action in {"save", "sync", "save_and_sync"}:
-                sync_contacts = contacts or normalize_contacts_list((get_or_create_device(selected_device) or {}).get("contacts", []))
-                _publish_contacts_sync(selected_device, contacts=sync_contacts, request=request)
-                if action == "sync":
-                    messages.success(request, f"Sincronización enviada a {selected_device}.")
-                elif action == "save_and_sync":
-                    messages.success(request, f"Sincronización enviada a {selected_device}.")
-            elif action not in {"save", "save_and_sync"}:
-                messages.error(request, "Acción no soportada.")
-        except Exception as exc:
-            messages.error(request, f"No se pudo actualizar la configuración: {exc}")
-
-        return redirect(f"{reverse('pizarra_device_contacts_admin')}?device_id={selected_device}")
-
-    return render(
-        request,
-        "pizarra/device_contacts_admin.html",
-        {
-            "device_ids": device_ids,
-            "selected_device": selected_device,
-            "contacts_text": contacts_text,
-            "contact_rows": contact_rows,
-            "profile_source": profile_source,
-            "videocall_room": videocall_room,
-            "enabled": enabled,
-            "hidden_in_admin": hidden_in_admin,
-            "assigned_users_text": assigned_users_text,
-            "default_username": default_username,
-            "assignments_count": len(assignments),
-            "contacts_count": len(normalize_contacts_list((device_doc or {}).get("contacts", []))),
-            "last_seen_at": _serialize_datetime((device_doc or {}).get("last_seen_at")),
-            "status": device_online_status(device_doc or {}),
-            "hardware_sections": _device_hardware_sections(device_doc or {}),
-            "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
-            "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
-        },
-    )
+    target = reverse("pizarra_devices_admin")
+    if selected_device:
+        target = f"{target}?device_id={selected_device}"
+    return redirect(target)
 
 
 @login_required
