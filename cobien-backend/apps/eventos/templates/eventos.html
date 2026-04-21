@@ -185,23 +185,25 @@
                 <textarea class="form-control" id="eventDescription" rows="3"></textarea>
               </div>
               <div>
-                <label for="audienceSelect" class="form-label">{% trans "Dirigido a" %}</label>
-                <select id="audienceSelect" class="form-select">
-                  <option value="all">{% trans "Todos" %}</option>
-                  <option value="device">{% trans "Usuario de mueble" %}</option>
-                </select>
-              </div>
-              <div id="targetDeviceGroup" style="display:none;">
-                <label for="targetDevice" class="form-label">{% trans "Mueble destinatario" %}</label>
-                {% if my_devices %}
-                  <select class="form-select" id="targetDevice">
-                    <option value="">{% trans "— Selecciona un mueble —" %}</option>
-                    {% for device in my_devices %}
-                      <option value="{{ device }}" {% if device == linked_device %}selected{% endif %}>{{ device }}</option>
+                <label class="form-label">{% trans "Dirigido a" %}</label>
+                {% if device_cards %}
+                  <p class="form-text" style="margin-bottom:8px;">{% trans "Selecciona uno o varios muebles. Sin selección el evento será global." %}</p>
+                  <div class="pz-device-grid" id="eventDeviceGrid">
+                    {% for card in device_cards %}
+                      <button type="button" class="pz-device-card" data-device-id="{{ card.device_id }}">
+                        <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+                        <span class="pz-device-name">{{ card.display_name }}</span>
+                      </button>
                     {% endfor %}
-                  </select>
+                  </div>
+                  <p class="form-text" id="eventDeviceHint" style="margin-top:6px;">{% trans "Sin selección → evento global visible para todos." %}</p>
                 {% else %}
-                  <input type="text" class="form-control" id="targetDevice" placeholder="p. ej. CoBien5" value="{{ linked_device|default:'' }}">
+                  <select id="audienceSelect" class="form-select">
+                    <option value="all">{% trans "Todos (global)" %}</option>
+                  </select>
+                  {% if linked_device %}
+                    <input type="hidden" id="targetDeviceFallback" value="{{ linked_device }}">
+                  {% endif %}
                 {% endif %}
               </div>
               <button type="submit" class="btn btn-success">{% trans "Guardar evento" %}</button>
@@ -297,6 +299,26 @@
     });
 
     {% if user.is_authenticated %}
+      // Device card multi-select for event creation
+      (function () {
+        const grid = document.getElementById('eventDeviceGrid');
+        if (!grid) return;
+        const hint = document.getElementById('eventDeviceHint');
+        grid.addEventListener('click', function (e) {
+          const card = e.target.closest('.pz-device-card');
+          if (!card) return;
+          card.classList.toggle('is-selected');
+          const count = grid.querySelectorAll('.pz-device-card.is-selected').length;
+          if (hint) {
+            hint.textContent = count === 0
+              ? '{% trans "Sin selección → evento global visible para todos." %}'
+              : count === 1
+                ? '{% trans "1 mueble seleccionado → evento personal." %}'
+                : count + ' {% trans "muebles seleccionados → evento personal." %}';
+          }
+        });
+      })();
+
       document.getElementById('addEventForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -305,9 +327,17 @@
         const description = document.getElementById('eventDescription').value;
         const locSelectEl = document.getElementById('eventLocationSelect');
         const locCustomEl = document.getElementById('eventLocationCustom');
-        const audience = document.getElementById('audienceSelect').value;
-        const targetDevice = document.getElementById('targetDevice')?.value || "";
-        const color = (audience === 'device') ? colorForDevice(targetDevice) : null;
+
+        // Collect selected device cards (multi-select)
+        const grid = document.getElementById('eventDeviceGrid');
+        let targetDevices = [];
+        if (grid) {
+          grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (card) {
+            targetDevices.push(card.dataset.deviceId);
+          });
+        }
+        const audience = targetDevices.length > 0 ? 'device' : 'all';
+        const color = targetDevices.length === 1 ? colorForDevice(targetDevices[0]) : null;
 
         let eventLocation;
         if (locSelectEl.value === '_new') {
@@ -331,7 +361,7 @@
             title, date, description,
             location: eventLocation,
             audience,
-            target_device: audience === 'device' ? targetDevice : ''
+            target_devices: targetDevices,
           })
         })
           .then(r => r.json())
@@ -347,6 +377,10 @@
               document.getElementById('addEventForm').reset();
               document.getElementById('eventLocationSelect').value = '';
               document.getElementById('eventLocationCustom').value = '';
+              if (grid) grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (c) { c.classList.remove('is-selected'); });
+              if (document.getElementById('eventDeviceHint')) {
+                document.getElementById('eventDeviceHint').textContent = '{% trans "Sin selección → evento global visible para todos." %}';
+              }
               const modal = bootstrap.Modal.getInstance(document.getElementById('addEventModal'));
               modal.hide();
             } else {
@@ -393,20 +427,6 @@
         window.location.href = `/eventos/?location=${encodeURIComponent(seleccion)}`;
       }
     }
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const audienceSelect = document.getElementById('audienceSelect');
-      const targetGroup = document.getElementById('targetDeviceGroup');
-
-      if (!audienceSelect || !targetGroup) return;
-
-      const toggle = () => {
-        targetGroup.style.display = (audienceSelect.value === 'device') ? 'block' : 'none';
-      };
-      audienceSelect.addEventListener('change', toggle);
-      toggle();
-    });
   </script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {

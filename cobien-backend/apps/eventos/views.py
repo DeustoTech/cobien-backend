@@ -26,9 +26,11 @@ from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
 from apps.pizarra.device_queue import enqueue_broadcast_notification, enqueue_notification
 from apps.pizarra.device_registry import (
+    device_online_status,
     get_accessible_device_ids,
     get_default_device_id,
     get_device_videocall_context,
+    get_or_create_device,
     list_known_devices,
     resolve_device_id_for_queue_target,
     verify_device_videocall_key,
@@ -137,13 +139,14 @@ def home(request):
 def lista_eventos(request):
     collection = db["eventos"]
     condiciones = []
+    is_admin = request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
 
-    # 1) Filtro por región (igual que antes)
+    # 1) Filtro por región
     location = request.GET.get("location")
     if location and location.lower() != "all":
         condiciones.append({"location": location})
 
-    # 2) Visibilidad base (igual que antes)
+    # 2) Visibilidad base — events for all + device events the user can see
     visibilidad = {"$or": [
         {"audience": {"$exists": False}},
         {"audience": "all"},
@@ -157,12 +160,30 @@ def lista_eventos(request):
 
         if accessible_devices:
             visibilidad["$or"].append({"audience": "device", "target_device": {"$in": accessible_devices}})
+            visibilidad["$or"].append({"audience": "device", "target_devices": {"$in": accessible_devices}})
         visibilidad["$or"].append({"created_by": request.user.username})
 
     condiciones.append(visibilidad)
 
-    # 3) Opciones visibles para el picker (igual base que antes)
-    filtro_visible = {"$and": (condiciones[:])} if condiciones else {}
+    # 3) Build device cards for the event creation selector
+    if is_admin:
+        selector_devices = [d for d in list_known_devices() if not d.get("hidden_in_admin")]
+    else:
+        selector_devices = [get_or_create_device(did) for did in accessible_devices]
+        selector_devices = [d for d in selector_devices if d]
+
+    device_cards = []
+    for device in selector_devices:
+        did = str(device.get("device_id") or "").strip()
+        if not did:
+            continue
+        device_cards.append({
+            "device_id": did,
+            "display_name": str(device.get("display_name") or did).strip() or did,
+            "status": device_online_status(device),
+        })
+
+    # 4) Picker legend — union of accessible + any device targeted by visible events
     filtro_devices = {"$and": (condiciones[:] + [{"audience": "device"}])} if condiciones else {"audience": "device"}
     my_devices = sorted(
         set(d for d in collection.distinct("target_device", filtro_devices) if d).union(accessible_devices),
@@ -188,13 +209,14 @@ def lista_eventos(request):
 
     elif mode == "personal":
         condiciones.append({"audience": "device"})
-        # Normalizamos la lista de seleccionados; sólo aceptamos los que realmente son visibles
         selected_targets = []
         if targets_param and targets_param != "all":
             selected_targets = [t for t in targets_param.split(",") if t in my_devices]
             if selected_targets:
-                condiciones.append({"target_device": {"$in": selected_targets}})
-        # Si 'all' o vacío, mostramos todos los personales visibles (no añadimos condición extra)
+                condiciones.append({"$or": [
+                    {"target_device": {"$in": selected_targets}},
+                    {"target_devices": {"$in": selected_targets}},
+                ]})
 
     else:
         # Modo legacy por ?device=
@@ -246,11 +268,11 @@ def lista_eventos(request):
         "eventos": eventos,
         "regiones": regiones,
         "linked_device": linked_device,
-        # Para la plantilla nueva:
         "mode_selected": mode,
         "selected_targets": selected_targets,
         "my_devices": my_devices,
         "my_device_colors": my_device_colors,
+        "device_cards": device_cards,
     })
 
 
@@ -270,23 +292,33 @@ def guardar_evento(request):
             description = data.get('description', '')
             location    = data.get('location', '')
 
-            audience      = (data.get('audience') or 'all').strip()       # "all" | "device"
-            target_device = (data.get('target_device') or '').strip()
+            # Accept both single target_device and list target_devices
+            raw_targets = data.get('target_devices') or []
+            if isinstance(raw_targets, str):
+                raw_targets = [raw_targets] if raw_targets.strip() else []
+            target_devices = [str(t).strip() for t in raw_targets if str(t).strip()]
 
-            # Normaliza la fecha a dd-mm-YYYY (como en tus documentos)
+            # Determine audience from whether devices were selected
+            audience = "device" if target_devices else (data.get('audience') or 'all').strip()
+
+            # Normaliza la fecha a dd-mm-YYYY
             fecha_ddmm = None
             if date_string:
                 fecha_ddmm = datetime.strptime(date_string, "%Y-%m-%d").strftime("%d-%m-%Y")
 
-            # Si es para mueble y no se pasó, usa el vinculado del usuario
-            if audience == 'device' and not target_device:
-                target_device = _user_default_device(request)
-                if not target_device:
-                    return JsonResponse({'success': False, 'error': 'Falta el usuario de mueble destino.'})
-            if audience == 'device':
+            if audience == 'device' and not target_devices:
+                fallback = _user_default_device(request)
+                if fallback:
+                    target_devices = [fallback]
+                else:
+                    return JsonResponse({'success': False, 'error': 'Falta el mueble destino.'})
+
+            if audience == 'device' and not (request.user.is_staff or request.user.is_superuser):
                 allowed_devices = _user_accessible_devices(request)
-                if allowed_devices and target_device not in allowed_devices:
-                    return JsonResponse({'success': False, 'error': 'No tienes acceso al mueble destino.'}, status=403)
+                if allowed_devices:
+                    forbidden = [d for d in target_devices if d not in allowed_devices]
+                    if forbidden:
+                        return JsonResponse({'success': False, 'error': 'No tienes acceso a alguno de los muebles destino.'}, status=403)
 
             doc = {
                 "title"      : title,
@@ -294,31 +326,29 @@ def guardar_evento(request):
                 "description": description,
                 "location"   : location,
                 "created_by" : request.user.username,
-                "audience"   : "device" if audience == "device" else "all"
+                "audience"   : "device" if audience == "device" else "all",
             }
             if audience == 'device':
-                doc["target_device"] = target_device
+                doc["target_devices"] = target_devices
+                doc["target_device"] = target_devices[0]  # backward compat
 
             db["eventos"].insert_one(doc)
-            
+
             # ========== NOTIFICATION DEVICE QUEUE ==========
             try:
-                if audience == 'device' and target_device:
-                    payload = {
-                        "type": "new_event",
-                        "to": target_device,
-                        "title": title,
-                        "date": fecha_ddmm,
-                        "description": description,
-                        "location": location,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                    enqueue_notification(target_device, payload)
-                    print(f"[DEVICE QUEUE EVENTOS] ✓ Notification personnelle enqueued")
-                    print(f"[DEVICE QUEUE EVENTOS]   To: {target_device}")
-                    print(f"[DEVICE QUEUE EVENTOS]   Type: new_event")
-                    print(f"[DEVICE QUEUE EVENTOS]   Payload: {json.dumps(payload)}")
-                
+                if audience == 'device' and target_devices:
+                    for td in target_devices:
+                        payload = {
+                            "type": "new_event",
+                            "to": td,
+                            "title": title,
+                            "date": fecha_ddmm,
+                            "description": description,
+                            "location": location,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                        enqueue_notification(td, payload)
+                    print(f"[DEVICE QUEUE EVENTOS] ✓ Event notification enqueued to {target_devices}")
                 elif audience == 'all':
                     payload = {
                         "type": "new_event",
@@ -327,21 +357,16 @@ def guardar_evento(request):
                         "date": fecha_ddmm,
                         "description": description,
                         "location": location,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
                     inserted = enqueue_broadcast_notification(payload)
-                    print(f"[DEVICE QUEUE EVENTOS] ✓ Notification pública enqueued")
-                    print(f"[DEVICE QUEUE EVENTOS]   To: all")
-                    print(f"[DEVICE QUEUE EVENTOS]   Type: new_event")
-                    print(f"[DEVICE QUEUE EVENTOS]   Fanout: {len(inserted)} device(s)")
-                    print(f"[DEVICE QUEUE EVENTOS]   Payload: {json.dumps(payload)}")
-
+                    print(f"[DEVICE QUEUE EVENTOS] ✓ Broadcast event enqueued to {len(inserted)} device(s)")
             except Exception as e:
-                print(f"[DEVICE QUEUE EVENTOS] ✗ Erreur queue: {e}")
+                print(f"[DEVICE QUEUE EVENTOS] ✗ Queue error: {e}")
                 import traceback
                 traceback.print_exc()
             # =============================================
-            
+
             return JsonResponse({'success': True})
 
         except Exception as e:
