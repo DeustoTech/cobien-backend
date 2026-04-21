@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}CoBien · {% trans "Personas" %}{% endblock %}
+{% block page_class %}pizarra{% endblock %}
+
+{% block content %}
+  <div class="pz-wrap">
+    <section class="pz-card">
+      <div class="section-heading">
+        <div>
+          <h1 class="pz-h2">{% trans "Libreta central de personas" %}</h1>
+          <p class="lead-text">{% trans "Define nombre visible, nombre de usuario y foto una sola vez para reutilizarlos desde los distintos muebles." %}</p>
+        </div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 20px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+          <div>
+            <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
+            <input type="text" id="display_name" name="display_name" placeholder="María" required>
+          </div>
+          <div>
+            <label class="form-label" for="user_name">{% trans "Nombre / username" %}</label>
+            <input type="text" id="user_name" name="user_name" placeholder="maria" required>
+          </div>
+          <div>
+            <label class="form-label" for="image">{% trans "Foto" %}</label>
+            <input type="file" id="image" name="image" accept="image/*">
+          </div>
+        </div>
+        <div class="newpost-cta">
+          <button class="btn-main" type="submit">{% trans "Crear persona" %}</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="pz-card">
+      <div class="section-heading">
+        <div>
+          <h2>{% trans "Personas disponibles" %}</h2>
+        </div>
+      </div>
+
+      {% if people %}
+        <div class="history-list">
+          {% for person in people %}
+            <article class="post-card">
+              <form method="post" enctype="multipart/form-data" class="section-stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="person_id" value="{{ person.person_id }}">
+                <div class="grid" style="grid-template-columns: 110px 1fr 1fr;">
+                  <div>
+                    {% if person.image_url %}
+                      <img src="{{ person.image_url }}" alt="{{ person.display_name }}" style="width:96px; height:96px; object-fit:cover; border-radius:18px;">
+                    {% else %}
+                      <div class="legend-badge" style="width:96px; height:96px; justify-content:center;">{% trans "Sin foto" %}</div>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <label class="form-label">{% trans "Nombre visible" %}</label>
+                    <input type="text" name="display_name" value="{{ person.display_name }}" required>
+                  </div>
+                  <div>
+                    <label class="form-label">{% trans "Nombre / username" %}</label>
+                    <input type="text" name="user_name" value="{{ person.user_name }}" required>
+                  </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr auto auto;">
+                  <div>
+                    <label class="form-label">{% trans "Nueva foto" %}</label>
+                    <input type="file" name="image" accept="image/*">
+                  </div>
+                  <div style="display:flex; align-items:end;">
+                    <label class="legend-badge">
+                      <input type="checkbox" name="remove_image" value="1">
+                      {% trans "Quitar foto" %}
+                    </label>
+                  </div>
+                  <div class="newpost-cta">
+                    <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
+                    <button class="btn-secondary" type="submit" name="action" value="delete">{% trans "Eliminar" %}</button>
+                  </div>
+                </div>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">{% trans "Todavía no hay personas guardadas." %}</p>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

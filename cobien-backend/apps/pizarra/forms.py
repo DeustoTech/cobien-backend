@@ -61,3 +61,24 @@ class DeviceContactsAdminForm(forms.Form):
 
     def clean_default_username(self):
         return str(self.cleaned_data.get("default_username") or "").strip()
+
+
+class DirectoryPersonForm(forms.Form):
+    person_id = forms.CharField(max_length=150, required=False)
+    display_name = forms.CharField(max_length=150)
+    user_name = forms.CharField(max_length=150)
+
+    def clean_person_id(self):
+        return str(self.cleaned_data.get("person_id") or "").strip()
+
+    def clean_display_name(self):
+        value = str(self.cleaned_data.get("display_name") or "").strip()
+        if not value:
+            raise forms.ValidationError("Nombre visible requerido.")
+        return value
+
+    def clean_user_name(self):
+        value = str(self.cleaned_data.get("user_name") or "").strip()
+        if not value:
+            raise forms.ValidationError("Nombre/username requerido.")
+        return value

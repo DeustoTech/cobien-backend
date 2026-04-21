@@ -223,8 +223,33 @@
                       <label class="form-label" for="contacts-grid">{% trans "Contactos" %}</label>
                       <small class="muted">{% trans "Edita nombre, usuario e imagen de cada contacto que verá el mueble." %}</small>
                     </div>
-                    <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
+                    <div class="newpost-cta">
+                      <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
+                    </div>
                   </div>
+                  {% if people_profiles %}
+                    <div class="grid" style="grid-template-columns: 1fr auto; margin-bottom: 12px;">
+                      <div>
+                        <label class="form-label" for="people-profile-select">{% trans "Añadir desde libreta central" %}</label>
+                        <select id="people-profile-select">
+                          <option value="">{% trans "Selecciona una persona" %}</option>
+                          {% for person in people_profiles %}
+                            <option
+                              value="{{ person.person_id }}"
+                              data-display-name="{{ person.display_name }}"
+                              data-user-name="{{ person.user_name }}"
+                              data-image-url="{{ person.image_url }}"
+                            >
+                              {{ person.display_name }} · {{ person.user_name }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div style="display:flex; align-items:end;">
+                        <button class="btn-outline" type="button" id="add-person-profile">{% trans "Añadir persona" %}</button>
+                      </div>
+                    </div>
+                  {% endif %}
                   <div id="contacts-grid" class="section-stack">
                     {% for contact in contact_rows %}
                       <div class="pz-card contact-row" data-row-index="{{ forloop.counter0 }}" style="padding:16px;">
@@ -401,6 +426,8 @@
       const grid = document.getElementById('contacts-grid');
       const totalInput = document.getElementById('contact_rows_total');
       const addBtn = document.getElementById('add-contact-row');
+      const peopleSelect = document.getElementById('people-profile-select');
+      const addPersonBtn = document.getElementById('add-person-profile');
       if (!grid || !totalInput || !addBtn) return;
 
       function nextIndex() {
@@ -424,28 +451,28 @@
       Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
       syncTotal();
 
-      addBtn.addEventListener('click', function () {
-        const index = nextIndex();
+      function createRow(index, displayName = '', userName = '', imageUrl = '') {
         const wrapper = document.createElement('div');
         wrapper.className = 'pz-card contact-row';
         wrapper.setAttribute('data-row-index', String(index));
         wrapper.style.padding = '16px';
         wrapper.innerHTML = `
-          <input type="hidden" name="contact_existing_image_url_${index}" value="">
+          <input type="hidden" name="contact_existing_image_url_${index}" value="${imageUrl}">
           <div class="grid" style="grid-template-columns: 1fr 1fr;">
             <div>
               <label class="form-label">{% trans "Nombre visible" %}</label>
-              <input type="text" name="contact_display_name_${index}" placeholder="María">
+              <input type="text" name="contact_display_name_${index}" placeholder="María" value="${displayName}">
             </div>
             <div>
               <label class="form-label">{% trans "Username web" %}</label>
-              <input type="text" name="contact_user_name_${index}" placeholder="maria">
+              <input type="text" name="contact_user_name_${index}" placeholder="maria" value="${userName}">
             </div>
           </div>
           <div class="grid" style="grid-template-columns: 1fr auto;">
             <div>
               <label class="form-label">{% trans "Imagen" %}</label>
               <input type="file" name="contact_image_${index}" accept="image/*">
+              ${imageUrl ? `<div style="margin-top: 8px;"><img src="${imageUrl}" alt="${displayName}" style="max-height: 90px; border-radius: 12px;"></div>` : ''}
             </div>
             <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
               <label class="legend-badge">
@@ -460,7 +487,25 @@
         totalInput.value = String(index + 1);
         bindRow(wrapper);
         syncTotal();
+      }
+
+      addBtn.addEventListener('click', function () {
+        createRow(nextIndex());
       });
+
+      if (peopleSelect && addPersonBtn) {
+        addPersonBtn.addEventListener('click', function () {
+          const option = peopleSelect.options[peopleSelect.selectedIndex];
+          if (!option || !option.value) return;
+          createRow(
+            nextIndex(),
+            option.dataset.displayName || '',
+            option.dataset.userName || '',
+            option.dataset.imageUrl || ''
+          );
+          peopleSelect.value = '';
+        });
+      }
     })();
   </script>
 {% endblock %}

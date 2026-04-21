@@ -18,7 +18,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from .forms import DeviceAdminForm, DeviceContactsAdminForm, PizarraPostForm
+from .forms import DeviceAdminForm, DeviceContactsAdminForm, DirectoryPersonForm, PizarraPostForm
 from .device_registry import (
     col_devices,
     col_user_device_access,
@@ -50,6 +50,7 @@ col_messages = db["pizarra_messages"]
 col_notifications = db["pizarra_notifications"]
 col_icso_snapshots = db["pizarra_icso_snapshots"]
 col_icso_events = db["pizarra_icso_events"]
+col_directory_people = db["pizarra_directory_people"]
 try:
     # Búsqueda rápida por usuario/estado/fecha
     col_notifications.create_index([
@@ -206,6 +207,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
             break
 
     icso_payload = _device_icso_payload(selected_device)
+    people_profiles = _list_directory_people()
 
     return {
         "devices": devices,
@@ -227,6 +229,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_sections": _device_hardware_sections(device_doc or {}),
         "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
+        "people_profiles": people_profiles,
         **icso_payload,
     }
 
@@ -342,8 +345,18 @@ def _contact_media_dir():
     return target
 
 
+def _directory_media_dir():
+    target = os.path.join(settings.MEDIA_ROOT, "pizarra_directory_people")
+    os.makedirs(target, exist_ok=True)
+    return target
+
+
 def _contact_media_url(filename):
     return reverse("pizarra_contact_image", kwargs={"filename": filename})
+
+
+def _directory_image_url(filename):
+    return reverse("pizarra_directory_person_image", kwargs={"filename": filename})
 
 
 def _contact_image_path_from_url(image_url):
@@ -356,10 +369,26 @@ def _contact_image_path_from_url(image_url):
 
 
 def _normalize_contact_image_url(image_url):
+    value = str(image_url or "").strip()
+    if not value:
+        return ""
+    if value.startswith("/pizarra/person-images/") or "/pizarra/person-images/" in value:
+        return value
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
     path = _contact_image_path_from_url(image_url)
     if not path or not os.path.exists(path):
         return ""
     return _contact_media_url(os.path.basename(path))
+
+
+def _directory_image_path_from_url(image_url):
+    if not image_url:
+        return ""
+    filename = os.path.basename(str(image_url).split("?", 1)[0].rstrip("/"))
+    if not filename:
+        return ""
+    return os.path.join(_directory_media_dir(), filename)
 
 
 def _contact_storage_name(device_id, display_name, filename):
@@ -387,6 +416,43 @@ def _save_contact_image(device_id, display_name, uploaded_file):
         for chunk in uploaded_file.chunks():
             fh.write(chunk)
     return _contact_media_url(target_name)
+
+
+def _save_directory_image(display_name, uploaded_file):
+    if not uploaded_file:
+        return ""
+    target_name = _contact_storage_name("directory", display_name, uploaded_file.name)
+    target_path = os.path.join(_directory_media_dir(), target_name)
+    with open(target_path, "wb") as fh:
+        for chunk in uploaded_file.chunks():
+            fh.write(chunk)
+    return _directory_image_url(target_name)
+
+
+def _delete_directory_image(image_url):
+    path = _directory_image_path_from_url(image_url)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _list_directory_people():
+    items = []
+    for doc in col_directory_people.find({}).sort("display_name", ASCENDING):
+        image_url = str(doc.get("image_url") or "").strip()
+        if image_url and image_url.startswith("/"):
+            image_url = image_url
+        items.append(
+            {
+                "person_id": str(doc.get("person_id") or ""),
+                "display_name": str(doc.get("display_name") or "").strip(),
+                "user_name": str(doc.get("user_name") or "").strip(),
+                "image_url": image_url,
+            }
+        )
+    return items
 
 
 def _parse_contact_rows(request, device_id, existing_contacts):
@@ -483,6 +549,15 @@ def _contacts_for_api(raw_contacts, request=None):
 
 def contact_image(request, filename):
     path = os.path.join(_contact_media_dir(), os.path.basename(str(filename or "")))
+    if not os.path.exists(path):
+        raise Http404("Imagen no encontrada")
+    if not (getattr(request.user, "is_authenticated", False) or _require_api_key(request)):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    return FileResponse(open(path, "rb"))
+
+
+def directory_person_image(request, filename):
+    path = os.path.join(_directory_media_dir(), os.path.basename(str(filename or "")))
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
     if not (getattr(request.user, "is_authenticated", False) or _require_api_key(request)):
@@ -801,6 +876,56 @@ def devices_admin(request):
     show_hidden = request.GET.get("show_hidden", "0") in ("1", "true", "True")
     selected_device = (request.GET.get("device_id") or "").strip()
     return render(request, "pizarra/devices_admin.html", _build_device_management_context(selected_device, show_hidden=show_hidden))
+
+
+@login_required
+@user_passes_test(_staff_required)
+def directory_people_admin(request):
+    if request.method == "POST":
+        action = (request.POST.get("action") or "create").strip()
+        try:
+            form = DirectoryPersonForm(request.POST)
+            if not form.is_valid():
+                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
+            cleaned = form.cleaned_data
+            person_id = cleaned.get("person_id") or uuid.uuid4().hex
+            existing = col_directory_people.find_one({"person_id": person_id}) or {}
+            image_url = str(existing.get("image_url") or "").strip()
+            remove_image = request.POST.get("remove_image") == "1"
+            uploaded_file = request.FILES.get("image")
+
+            if remove_image:
+                _delete_directory_image(image_url)
+                image_url = ""
+            if uploaded_file:
+                _delete_directory_image(image_url)
+                image_url = _save_directory_image(cleaned["display_name"], uploaded_file)
+
+            if action == "delete":
+                _delete_directory_image(image_url)
+                col_directory_people.delete_one({"person_id": person_id})
+                messages.success(request, "Persona eliminada.")
+            else:
+                col_directory_people.update_one(
+                    {"person_id": person_id},
+                    {
+                        "$set": {
+                            "person_id": person_id,
+                            "display_name": cleaned["display_name"],
+                            "user_name": cleaned["user_name"],
+                            "image_url": image_url,
+                            "updated_at": datetime.now(timezone.utc),
+                        }
+                    },
+                    upsert=True,
+                )
+                messages.success(request, "Persona guardada.")
+        except Exception as exc:
+            messages.error(request, str(exc))
+        return redirect(reverse("pizarra_directory_people_admin"))
+
+    people = _list_directory_people()
+    return render(request, "pizarra/directory_people_admin.html", {"people": people})
 
 
 @login_required
