@@ -906,6 +906,28 @@ def icso_download_snapshot(request):
 
 @login_required
 @user_passes_test(_staff_required)
+def device_delete(request):
+    """Dedicated endpoint for device deletion — POST only, returns JSON."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    device_id = (request.POST.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+    try:
+        col_messages.delete_many({"recipient_key": device_id})
+        col_notifications.delete_many({"$or": [{"to_user": device_id}, {"from_device": device_id}]})
+        db["pizarra_device_queue"].delete_many({"device_id": device_id})
+        col_icso_snapshots.delete_many({"device_id": device_id})
+        col_icso_events.delete_many({"device_id": device_id})
+        col_user_device_access.delete_many({"device_id": device_id})
+        col_devices.delete_one({"device_id": device_id})
+        return JsonResponse({"ok": True, "device_id": device_id})
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=500)
+
+
+@login_required
+@user_passes_test(_staff_required)
 def devices_admin(request):
     if request.method == "POST":
         action = (request.POST.get("action") or "create").strip()

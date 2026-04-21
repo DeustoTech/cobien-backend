@@ -770,6 +770,7 @@ pre {
 }
 .notif-bell-item.is-read { opacity: .55; }
 .notif-bell-kind { font-weight: 600; margin-bottom: 2px; }
+.notif-bell-meta { font-size: .8rem; margin-bottom: 2px; color: var(--text); }
 .notif-bell-msg { color: var(--muted); font-size: .8rem; }
 .notif-bell-time { color: var(--muted); font-size: .75rem; margin-top: 4px; }
 .notif-bell-read-btn {

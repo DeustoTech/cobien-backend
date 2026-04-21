@@ -182,9 +182,18 @@
               const readBtn = !n.read
                 ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><button type="submit" class="notif-bell-read-btn">✓</button></form>`
                 : '';
+              // Build from/to line for call notifications
+              let meta = '';
+              if (n.from_device || n.to_user) {
+                const parts = [];
+                if (n.from_device) parts.push(`{% trans "De" %}: <strong>${n.from_device}</strong>`);
+                if (n.to_user)    parts.push(`{% trans "Para" %}: <strong>${n.to_user}</strong>`);
+                meta = `<div class="notif-bell-meta">${parts.join(' · ')}</div>`;
+              }
               return `
               <li class="notif-bell-item${n.read ? ' is-read' : ''}">
                 <div class="notif-bell-kind">${kindLabel(n.kind)}</div>
+                ${meta}
                 <div class="notif-bell-msg">${n.message || ''}</div>
                 <div class="notif-bell-time">${fmtDate(n.created_at)}</div>
                 ${(callBtn || readBtn) ? `<div class="notif-bell-actions">${callBtn}${readBtn}</div>` : ''}
