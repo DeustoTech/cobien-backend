@@ -173,14 +173,23 @@
               list.innerHTML = '<li class="notif-bell-empty">{% trans "Sin notificaciones pendientes." %}</li>';
               return;
             }
-            list.innerHTML = items.slice(0, 10).map(n => `
+            const CALL_KINDS = new Set(['call_ready', 'videocall', 'missed_call']);
+            list.innerHTML = items.slice(0, 10).map(n => {
+              const isCall = CALL_KINDS.has(n.kind) && n.from_device;
+              const callBtn = isCall
+                ? `<a class="notif-bell-call-btn" href="/videocall/?to=${encodeURIComponent(n.from_device)}&autostart=1">📞 {% trans "Llamar" %}</a>`
+                : '';
+              const readBtn = !n.read
+                ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><button type="submit" class="notif-bell-read-btn">✓</button></form>`
+                : '';
+              return `
               <li class="notif-bell-item${n.read ? ' is-read' : ''}">
                 <div class="notif-bell-kind">${kindLabel(n.kind)}</div>
                 <div class="notif-bell-msg">${n.message || ''}</div>
                 <div class="notif-bell-time">${fmtDate(n.created_at)}</div>
-                ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><button type="submit" class="notif-bell-read-btn">✓</button></form>` : ''}
-              </li>
-            `).join('');
+                ${(callBtn || readBtn) ? `<div class="notif-bell-actions">${callBtn}${readBtn}</div>` : ''}
+              </li>`;
+            }).join('');
           })
           .catch(() => {});
       }

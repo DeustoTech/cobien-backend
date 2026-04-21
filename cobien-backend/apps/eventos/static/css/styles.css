@@ -783,6 +783,21 @@ pre {
   border-radius: 6px;
 }
 .notif-bell-read-btn:hover { background: var(--brand-blue-soft); }
+.notif-bell-actions { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.notif-bell-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 8px;
+  font-size: .75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .15s;
+}
+.notif-bell-call-btn:hover { background: #15803d; color: #fff; }
 .notif-bell-empty {
   padding: 18px 16px;
   color: var(--muted);

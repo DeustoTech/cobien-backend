@@ -558,6 +558,15 @@
       const startBtn = document.getElementById('startCallBtn');
       if (!modal) return;
       if (DEVICE_MODE) { modal.style.display = 'none'; startVideoCall(); return; }
+
+      // ?autostart=1 — skip modal and go straight into the call
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('autostart') === '1') {
+        modal.style.display = 'none';
+        startVideoCall();
+        return;
+      }
+
       if (startBtn) {
         startBtn.addEventListener('click', function () {
           modal.style.display = 'none';
