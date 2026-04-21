@@ -297,6 +297,58 @@ def _fetch_user_profile(request):
     return None
 
 
+def _find_user_profile(username="", email=""):
+    username = str(username or "").strip()
+    email = str(email or "").strip()
+    for colname in ("auth_user", "users"):
+        col = db[colname]
+        if username:
+            doc = col.find_one({"username": username})
+            if doc:
+                return doc
+        if email:
+            doc = col.find_one({"email": email})
+            if doc:
+                return doc
+    return None
+
+
+def _profile_display_name(doc, fallback=""):
+    if not isinstance(doc, dict):
+        return str(fallback or "").strip()
+    first_name = str(doc.get("first_name") or "").strip()
+    last_name = str(doc.get("last_name") or "").strip()
+    full_name = " ".join(part for part in (first_name, last_name) if part).strip()
+    return full_name or str(doc.get("username") or fallback or "").strip()
+
+
+def _user_avatar_url(username, request=None):
+    username = str(username or "").strip()
+    if not username:
+        return ""
+    avatar_fn = _user_avatar_filename(username)
+    exists = db["pizarra_people_fs.files"].find_one({"filename": avatar_fn}, {"_id": 1})
+    if not exists:
+        return ""
+    url = _directory_image_url(avatar_fn)
+    if request is not None and str(url).startswith("/"):
+        try:
+            return request.build_absolute_uri(url)
+        except Exception:
+            return url
+    return url
+
+
+def _build_message_author_meta(username, request=None):
+    username = str(username or "").strip()
+    profile = _find_user_profile(username=username)
+    return {
+        "author": username,
+        "author_name": _profile_display_name(profile, fallback=username) or username or "—",
+        "author_avatar_url": _user_avatar_url(username, request=request),
+    }
+
+
 def _staff_required(user):
     return bool(getattr(user, "is_authenticated", False) and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)))
 
@@ -747,6 +799,7 @@ def pizarra_home(request):
     # Histórico
     posts = []
     if selected_contact:
+        author_meta = _build_message_author_meta(request.user.username, request=request)
         cursor = col_messages.find(
             {"author": request.user.username, "recipient_key": selected_contact}
         ).sort("created_at", DESCENDING)
@@ -762,6 +815,8 @@ def pizarra_home(request):
                 "content": d.get("content", ""),
                 "image_url": image_url,
                 "created_at": d.get("created_at"),
+                "created_at_human": fecha_chat(d.get("created_at")),
+                **author_meta,
             })
 
     # --- Inbox de notificaciones para el usuario web ---
@@ -1249,6 +1304,24 @@ def pizarra_create(request):
     messages.success(request, "¡Mensaje guardado!")
     return redirect(f"{reverse('pizarra_home')}?to={doc['recipient_key']}")
 
+
+def fecha_chat(value):
+    if not value:
+        return "—"
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    if not isinstance(value, datetime):
+        return str(value)
+    months = [
+        "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ]
+    dt = value.astimezone(timezone.utc).astimezone()
+    return f"{dt.day} de {months[dt.month]} a las {dt.strftime('%H:%M')}"
+
 def pizarra_image(request, file_id: str):
     # Sirve la imagen almacenada en GridFS — accesible con sesión o X-API-KEY
     if not getattr(request.user, "is_authenticated", False) and not _require_api_key(request):
@@ -1292,13 +1365,18 @@ def api_pizarra_messages(request):
             image_url = request.build_absolute_uri(
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
+        author_meta = _build_message_author_meta(d.get("author"), request=request)
         items.append({
             "id": str(d["_id"]),
-            "author": d.get("author"),
+            "author": author_meta["author"],
+            "author_name": author_meta["author_name"],
+            "author_avatar_url": author_meta["author_avatar_url"],
             "recipient": d.get("recipient_key"),
             "text": d.get("content", ""),
             "image": image_url,
+            "image_url": image_url,
             "created_at": d.get("created_at").isoformat(),
+            "created_at_human": fecha_chat(d.get("created_at")),
         })
 
     return JsonResponse({"messages": items})

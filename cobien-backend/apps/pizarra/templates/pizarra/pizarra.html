@@ -81,26 +81,41 @@
               <div class="history-list" id="historyList">
                 {% for post in posts %}
                   <article class="post-card {% if post.image_url %}has-media{% endif %}" data-index="{{ forloop.counter0 }}">
-                    <div class="post-meta">
-                      <div>
-                        <span>{% trans "Para:" %} <strong>{{ post.recipient_key }}</strong></span>
-                        <span class="muted" style="margin-left:8px;">• {{ post.created_at|fecha_legible }}</span>
-                      </div>
-                      <form method="post" action="{% url 'pizarra_delete' post.id %}">
-                        {% csrf_token %}
-                        <button class="btn-outline" type="submit">{% trans "Eliminar" %}</button>
-                      </form>
-                    </div>
-
-                    <div class="post-content">
-                      <div class="post-text">
-                        {% if post.content %}{{ post.content }}{% else %}
-                          <span class="muted"><em>{% trans "(Sin texto)" %}</em></span>
+                    <div class="post-shell">
+                      <div class="post-avatar">
+                        {% if post.author_avatar_url %}
+                          <img src="{{ post.author_avatar_url }}" alt="{{ post.author_name }}">
+                        {% else %}
+                          <span>{{ post.author_name|slice:":1"|upper }}</span>
                         {% endif %}
                       </div>
-                      {% if post.image_url %}
-                        <img class="post-img" loading="lazy" src="{{ post.image_url }}" alt="{% trans 'Imagen enviada' %}">
-                      {% endif %}
+
+                      <div class="post-bubble">
+                        <div class="post-meta">
+                          <div class="post-meta-main">
+                            <div class="post-author-line">
+                              <strong class="post-author">{{ post.author_name }}</strong>
+                              <span class="post-time">{{ post.created_at_human }}</span>
+                            </div>
+                            <div class="post-recipient">{% trans "Para" %} <strong>{{ post.recipient_key }}</strong></div>
+                          </div>
+                          <form method="post" action="{% url 'pizarra_delete' post.id %}">
+                            {% csrf_token %}
+                            <button class="btn-outline" type="submit">{% trans "Eliminar" %}</button>
+                          </form>
+                        </div>
+
+                        <div class="post-content">
+                          <div class="post-text">
+                            {% if post.content %}{{ post.content }}{% else %}
+                              <span class="muted"><em>{% trans "(Sin texto)" %}</em></span>
+                            {% endif %}
+                          </div>
+                          {% if post.image_url %}
+                            <img class="post-img" loading="lazy" src="{{ post.image_url }}" alt="{% trans 'Imagen enviada' %}">
+                          {% endif %}
+                        </div>
+                      </div>
                     </div>
                   </article>
                 {% endfor %}
