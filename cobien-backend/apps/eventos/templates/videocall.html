@@ -113,30 +113,8 @@
       object-fit: cover;
     }
 
-    .video-box::after {
-      content: attr(data-label);
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: bold;
-      z-index: 5;
-      max-width: 80%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .video-box#local-video::after {
-      font-size: 11px;
-      padding: 4px 8px;
-      top: 8px;
-      left: 8px;
-    }
+    /* data-label kept for debugging but hidden — labels use .participant-label */
+    .video-box::after { content: none; }
 
     .video-buttons {
       position: fixed;
@@ -190,6 +168,61 @@
       background: #007bff;
       color: white;
       min-width: 60px;
+    }
+
+    /* VU meter — local mic level */
+    #mic-vu {
+      display: none;
+      align-items: flex-end;
+      gap: 3px;
+      height: 36px;
+      padding: 0 8px;
+      background: rgba(0,0,0,.45);
+      border-radius: 10px;
+    }
+    .vu-bar {
+      width: 5px;
+      background: #22c55e;
+      border-radius: 3px;
+      transition: height .07s ease-out;
+      min-height: 3px;
+    }
+    .vu-bar.peak { background: #f59e0b; }
+    .vu-bar.clip  { background: #ef4444; }
+
+    /* Speaking indicator on video boxes */
+    .video-box.is-speaking {
+      outline: 3px solid #22c55e;
+      outline-offset: -3px;
+      border-radius: 4px;
+    }
+    .video-box .participant-label {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0,0,0,.65);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .participant-label .speak-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: none;
+      flex-shrink: 0;
+      animation: speakPulse .6s ease-in-out infinite alternate;
+    }
+    .video-box.is-speaking .speak-dot { display: block; }
+    @keyframes speakPulse {
+      from { opacity: .4; transform: scale(.8); }
+      to   { opacity: 1;  transform: scale(1.2); }
     }
 
     #confirmFaceModal {
@@ -340,6 +373,15 @@
         <button id="mute-button" class="btn-icon" aria-label="{% trans 'Silenciar micrófono' %}">
           <i class="fa-solid fa-microphone"></i>
         </button>
+        <div id="mic-vu" title="{% trans 'Nivel de micrófono' %}">
+          <div class="vu-bar" id="vb1"></div>
+          <div class="vu-bar" id="vb2"></div>
+          <div class="vu-bar" id="vb3"></div>
+          <div class="vu-bar" id="vb4"></div>
+          <div class="vu-bar" id="vb5"></div>
+          <div class="vu-bar" id="vb6"></div>
+          <div class="vu-bar" id="vb7"></div>
+        </div>
         <button id="cam-button" class="btn-icon" aria-label="{% trans 'Cámara' %}">
           <i class="fa-solid fa-video"></i>
         </button>
@@ -742,10 +784,71 @@
 
         const room = await Twilio.Video.connect(token, {
           name: room_name,
-          tracks: [videoTrack, audioTrack]
+          tracks: [videoTrack, audioTrack],
+          dominantSpeaker: true,
         });
 
         console.log(`✅ Connected to room: ${room.name}`);
+
+        // --- Local mic VU meter ---
+        (function startVuMeter(mediaStream) {
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const actx = new AudioCtx();
+            const source = actx.createMediaStreamSource(mediaStream);
+            const analyser = actx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.6;
+            source.connect(analyser);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            const bars = [
+              document.getElementById('vb1'), document.getElementById('vb2'),
+              document.getElementById('vb3'), document.getElementById('vb4'),
+              document.getElementById('vb5'), document.getElementById('vb6'),
+              document.getElementById('vb7'),
+            ];
+            const vuWrap = document.getElementById('mic-vu');
+            if (vuWrap) vuWrap.style.display = 'flex';
+            let rafId;
+            function drawVu() {
+              rafId = requestAnimationFrame(drawVu);
+              analyser.getByteTimeDomainData(data);
+              let sum = 0;
+              for (let i = 0; i < data.length; i++) {
+                const v = (data[i] - 128) / 128;
+                sum += v * v;
+              }
+              const rms = Math.sqrt(sum / data.length); // 0..1
+              const level = Math.min(1, rms * 6);       // amplify for display
+              bars.forEach((bar, idx) => {
+                if (!bar) return;
+                const threshold = (idx + 1) / bars.length;
+                const h = level >= threshold ? Math.round(4 + threshold * 28) : 3;
+                bar.style.height = h + 'px';
+                bar.className = 'vu-bar' + (level > 0.85 ? ' clip' : level > 0.6 ? ' peak' : '');
+              });
+            }
+            drawVu();
+            // Stop VU meter when leaving
+            room.once('disconnected', () => {
+              cancelAnimationFrame(rafId);
+              actx.close();
+              if (vuWrap) vuWrap.style.display = 'none';
+            });
+          } catch (e) {
+            console.warn('VU meter unavailable:', e);
+          }
+        })(new MediaStream([audioTrack.mediaStreamTrack]));
+
+        // --- Dominant speaker highlight ---
+        function setDominantSpeaker(participant) {
+          document.querySelectorAll('.video-box').forEach(b => b.classList.remove('is-speaking'));
+          if (!participant) return;
+          const box = document.getElementById(`participant-${participant.identity}`);
+          if (box) box.classList.add('is-speaking');
+        }
+        room.on('dominantSpeakerChanged', setDominantSpeaker);
 
         const muteButton = document.getElementById('mute-button');
         let micMuted = false;
@@ -799,6 +902,18 @@
         const localVideoElement = videoTrack.attach();
         localDiv.appendChild(localVideoElement);
 
+        // Participant label with speaking dot
+        function makeLabel(text) {
+          const lbl = document.createElement('div');
+          lbl.className = 'participant-label';
+          const dot = document.createElement('span');
+          dot.className = 'speak-dot';
+          lbl.appendChild(dot);
+          lbl.appendChild(document.createTextNode(text));
+          return lbl;
+        }
+        localDiv.appendChild(makeLabel(shouldRotate ? 'CoBien' : identity));
+
         function attachRemoteTrack(participantDiv, track) {
           if (track.kind === 'video') {
             const videoElement = track.attach();
@@ -828,6 +943,7 @@
           participantDiv.id = `participant-${participant.identity}`;
           participantDiv.classList.add('video-box', 'remote-participant');
           participantDiv.setAttribute('data-label', `👤 ${participant.identity}`);
+          participantDiv.appendChild(makeLabel(participant.identity));
           videoContainer.appendChild(participantDiv);
 
           participant.on('trackSubscribed', track => {
