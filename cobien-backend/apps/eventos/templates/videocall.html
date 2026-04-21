@@ -175,13 +175,21 @@
       min-width: 60px;
     }
 
-    #mute-button.muted {
+    #mute-button.muted,
+    #cam-button.muted {
       background: #6c757d;
     }
 
-    #mute-button:hover {
+    #mute-button:hover,
+    #cam-button:hover {
       opacity: 0.9;
       transform: scale(1.05);
+    }
+
+    #cam-button {
+      background: #007bff;
+      color: white;
+      min-width: 60px;
     }
 
     #confirmFaceModal {
@@ -291,12 +299,37 @@
 {% endblock %}
 
 {% block content %}
+  <!-- Pre-call device selector modal -->
+  <div id="precallModal" style="position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:8000; display:flex; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:20px; padding:36px 32px; max-width:420px; width:94%; box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <h2 style="margin:0 0 6px; font-size:1.3rem;">{% trans "Iniciar videollamada" %}</h2>
+      <p class="muted" style="margin:0 0 24px; font-size:.93rem;">{% trans "Selecciona el mueble al que quieres llamar." %}</p>
+      {% if room_options %}
+        <label class="form-label" for="roomSelect">{% trans "Mueble" %}</label>
+        <select id="roomSelect" style="width:100%; margin-bottom:24px;">
+          {% for opt in room_options %}
+            <option value="{{ opt.id }}" {% if opt.id == default_room %}selected{% endif %}>
+              {{ opt.label }}{% if opt.label != opt.id %} ({{ opt.id }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <p class="muted">{% trans "No tienes muebles asignados. Contacta con un administrador." %}</p>
+      {% endif %}
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <a href="{% url 'home' %}" class="btn-outline" style="text-decoration:none;">{% trans "Cancelar" %}</a>
+        {% if room_options %}
+          <button id="startCallBtn" class="btn-main">{% trans "Llamar" %}</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <section class="module-panel video-layout">
     <div class="video-page-head">
       <div>
         <span class="hero-kicker">{% trans "Videollamadas CoBien" %}</span>
         <h1 class="video-page-title">{% trans "Sala de comunicación" %}</h1>
-        <p class="lead-text">{% trans "La llamada se inicia con la sala por defecto del usuario y pasa a pantalla inmersiva en cuanto Twilio conecta." %}</p>
       </div>
     </div>
 
@@ -307,6 +340,14 @@
         <button id="mute-button" class="btn-icon" aria-label="{% trans 'Silenciar micrófono' %}">
           <i class="fa-solid fa-microphone"></i>
         </button>
+        <button id="cam-button" class="btn-icon" aria-label="{% trans 'Cámara' %}">
+          <i class="fa-solid fa-video"></i>
+        </button>
+      </div>
+      <div id="call-status-bar" style="display:none; position:fixed; top:14px; left:50%; transform:translateX(-50%);
+           background:rgba(0,0,0,.7); color:#fff; border-radius:20px; padding:6px 18px; font-size:.85rem; z-index:1003; gap:12px; align-items:center;">
+        <span id="call-room-label"></span>
+        <span id="call-participant-count" style="background:rgba(255,255,255,.15); border-radius:10px; padding:2px 8px;"></span>
       </div>
     </div>
   </section>
@@ -509,6 +550,21 @@
   <script>
     const HOME_URL = "{% url 'home' %}";
     const DEVICE_MODE = {% if device_mode %}true{% else %}false{% endif %};
+    let camEnabled = true;
+
+    // --- Pre-call modal logic ---
+    (function () {
+      const modal = document.getElementById('precallModal');
+      const startBtn = document.getElementById('startCallBtn');
+      if (!modal) return;
+      if (DEVICE_MODE) { modal.style.display = 'none'; startVideoCall(); return; }
+      if (startBtn) {
+        startBtn.addEventListener('click', function () {
+          modal.style.display = 'none';
+          startVideoCall();
+        });
+      }
+    })();
 
     function getBootstrapFromHash() {
       const raw = String(window.location.hash || '').replace(/^#/, '');
@@ -617,6 +673,14 @@
       };
     }
 
+    function updateParticipantCount() {
+      const bar = document.getElementById('call-status-bar');
+      const countEl = document.getElementById('call-participant-count');
+      const remotes = document.querySelectorAll('.video-box.remote-participant');
+      if (bar) bar.style.display = 'flex';
+      if (countEl) countEl.textContent = `${remotes.length + 1} participante${remotes.length !== 0 ? 's' : ''}`;
+    }
+
     async function startVideoCall() {
       try {
         document.body.classList.add('in-call');
@@ -636,14 +700,17 @@
             return;
           }
 
-          roomName = prompt(
-            I18N_VIDEOCALL.roomPrompt,
-            "{{ default_room|escapejs }}"
-          );
-          if (!roomName || !roomName.trim()) {
+          // Read room from pre-call modal dropdown (or fallback default)
+          const sel = document.getElementById('roomSelect');
+          roomName = (sel && sel.value) ? sel.value.trim() : "{{ default_room|escapejs }}";
+          if (!roomName) {
             window.location.href = HOME_URL;
             return;
           }
+
+          // Update status bar label
+          const labelEl = document.getElementById('call-room-label');
+          if (labelEl && sel) labelEl.textContent = sel.options[sel.selectedIndex]?.text || roomName;
 
           const response = await fetch(`/api/generate-token/${identity}/${roomName}/`);
           if (!response.ok) throw new Error("No se pudo obtener el token");
@@ -690,6 +757,28 @@
             }
           });
         };
+
+        const camButton = document.getElementById('cam-button');
+        if (camButton) {
+          camButton.onclick = () => {
+            room.localParticipant.videoTracks.forEach(pub => {
+              if (pub.track) {
+                if (camEnabled) {
+                  pub.track.disable();
+                  camButton.classList.add('muted');
+                  camButton.querySelector('i').classList.replace('fa-video', 'fa-video-slash');
+                } else {
+                  pub.track.enable();
+                  camButton.classList.remove('muted');
+                  camButton.querySelector('i').classList.replace('fa-video-slash', 'fa-video');
+                }
+                camEnabled = !camEnabled;
+              }
+            });
+          };
+        }
+
+        updateParticipantCount();
 
         const videoContainer = document.getElementById('video-container');
         const localDiv = document.createElement('div');
@@ -747,6 +836,7 @@
           });
 
           updateGridLayout();
+          updateParticipantCount();
         }
 
         room.participants.forEach(addParticipantVideo);
@@ -757,10 +847,12 @@
           if (participantDiv) {
             participantDiv.remove();
             updateGridLayout();
+            updateParticipantCount();
           }
         });
 
         updateGridLayout();
+        updateParticipantCount();
 
         window.addEventListener('resize', () => {
           updateGridLayout();
@@ -786,6 +878,5 @@
       }
     }
 
-    startVideoCall();
   </script>
 {% endblock %}

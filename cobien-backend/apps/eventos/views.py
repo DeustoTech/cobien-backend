@@ -29,6 +29,7 @@ from apps.pizarra.device_registry import (
     get_accessible_device_ids,
     get_default_device_id,
     get_device_videocall_context,
+    list_known_devices,
     resolve_device_id_for_queue_target,
     verify_device_videocall_key,
 )
@@ -516,15 +517,28 @@ def login_required_message(view_func):
 
 @login_required_message
 def videocall(request):
-    accessible_devices = _user_accessible_devices(request)
+    is_admin = getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)
+    if is_admin:
+        all_devs = list_known_devices()
+        room_options = [
+            {"id": d["device_id"], "label": d.get("display_name") or d["device_id"]}
+            for d in all_devs
+            if d.get("enabled", True) and not d.get("hidden_in_admin", False)
+        ]
+    else:
+        accessible = _user_accessible_devices(request)
+        room_options = [{"id": r, "label": r} for r in accessible]
+
     prefill = (request.GET.get("to") or _user_default_device(request)).strip()
-    if prefill and accessible_devices and prefill not in accessible_devices:
-        prefill = _user_default_device(request)
+    option_ids = [o["id"] for o in room_options]
+    if prefill and option_ids and prefill not in option_ids:
+        prefill = option_ids[0] if option_ids else ""
 
     return render(request, "videocall.html", {
         "identity": request.user.username,
         "default_room": prefill,
-        "available_rooms": accessible_devices,
+        "available_rooms": [o["id"] for o in room_options],
+        "room_options": room_options,
     })
 
 

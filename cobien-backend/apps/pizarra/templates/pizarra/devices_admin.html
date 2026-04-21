@@ -9,7 +9,7 @@
 <style>
 .device-selector-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -45,7 +45,7 @@
 }
 .device-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 .device-column {
@@ -323,7 +323,8 @@
             </form>
 
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
-              <form method="post" id="deleteDeviceForm">
+              <form method="post"
+                    onsubmit="return confirm('{% trans "¿Eliminar el mueble" %} {{ selected_device }} {% trans "y todos sus datos asociados (mensajes, notificaciones, ICSO, asignaciones)? Esta acción es irreversible." %}')">
                 {% csrf_token %}
                 <input type="hidden" name="device_id" value="{{ selected_device }}">
                 <input type="hidden" name="action" value="delete">
@@ -332,22 +333,9 @@
                     <strong style="color:var(--danger, #dc2626);">{% trans "Zona de peligro" %}</strong>
                     <p class="muted" style="margin:4px 0 0;">{% trans "Eliminar este mueble borrará también todos sus mensajes, notificaciones, eventos ICSO y asignaciones de usuarios. Esta acción es irreversible." %}</p>
                   </div>
-                  <button type="button" class="btn-danger" onclick="confirmDeleteDevice('{{ selected_device }}')">
-                    {% trans "Eliminar mueble" %}
-                  </button>
+                  <button type="submit" class="btn-danger">{% trans "Eliminar mueble" %}</button>
                 </div>
               </form>
-            </div>
-
-            <div id="deleteConfirmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; align-items:center; justify-content:center;">
-              <div style="background:#fff; border-radius:18px; padding:32px; max-width:420px; width:90%; text-align:center;">
-                <h3 style="margin:0 0 12px; color:var(--danger,#dc2626);">{% trans "¿Eliminar mueble?" %}</h3>
-                <p id="deleteConfirmMsg" style="margin:0 0 24px;"></p>
-                <div style="display:flex; gap:12px; justify-content:center;">
-                  <button class="btn-outline" onclick="document.getElementById('deleteConfirmOverlay').style.display='none'">{% trans "Cancelar" %}</button>
-                  <button class="btn-danger" onclick="document.getElementById('deleteDeviceForm').submit()">{% trans "Sí, eliminar todo" %}</button>
-                </div>
-              </div>
             </div>
           </section>
 
@@ -469,15 +457,6 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script>
-    function confirmDeleteDevice(deviceId) {
-      const overlay = document.getElementById('deleteConfirmOverlay');
-      const msg = document.getElementById('deleteConfirmMsg');
-      if (!overlay) return;
-      if (msg) msg.textContent = `Se eliminará "${deviceId}" y todos sus datos asociados (mensajes, notificaciones, ICSO, asignaciones). Esta acción no se puede deshacer.`;
-      overlay.style.display = 'flex';
-    }
-  </script>
   <script>
     (function () {
       // Sync user checkboxes → hidden textarea on form submit
