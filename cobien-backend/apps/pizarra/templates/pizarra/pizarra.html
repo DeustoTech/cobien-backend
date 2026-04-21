@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load cobien_filters %}
 
 {% block title %}CoBien · {% trans "Pizarra" %}{% endblock %}
 {% block page_class %}pizarra{% endblock %}
@@ -22,7 +23,7 @@
       {% endif %}
     </section>
 
-    <div class="pz-grid">
+    <div class="pz-grid pz-grid--full">
       <div class="section-stack">
         <section class="pz-card">
           <h2>{% trans "Nuevo mensaje" %}</h2>
@@ -70,7 +71,7 @@
                     <div class="post-meta">
                       <div>
                         <span>{% trans "Para:" %} <strong>{{ post.recipient_key }}</strong></span>
-                        <span class="muted" style="margin-left:8px;">• {{ post.created_at|date:"Y-m-d H:i" }}</span>
+                        <span class="muted" style="margin-left:8px;">• {{ post.created_at|fecha_legible }}</span>
                       </div>
                       <form method="post" action="{% url 'pizarra_delete' post.id %}">
                         {% csrf_token %}
@@ -102,63 +103,6 @@
           {% endif %}
         </section>
       </div>
-
-      <aside class="section-stack">
-        <section class="pz-card">
-          <div class="notifs-head">
-            <h2>
-              {% if request.user.is_staff or request.user.is_superuser %}
-                {% trans "Solicitudes de llamada y notificaciones globales" %}
-              {% else %}
-                {% trans "Notificaciones entrantes" %}
-              {% endif %}
-            </h2>
-            <span class="badge">{% if unread_count %}{{ unread_count }}{% else %}0{% endif %}</span>
-          </div>
-
-          {% if notifications %}
-            <ul class="notif-list">
-              {% for n in notifications %}
-                <li class="notif-item">
-                  <div class="notif-main">
-                    <div class="notif-title">
-                      {% if n.kind == 'call_ready' %}
-                        {% trans "Disponible para llamada" %}
-                      {% else %}
-                        {{ n.kind }}
-                      {% endif %}
-                    </div>
-                    <div class="notif-sub">
-                      {% if n.to_user and request.user.is_staff or n.to_user and request.user.is_superuser %}
-                        <strong>{% trans "Para" %}: {{ n.to_user }}</strong>{% if n.from_device %} — {% endif %}
-                      {% endif %}
-                      {% if n.from_device %}<strong>{{ n.from_device }}</strong> — {% endif %}
-                      {{ n.created_at|date:"Y-m-d H:i" }}
-                    </div>
-                    {% if n.message %}
-                      <div class="notif-message">{{ n.message }}</div>
-                    {% endif %}
-                  </div>
-                  <div class="notif-actions">
-                    <form method="post" action="{% url 'pizarra_notif_mark_read' n.id %}">
-                      {% csrf_token %}
-                      <button class="btn-outline" type="submit">{% trans "Marcar leída" %}</button>
-                    </form>
-                    <a class="btn-main" href="{% url 'videocall' %}?to={{ n.from_device|urlencode }}">{% trans "Llamar ahora" %}</a>
-                  </div>
-                </li>
-              {% endfor %}
-            </ul>
-
-            <form method="post" action="{% url 'pizarra_notif_mark_all' %}">
-              {% csrf_token %}
-              <button class="btn-outline" type="submit">{% trans "Marcar todas como leídas" %}</button>
-            </form>
-          {% else %}
-            <p class="muted">{% trans "No tienes notificaciones pendientes." %}</p>
-          {% endif %}
-        </section>
-      </aside>
     </div>
   </div>
 {% endblock %}

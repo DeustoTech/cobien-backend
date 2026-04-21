@@ -192,11 +192,17 @@
                 </select>
               </div>
               <div id="targetDeviceGroup" style="display:none;">
-                <label for="targetDevice" class="form-label">{% trans "Usuario de mueble" %}</label>
-                <input type="text" class="form-control" id="targetDevice" placeholder="p. ej. abuela-carmen" value="{{ linked_device|default:'' }}">
-                <div class="form-text">
-                  {% trans "Se autocompleta con tu mueble si lo tienes guardado; puedes cambiarlo." %}
-                </div>
+                <label for="targetDevice" class="form-label">{% trans "Mueble destinatario" %}</label>
+                {% if my_devices %}
+                  <select class="form-select" id="targetDevice">
+                    <option value="">{% trans "— Selecciona un mueble —" %}</option>
+                    {% for device in my_devices %}
+                      <option value="{{ device }}" {% if device == linked_device %}selected{% endif %}>{{ device }}</option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  <input type="text" class="form-control" id="targetDevice" placeholder="p. ej. CoBien5" value="{{ linked_device|default:'' }}">
+                {% endif %}
               </div>
               <button type="submit" class="btn btn-success">{% trans "Guardar evento" %}</button>
             </form>
@@ -379,14 +385,6 @@
     {% endif %}
   </script>
   <script>
-    window.addEventListener('DOMContentLoaded', function () {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (!urlParams.has('location')) {
-        const modal = new bootstrap.Modal(document.getElementById('regionModal'));
-        modal.show();
-      }
-    });
-
     function irAEventosConFiltro() {
       const seleccion = document.getElementById('regionSelect').value;
       if (seleccion === "all") {

@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.http import HttpResponseNotAllowed
 from pymongo import MongoClient, DESCENDING, ASCENDING
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
@@ -44,6 +45,8 @@ _client = MongoClient(os.getenv("MONGO_URI"))
 _dbname = os.getenv("DB_NAME", "LabasAppDB")
 db = _client[_dbname]
 fs = gridfs.GridFS(db, collection="pizarra_fs")
+fs_contacts = gridfs.GridFS(db, collection="pizarra_contacts_fs")
+fs_people = gridfs.GridFS(db, collection="pizarra_people_fs")
 col_messages = db["pizarra_messages"]
 
 # --- Notificaciones ---
@@ -209,6 +212,18 @@ def _build_device_management_context(selected_device, show_hidden=False):
     icso_payload = _device_icso_payload(selected_device)
     people_profiles = _list_directory_people()
 
+    User = get_user_model()
+    all_users = list(
+        User.objects.filter(is_active=True)
+        .values("username", "first_name", "last_name", "email")
+        .order_by("username")
+    )
+    assigned_set = set(
+        str(item.get("username") or "").strip()
+        for item in assignments
+        if str(item.get("username") or "").strip()
+    )
+
     return {
         "devices": devices,
         "device_ids": device_ids,
@@ -230,6 +245,8 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
         "people_profiles": people_profiles,
+        "all_users": all_users,
+        "assigned_set": assigned_set,
         **icso_payload,
     }
 
@@ -398,9 +415,23 @@ def _contact_storage_name(device_id, display_name, filename):
     return f"{safe_device}-{safe_contact}-{uuid.uuid4().hex[:10]}{ext}"
 
 
+def _gridfs_delete_by_filename(bucket, col_name, filename):
+    """Delete all GridFS files matching filename in the given bucket."""
+    if not filename:
+        return
+    for doc in db[f"{col_name}.files"].find({"filename": filename}, {"_id": 1}):
+        try:
+            bucket.delete(doc["_id"])
+        except Exception:
+            pass
+
+
 def _delete_managed_contact_image(image_url):
+    filename = os.path.basename(str(image_url).split("?", 1)[0].rstrip("/"))
+    _gridfs_delete_by_filename(fs_contacts, "pizarra_contacts_fs", filename)
+    # Backward-compat: also remove from local filesystem if it still exists
     path = _contact_image_path_from_url(image_url)
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         try:
             os.remove(path)
         except OSError:
@@ -411,10 +442,9 @@ def _save_contact_image(device_id, display_name, uploaded_file):
     if not uploaded_file:
         return ""
     target_name = _contact_storage_name(device_id, display_name, uploaded_file.name)
-    target_path = os.path.join(_contact_media_dir(), target_name)
-    with open(target_path, "wb") as fh:
-        for chunk in uploaded_file.chunks():
-            fh.write(chunk)
+    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
+    uploaded_file.seek(0)
+    fs_contacts.put(uploaded_file, filename=target_name, contentType=content_type)
     return _contact_media_url(target_name)
 
 
@@ -422,16 +452,17 @@ def _save_directory_image(display_name, uploaded_file):
     if not uploaded_file:
         return ""
     target_name = _contact_storage_name("directory", display_name, uploaded_file.name)
-    target_path = os.path.join(_directory_media_dir(), target_name)
-    with open(target_path, "wb") as fh:
-        for chunk in uploaded_file.chunks():
-            fh.write(chunk)
+    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
+    uploaded_file.seek(0)
+    fs_people.put(uploaded_file, filename=target_name, contentType=content_type)
     return _directory_image_url(target_name)
 
 
 def _delete_directory_image(image_url):
+    filename = os.path.basename(str(image_url).split("?", 1)[0].rstrip("/"))
+    _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", filename)
     path = _directory_image_path_from_url(image_url)
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         try:
             os.remove(path)
         except OSError:
@@ -548,20 +579,37 @@ def _contacts_for_api(raw_contacts, request=None):
 
 
 def contact_image(request, filename):
-    path = os.path.join(_contact_media_dir(), os.path.basename(str(filename or "")))
-    if not os.path.exists(path):
-        raise Http404("Imagen no encontrada")
     if not (getattr(request.user, "is_authenticated", False) or _require_api_key(request)):
         return JsonResponse({"error": "Unauthorized"}, status=401)
+    safe_name = os.path.basename(str(filename or ""))
+    # Serve from GridFS (persistent); fall back to local filesystem for old images
+    try:
+        grid_out = fs_contacts.get_last_version(filename=safe_name)
+        resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
+        resp["Content-Length"] = grid_out.length
+        return resp
+    except Exception:
+        pass
+    path = os.path.join(_contact_media_dir(), safe_name)
+    if not os.path.exists(path):
+        raise Http404("Imagen no encontrada")
     return FileResponse(open(path, "rb"))
 
 
 def directory_person_image(request, filename):
-    path = os.path.join(_directory_media_dir(), os.path.basename(str(filename or "")))
-    if not os.path.exists(path):
-        raise Http404("Imagen no encontrada")
     if not (getattr(request.user, "is_authenticated", False) or _require_api_key(request)):
         return JsonResponse({"error": "Unauthorized"}, status=401)
+    safe_name = os.path.basename(str(filename or ""))
+    try:
+        grid_out = fs_people.get_last_version(filename=safe_name)
+        resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
+        resp["Content-Length"] = grid_out.length
+        return resp
+    except Exception:
+        pass
+    path = os.path.join(_directory_media_dir(), safe_name)
+    if not os.path.exists(path):
+        raise Http404("Imagen no encontrada")
     return FileResponse(open(path, "rb"))
 
 
@@ -839,6 +887,18 @@ def devices_admin(request):
                         messages.success(request, f"Sincronización enviada a {selected_device}.")
                     elif action == "save_and_sync":
                         messages.success(request, f"Configuración y sincronización enviadas a {selected_device}.")
+            elif action == "delete":
+                if not selected_device:
+                    raise ValueError("Selecciona un dispositivo para eliminar.")
+                col_messages.delete_many({"recipient_key": selected_device})
+                col_notifications.delete_many({"$or": [{"to_user": selected_device}, {"from_device": selected_device}]})
+                db["pizarra_device_queue"].delete_many({"device_id": selected_device})
+                col_icso_snapshots.delete_many({"device_id": selected_device})
+                col_icso_events.delete_many({"device_id": selected_device})
+                col_user_device_access.delete_many({"device_id": selected_device})
+                col_devices.delete_one({"device_id": selected_device})
+                messages.success(request, f"Mueble '{selected_device}' y todos sus datos eliminados.")
+                return redirect(reverse("pizarra_devices_admin"))
             else:
                 form = DeviceAdminForm(request.POST)
                 if not form.is_valid():
@@ -1007,12 +1067,16 @@ def pizarra_create(request):
     print(f"[DEVICE QUEUE]    To: {doc['recipient_key']}")
 
     try:
+        image_url = (
+            request.build_absolute_uri(reverse("pizarra_image", args=[str(file_id)]))
+            if file_id else ""
+        )
         payload = json.dumps({
             "type": "new_message",
             "from": request.user.username,
             "to": doc["recipient_key"],
             "text": doc.get("content", ""),
-            "image": bool(file_id),
+            "image_url": image_url,
             "timestamp": doc["created_at"].isoformat()
         })
         queue_payload = json.loads(payload)
@@ -1030,9 +1094,10 @@ def pizarra_create(request):
     messages.success(request, "¡Mensaje guardado!")
     return redirect(f"{reverse('pizarra_home')}?to={doc['recipient_key']}")
 
-@login_required
 def pizarra_image(request, file_id: str):
-    # Sirve la imagen almacenada en GridFS
+    # Sirve la imagen almacenada en GridFS — accesible con sesión o X-API-KEY
+    if not getattr(request.user, "is_authenticated", False) and not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
     try:
         grid_out = fs.get(ObjectId(file_id))
     except Exception:

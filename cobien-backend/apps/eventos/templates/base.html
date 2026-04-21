@@ -32,7 +32,6 @@
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_icso_dashboard' %} is-active{% endif %}" href="{% url 'pizarra_icso_dashboard' %}">ICSO</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_directory_people_admin' %} is-active{% endif %}" href="{% url 'pizarra_directory_people_admin' %}">{% trans "Personas" %}</a>
-              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_device_contacts_admin' %} is-active{% endif %}" href="{% url 'pizarra_device_contacts_admin' %}">{% trans "Contactos Muebles" %}</a>
             {% endif %}
           </nav>
 
@@ -47,6 +46,28 @@
             </form>
 
             {% if user.is_authenticated %}
+              <div class="notif-bell-wrap" id="notifBellWrap">
+                <button class="notif-bell-btn" id="notifBellBtn" aria-label="{% trans 'Notificaciones' %}" type="button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  <span class="notif-bell-badge" id="notifBellBadge" style="display:none;">0</span>
+                </button>
+                <div class="notif-bell-panel" id="notifBellPanel" style="display:none;">
+                  <div class="notif-bell-head">
+                    <strong>{% trans "Notificaciones" %}</strong>
+                    <form method="post" action="{% url 'pizarra_notif_mark_all' %}" style="display:inline;">
+                      {% csrf_token %}
+                      <button type="submit" class="notif-bell-mark-all">{% trans "Marcar todas leídas" %}</button>
+                    </form>
+                  </div>
+                  <ul class="notif-bell-list" id="notifBellList">
+                    <li class="notif-bell-empty">{% trans "Cargando…" %}</li>
+                  </ul>
+                  <div class="notif-bell-footer">
+                    <a href="{% url 'pizarra_home' %}">{% trans "Ver todas en pizarra →" %}</a>
+                  </div>
+                </div>
+              </div>
+
               <details class="user-menu">
                 <summary class="user-menu-trigger" aria-label="{% trans 'Cuenta de usuario' %}">
                   <span class="user-avatar">{{ user.username|first|upper }}</span>
@@ -105,6 +126,82 @@
           toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
       });
+    </script>
+    <script>
+    (function () {
+      const bell = document.getElementById('notifBellBtn');
+      const panel = document.getElementById('notifBellPanel');
+      const badge = document.getElementById('notifBellBadge');
+      const list  = document.getElementById('notifBellList');
+      if (!bell) return;
+
+      function fmtDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        const h = String(d.getHours()).padStart(2,'0');
+        const m = String(d.getMinutes()).padStart(2,'0');
+        return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()} a las ${h}:${m}`;
+      }
+
+      function kindLabel(kind) {
+        const map = {
+          call_ready: '{% trans "Solicitud de llamada" %}',
+          missed_call: '{% trans "Llamada perdida" %}',
+          new_message: '{% trans "Nuevo mensaje" %}',
+          new_event: '{% trans "Nuevo evento" %}',
+          videocall: '{% trans "Videollamada" %}',
+        };
+        return map[kind] || kind;
+      }
+
+      function loadNotifs() {
+        fetch('/pizarra/api/notifications/')
+          .then(r => r.json())
+          .then(data => {
+            const items = data.notifications || [];
+            const unread = items.filter(n => !n.read);
+            if (unread.length > 0) {
+              badge.textContent = unread.length > 9 ? '9+' : unread.length;
+              badge.style.display = 'flex';
+            } else {
+              badge.style.display = 'none';
+            }
+            if (!list) return;
+            if (items.length === 0) {
+              list.innerHTML = '<li class="notif-bell-empty">{% trans "Sin notificaciones pendientes." %}</li>';
+              return;
+            }
+            list.innerHTML = items.slice(0, 10).map(n => `
+              <li class="notif-bell-item${n.read ? ' is-read' : ''}">
+                <div class="notif-bell-kind">${kindLabel(n.kind)}</div>
+                <div class="notif-bell-msg">${n.message || ''}</div>
+                <div class="notif-bell-time">${fmtDate(n.created_at)}</div>
+                ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><button type="submit" class="notif-bell-read-btn">✓</button></form>` : ''}
+              </li>
+            `).join('');
+          })
+          .catch(() => {});
+      }
+
+      let open = false;
+      bell.addEventListener('click', function (e) {
+        e.stopPropagation();
+        open = !open;
+        panel.style.display = open ? 'block' : 'none';
+        if (open) loadNotifs();
+      });
+      document.addEventListener('click', function (e) {
+        if (open && !document.getElementById('notifBellWrap').contains(e.target)) {
+          open = false;
+          panel.style.display = 'none';
+        }
+      });
+
+      loadNotifs();
+      setInterval(loadNotifs, 60000);
+    })();
     </script>
     {% block extra_js %}{% endblock %}
   </body>
