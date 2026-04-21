@@ -335,14 +335,24 @@ def touch_device_heartbeat(device_id, payload=None):
         raise ValueError("device_id requerido")
     payload = payload or {}
     get_or_create_device(device_id)
+    update_fields = {
+        "last_seen_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+        "heartbeat": payload,
+    }
+    hardware_summary = payload.get("hardware_summary")
+    hardware_inventory = payload.get("hardware_inventory")
+    if isinstance(hardware_summary, dict) and hardware_summary:
+        update_fields["hardware_summary"] = hardware_summary
+        update_fields["hardware_reported_at"] = datetime.now(timezone.utc)
+    if isinstance(hardware_inventory, dict) and hardware_inventory:
+        update_fields["hardware_inventory"] = hardware_inventory
+        update_fields["hardware_reported_at"] = datetime.now(timezone.utc)
+
     col_devices.update_one(
         {"device_id": device_id},
         {
-            "$set": {
-                "last_seen_at": datetime.now(timezone.utc),
-                "updated_at": datetime.now(timezone.utc),
-                "heartbeat": payload,
-            }
+            "$set": update_fields
         },
     )
     return col_devices.find_one({"device_id": device_id})

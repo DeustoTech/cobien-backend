@@ -56,6 +56,40 @@
           </div>
         </div>
 
+        <div class="section-heading" style="margin-top: 24px;">
+          <div>
+            <h3>{% trans "Resumen hardware" %}</h3>
+            <p class="lead-text">
+              {% if hardware_reported_at %}
+                {% trans "Último inventario recibido" %}: {{ hardware_reported_at }}
+              {% else %}
+                {% trans "Este mueble todavía no ha enviado inventario hardware." %}
+              {% endif %}
+            </p>
+          </div>
+        </div>
+
+        {% if hardware_sections %}
+          <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px;">
+            {% for item in hardware_sections %}
+              <div class="pz-card" style="padding:16px;">
+                <strong>{{ item.label }}</strong>
+                {% if item.hardware %}
+                  <div style="margin-top: 8px;">{{ item.hardware }}</div>
+                {% endif %}
+                {% if item.driver %}
+                  <div class="muted" style="margin-top: 8px;">{% trans "Driver" %}: {{ item.driver }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <details style="margin-top: 16px;">
+            <summary class="muted" style="cursor:pointer;">{% trans "Ver inventario completo (JSON)" %}</summary>
+            <pre style="white-space: pre-wrap; margin-top: 12px;">{{ hardware_inventory_json }}</pre>
+          </details>
+        {% endif %}
+
         <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top:20px;">
           {% csrf_token %}
           <input type="hidden" name="device_id" value="{{ selected_device }}">

@@ -111,8 +111,24 @@
                     {% blocktrans with contacts=device.contacts_count users=device.assigned_users_count %}
                       {{ contacts }} contactos sincronizados · {{ users }} usuarios con acceso
                     {% endblocktrans %}
+                    {% if device.hardware_reported_at %}
+                      · {% trans "Hardware reportado" %}: {{ device.hardware_reported_at }}
+                    {% endif %}
                   </div>
                 </div>
+                {% if device.hardware_sections %}
+                  <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+                    {% for item in device.hardware_sections %}
+                      <div class="legend-badge" style="display:block; padding: 12px; line-height: 1.5;">
+                        <strong>{{ item.label }}</strong><br>
+                        {% if item.hardware %}<span>{{ item.hardware }}</span>{% endif %}
+                        {% if item.driver %}
+                          <br><span class="muted">{% trans "Driver" %}: {{ item.driver }}</span>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
                 <div class="newpost-cta">
                   <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
                   <a class="btn-main" href="{% url 'pizarra_device_contacts_admin' %}?device_id={{ device.device_id|urlencode }}">{% trans "Cambiar parámetros" %}</a>

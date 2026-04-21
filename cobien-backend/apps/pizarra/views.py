@@ -97,6 +97,30 @@ def _serialize_datetime(value):
     return value
 
 
+def _device_hardware_sections(device):
+    summary = device.get("hardware_summary") if isinstance(device, dict) else {}
+    if not isinstance(summary, dict):
+        summary = {}
+    sections = []
+    for key, label in (
+        ("system", "Sistema"),
+        ("cpu", "CPU"),
+        ("graphics", "Gráfica"),
+        ("audio", "Audio"),
+        ("camera", "Cámara web"),
+        ("display", "Pantalla"),
+    ):
+        item = summary.get(key)
+        if not isinstance(item, dict):
+            item = {}
+        hardware = str(item.get("hardware") or "").strip()
+        driver = str(item.get("driver") or "").strip()
+        if not hardware and not driver:
+            continue
+        sections.append({"key": key, "label": label, "hardware": hardware, "driver": driver})
+    return sections
+
+
 def _parse_datetime_value(value, fallback=None):
     if isinstance(value, datetime):
         return value
@@ -641,6 +665,8 @@ def devices_admin(request):
                 "status": device_online_status(item),
                 "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
                 "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
+                "hardware_sections": _device_hardware_sections(item),
+                "hardware_reported_at": _serialize_datetime(item.get("hardware_reported_at")),
             }
         )
 
@@ -743,6 +769,9 @@ def device_contacts_admin(request):
             "contacts_count": len(normalize_contacts_list((device_doc or {}).get("contacts", []))),
             "last_seen_at": _serialize_datetime((device_doc or {}).get("last_seen_at")),
             "status": device_online_status(device_doc or {}),
+            "hardware_sections": _device_hardware_sections(device_doc or {}),
+            "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
+            "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
         },
     )
 
