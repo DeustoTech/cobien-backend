@@ -192,21 +192,34 @@
       </div>
     </div>
 
-    <form method="get" style="margin-top: 20px;">
-      <div class="grid" style="grid-template-columns: 1fr auto; gap: 12px;">
-        <div>
-          <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
-          <input type="text" id="device_id" name="device_id" value="{{ selected_device }}"
-                 list="devices-list" placeholder="CoBien1" autocomplete="off">
-          <datalist id="devices-list">
-            {% for dev in devices %}<option value="{{ dev }}">{% endfor %}
-          </datalist>
-        </div>
-        <div style="display:flex; align-items:end;">
-          <button class="btn-main" type="submit">{% trans "Consultar" %}</button>
-        </div>
+    {% if device_cards %}
+      <div class="pz-device-grid" style="margin-top: 20px;">
+        {% for card in device_cards %}
+          <a class="pz-device-card{% if card.is_selected %} is-selected{% endif %}"
+             href="?device_id={{ card.device_id|urlencode }}"
+             title="{{ card.device_id }}">
+            <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+            <span class="pz-device-name">{{ card.display_name }}</span>
+          </a>
+        {% endfor %}
       </div>
-    </form>
+    {% else %}
+      <form method="get" style="margin-top: 20px;">
+        <div class="grid" style="grid-template-columns: 1fr auto; gap: 12px;">
+          <div>
+            <label class="form-label" for="device_id">{% trans "Dispositivo" %}</label>
+            <input type="text" id="device_id" name="device_id" value="{{ selected_device }}"
+                   list="devices-list" placeholder="CoBien1" autocomplete="off">
+            <datalist id="devices-list">
+              {% for dev in devices %}<option value="{{ dev }}">{% endfor %}
+            </datalist>
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button class="btn-main" type="submit">{% trans "Consultar" %}</button>
+          </div>
+        </div>
+      </form>
+    {% endif %}
 
     {% if devices %}
     <div class="icso-stats">

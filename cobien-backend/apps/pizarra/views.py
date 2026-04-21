@@ -824,6 +824,18 @@ def icso_dashboard(request):
     if not selected_device and devices:
         selected_device = devices[0]
 
+    # Build device cards enriched with display_name and online status
+    device_cards = []
+    for did in devices:
+        doc = get_or_create_device(did)
+        if doc:
+            device_cards.append({
+                "device_id": did,
+                "display_name": str(doc.get("display_name") or did).strip() or did,
+                "status": device_online_status(doc),
+                "is_selected": did == selected_device,
+            })
+
     snapshot = None
     events = []
     sources = []
@@ -857,6 +869,7 @@ def icso_dashboard(request):
         "pizarra/icso_dashboard.html",
         {
             "devices": devices,
+            "device_cards": device_cards,
             "selected_device": selected_device,
             "snapshot": snapshot,
             "events": events,
