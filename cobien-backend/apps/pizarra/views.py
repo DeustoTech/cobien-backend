@@ -19,7 +19,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from .forms import DeviceAdminForm, DeviceContactsAdminForm, DirectoryPersonForm, PizarraPostForm
+from .forms import DeviceAdminForm, DeviceContactsAdminForm, PizarraPostForm
 from .device_registry import (
     col_devices,
     col_user_device_access,
@@ -212,11 +212,11 @@ def _build_device_management_context(selected_device, show_hidden=False):
     icso_payload = _device_icso_payload(selected_device)
     people_profiles = _list_directory_people()
 
-    User = get_user_model()
     all_users = list(
-        User.objects.filter(is_active=True)
-        .values("username", "first_name", "last_name", "email")
-        .order_by("username")
+        db["auth_user"].find(
+            {"is_active": True},
+            {"username": 1, "first_name": 1, "last_name": 1, "email": 1, "_id": 0},
+        ).sort("username", ASCENDING)
     )
     assigned_set = set(
         str(item.get("username") or "").strip()
@@ -448,6 +448,11 @@ def _save_contact_image(device_id, display_name, uploaded_file):
     return _contact_media_url(target_name)
 
 
+def _user_avatar_filename(username):
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(username or "").strip()) or "user"
+    return f"user-avatar-{safe}"
+
+
 def _save_directory_image(display_name, uploaded_file):
     if not uploaded_file:
         return ""
@@ -456,6 +461,17 @@ def _save_directory_image(display_name, uploaded_file):
     uploaded_file.seek(0)
     fs_people.put(uploaded_file, filename=target_name, contentType=content_type)
     return _directory_image_url(target_name)
+
+
+def _save_user_avatar(username, uploaded_file):
+    if not uploaded_file:
+        return ""
+    avatar_fn = _user_avatar_filename(username)
+    _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", avatar_fn)
+    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
+    uploaded_file.seek(0)
+    fs_people.put(uploaded_file, filename=avatar_fn, contentType=content_type)
+    return _directory_image_url(avatar_fn)
 
 
 def _delete_directory_image(image_url):
@@ -470,19 +486,59 @@ def _delete_directory_image(image_url):
 
 
 def _list_directory_people():
-    items = []
-    for doc in col_directory_people.find({}).sort("display_name", ASCENDING):
-        image_url = str(doc.get("image_url") or "").strip()
-        if image_url and image_url.startswith("/"):
-            image_url = image_url
-        items.append(
-            {
-                "person_id": str(doc.get("person_id") or ""),
-                "display_name": str(doc.get("display_name") or "").strip(),
-                "user_name": str(doc.get("user_name") or "").strip(),
-                "image_url": image_url,
-            }
+    """Return all active users as the central people directory."""
+    existing_avatars = {
+        doc["filename"]
+        for doc in db["pizarra_people_fs.files"].find(
+            {"filename": {"$regex": r"^user-avatar-"}}, {"filename": 1}
         )
+    }
+    items = []
+    for doc in db["auth_user"].find({}, {"username": 1, "first_name": 1, "last_name": 1}).sort("username", ASCENDING):
+        username = str(doc.get("username") or "").strip()
+        if not username:
+            continue
+        display_name = " ".join(
+            filter(None, [str(doc.get("first_name") or "").strip(), str(doc.get("last_name") or "").strip()])
+        ) or username
+        avatar_fn = _user_avatar_filename(username)
+        image_url = _directory_image_url(avatar_fn) if avatar_fn in existing_avatars else ""
+        items.append({
+            "person_id": username,
+            "display_name": display_name,
+            "user_name": username,
+            "image_url": image_url,
+        })
+    return items
+
+
+def _list_users_for_admin():
+    """Return all users with admin/active flags and avatar URLs."""
+    existing_avatars = {
+        doc["filename"]
+        for doc in db["pizarra_people_fs.files"].find(
+            {"filename": {"$regex": r"^user-avatar-"}}, {"filename": 1}
+        )
+    }
+    items = []
+    for doc in db["auth_user"].find({}, {
+        "username": 1, "first_name": 1, "last_name": 1,
+        "email": 1, "is_staff": 1, "is_active": 1, "_id": 0
+    }).sort("username", ASCENDING):
+        username = str(doc.get("username") or "").strip()
+        if not username:
+            continue
+        avatar_fn = _user_avatar_filename(username)
+        image_url = _directory_image_url(avatar_fn) if avatar_fn in existing_avatars else ""
+        items.append({
+            "username": username,
+            "first_name": str(doc.get("first_name") or ""),
+            "last_name": str(doc.get("last_name") or ""),
+            "email": str(doc.get("email") or ""),
+            "is_staff": bool(doc.get("is_staff", False)),
+            "is_active": bool(doc.get("is_active", True)),
+            "image_url": image_url,
+        })
     return items
 
 
@@ -941,51 +997,93 @@ def devices_admin(request):
 @login_required
 @user_passes_test(_staff_required)
 def directory_people_admin(request):
+    User = get_user_model()
     if request.method == "POST":
-        action = (request.POST.get("action") or "create").strip()
+        action = (request.POST.get("action") or "").strip()
         try:
-            form = DirectoryPersonForm(request.POST)
-            if not form.is_valid():
-                raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
-            cleaned = form.cleaned_data
-            person_id = cleaned.get("person_id") or uuid.uuid4().hex
-            existing = col_directory_people.find_one({"person_id": person_id}) or {}
-            image_url = str(existing.get("image_url") or "").strip()
-            remove_image = request.POST.get("remove_image") == "1"
-            uploaded_file = request.FILES.get("image")
-
-            if remove_image:
-                _delete_directory_image(image_url)
-                image_url = ""
-            if uploaded_file:
-                _delete_directory_image(image_url)
-                image_url = _save_directory_image(cleaned["display_name"], uploaded_file)
-
-            if action == "delete":
-                _delete_directory_image(image_url)
-                col_directory_people.delete_one({"person_id": person_id})
-                messages.success(request, "Persona eliminada.")
-            else:
-                col_directory_people.update_one(
-                    {"person_id": person_id},
-                    {
-                        "$set": {
-                            "person_id": person_id,
-                            "display_name": cleaned["display_name"],
-                            "user_name": cleaned["user_name"],
-                            "image_url": image_url,
-                            "updated_at": datetime.now(timezone.utc),
-                        }
-                    },
+            if action == "create_user":
+                username = str(request.POST.get("username") or "").strip().lower()
+                email = str(request.POST.get("email") or "").strip().lower()
+                first_name = str(request.POST.get("first_name") or "").strip()
+                last_name = str(request.POST.get("last_name") or "").strip()
+                password = str(request.POST.get("password") or "").strip()
+                is_staff = request.POST.get("is_staff") == "1"
+                if not username:
+                    raise ValueError("El nombre de usuario es obligatorio.")
+                if not password or len(password) < 6:
+                    raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+                if db["auth_user"].find_one({"username": username}):
+                    raise ValueError(f"El usuario '{username}' ya existe.")
+                user = User(username=username, email=email, first_name=first_name,
+                            last_name=last_name, is_active=True, is_staff=is_staff)
+                user.set_password(password)
+                user.save()
+                db["auth_user"].update_one(
+                    {"username": username},
+                    {"$set": {"email_verified": True, "preferred_language": "es", "is_admin": is_staff}},
                     upsert=True,
                 )
-                messages.success(request, "Persona guardada.")
+                uploaded_file = request.FILES.get("image")
+                if uploaded_file:
+                    _save_user_avatar(username, uploaded_file)
+                messages.success(request, f"Usuario '{username}' creado correctamente.")
+
+            elif action == "update_user":
+                username = str(request.POST.get("username") or "").strip()
+                if not username:
+                    raise ValueError("Username requerido.")
+                first_name = str(request.POST.get("first_name") or "").strip()
+                last_name = str(request.POST.get("last_name") or "").strip()
+                email = str(request.POST.get("email") or "").strip().lower()
+                is_staff = request.POST.get("is_staff") == "1"
+                is_active = request.POST.get("is_active") != "0"
+                remove_image = request.POST.get("remove_image") == "1"
+                uploaded_file = request.FILES.get("image")
+                user = User.objects.get(username=username)
+                user.first_name = first_name
+                user.last_name = last_name
+                user.email = email
+                user.is_staff = is_staff
+                user.is_active = is_active
+                user.save()
+                db["auth_user"].update_one(
+                    {"username": username},
+                    {"$set": {"is_admin": is_staff}},
+                )
+                if remove_image:
+                    _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", _user_avatar_filename(username))
+                if uploaded_file:
+                    _save_user_avatar(username, uploaded_file)
+                messages.success(request, f"Usuario '{username}' actualizado.")
+
+            elif action == "set_password":
+                username = str(request.POST.get("username") or "").strip()
+                password = str(request.POST.get("new_password") or "").strip()
+                if not username:
+                    raise ValueError("Username requerido.")
+                if not password or len(password) < 6:
+                    raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+                user = User.objects.get(username=username)
+                user.set_password(password)
+                user.save()
+                messages.success(request, f"Contraseña de '{username}' actualizada.")
+
+            elif action == "delete_user":
+                username = str(request.POST.get("username") or "").strip()
+                if not username:
+                    raise ValueError("Username requerido.")
+                if username == request.user.username:
+                    raise ValueError("No puedes eliminar tu propia cuenta.")
+                User.objects.filter(username=username).delete()
+                _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", _user_avatar_filename(username))
+                messages.success(request, f"Usuario '{username}' eliminado.")
+
         except Exception as exc:
             messages.error(request, str(exc))
         return redirect(reverse("pizarra_directory_people_admin"))
 
-    people = _list_directory_people()
-    return render(request, "pizarra/directory_people_admin.html", {"people": people})
+    users = _list_users_for_admin()
+    return render(request, "pizarra/directory_people_admin.html", {"people": users})
 
 
 @login_required

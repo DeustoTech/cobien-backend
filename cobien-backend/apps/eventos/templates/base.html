@@ -31,7 +31,7 @@
             {% if user.is_staff or user.is_superuser %}
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_icso_dashboard' %} is-active{% endif %}" href="{% url 'pizarra_icso_dashboard' %}">ICSO</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
-              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_directory_people_admin' %} is-active{% endif %}" href="{% url 'pizarra_directory_people_admin' %}">{% trans "Personas" %}</a>
+              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_directory_people_admin' %} is-active{% endif %}" href="{% url 'pizarra_directory_people_admin' %}">{% trans "Usuarios" %}</a>
             {% endif %}
           </nav>
 

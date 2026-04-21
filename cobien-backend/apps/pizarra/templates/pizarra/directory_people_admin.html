@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load cobien_filters %}
 
-{% block title %}CoBien · {% trans "Personas" %}{% endblock %}
+{% block title %}CoBien · {% trans "Usuarios" %}{% endblock %}
 {% block page_class %}pizarra{% endblock %}
 
 {% block content %}
@@ -9,88 +10,173 @@
     <section class="pz-card">
       <div class="section-heading">
         <div>
-          <h1 class="pz-h2">{% trans "Libreta central de personas" %}</h1>
-          <p class="lead-text">{% trans "Define nombre visible, nombre de usuario y foto una sola vez para reutilizarlos desde los distintos muebles." %}</p>
+          <h1 class="pz-h2">{% trans "Gestión de usuarios" %}</h1>
+          <p class="lead-text">{% trans "Crea cuentas, gestiona perfiles, avatares y permisos de administrador." %}</p>
         </div>
       </div>
+    </section>
 
-      <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 20px;">
+    <!-- Create user -->
+    <section class="pz-card">
+      <h2>{% trans "Nuevo usuario" %}</h2>
+      <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 16px;">
         {% csrf_token %}
-        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="action" value="create_user">
         <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
           <div>
-            <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
-            <input type="text" id="display_name" name="display_name" placeholder="María" required>
+            <label class="form-label" for="new_username">{% trans "Username" %}</label>
+            <input type="text" id="new_username" name="username" placeholder="maria" required autocomplete="off">
           </div>
           <div>
-            <label class="form-label" for="user_name">{% trans "Nombre / username" %}</label>
-            <input type="text" id="user_name" name="user_name" placeholder="maria" required>
+            <label class="form-label" for="new_email">{% trans "Email" %}</label>
+            <input type="email" id="new_email" name="email" placeholder="maria@ejemplo.com" autocomplete="off">
           </div>
           <div>
-            <label class="form-label" for="image">{% trans "Foto" %}</label>
-            <input type="file" id="image" name="image" accept="image/*">
+            <label class="form-label" for="new_password">{% trans "Contraseña" %}</label>
+            <input type="password" id="new_password" name="password" placeholder="Mín. 6 caracteres" required autocomplete="new-password">
+          </div>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+          <div>
+            <label class="form-label" for="new_first_name">{% trans "Nombre" %}</label>
+            <input type="text" id="new_first_name" name="first_name" placeholder="María">
+          </div>
+          <div>
+            <label class="form-label" for="new_last_name">{% trans "Apellidos" %}</label>
+            <input type="text" id="new_last_name" name="last_name" placeholder="García">
+          </div>
+          <div>
+            <label class="form-label" for="new_image">{% trans "Avatar (opcional)" %}</label>
+            <input type="file" id="new_image" name="image" accept="image/*">
+          </div>
+          <div style="display:flex; flex-direction:column; justify-content:flex-end;">
+            <label class="legend-badge" style="cursor:pointer; user-select:none;">
+              <input type="checkbox" name="is_staff" value="1">
+              {% trans "Administrador" %}
+            </label>
           </div>
         </div>
         <div class="newpost-cta">
-          <button class="btn-main" type="submit">{% trans "Crear persona" %}</button>
+          <button class="btn-main" type="submit">{% trans "Crear usuario" %}</button>
         </div>
       </form>
     </section>
 
+    <!-- User list -->
     <section class="pz-card">
-      <div class="section-heading">
-        <div>
-          <h2>{% trans "Personas disponibles" %}</h2>
-        </div>
-      </div>
+      <h2>{% trans "Usuarios registrados" %} <span class="legend-badge" style="font-size:0.85rem;">{{ people|length }}</span></h2>
 
       {% if people %}
-        <div class="history-list">
+        <div class="history-list" style="margin-top: 16px;">
           {% for person in people %}
-            <article class="post-card">
-              <form method="post" enctype="multipart/form-data" class="section-stack">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update">
-                <input type="hidden" name="person_id" value="{{ person.person_id }}">
-                <div class="grid" style="grid-template-columns: 110px 1fr 1fr;">
-                  <div>
-                    {% if person.image_url %}
-                      <img src="{{ person.image_url }}" alt="{{ person.display_name }}" style="width:96px; height:96px; object-fit:cover; border-radius:18px;">
-                    {% else %}
-                      <div class="legend-badge" style="width:96px; height:96px; justify-content:center;">{% trans "Sin foto" %}</div>
+            <article class="post-card" style="padding: 20px;">
+              <details>
+                <summary style="cursor:pointer; list-style:none; display:flex; align-items:center; gap:14px;">
+                  {% if person.image_url %}
+                    <img src="{{ person.image_url }}" alt="{{ person.username }}"
+                         style="width:52px; height:52px; object-fit:cover; border-radius:50%; flex-shrink:0;">
+                  {% else %}
+                    <div style="width:52px; height:52px; border-radius:50%; background:var(--surface-2,#e5e7eb);
+                                display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;">
+                      {{ person.username|slice:":1"|upper }}
+                    </div>
+                  {% endif %}
+                  <div style="flex:1; min-width:0;">
+                    <strong>{{ person.username }}</strong>
+                    {% if person.first_name or person.last_name %}
+                      <span class="muted"> · {{ person.first_name }} {{ person.last_name }}</span>
+                    {% endif %}
+                    {% if person.is_staff %}
+                      <span class="legend-badge" style="margin-left:8px; background:var(--accent,#6366f1); color:#fff;">Admin</span>
+                    {% endif %}
+                    {% if not person.is_active %}
+                      <span class="legend-badge" style="margin-left:4px; background:#6b7280; color:#fff;">{% trans "Inactivo" %}</span>
                     {% endif %}
                   </div>
-                  <div>
-                    <label class="form-label">{% trans "Nombre visible" %}</label>
-                    <input type="text" name="display_name" value="{{ person.display_name }}" required>
+                  <span class="muted" style="font-size:0.8rem;">{{ person.email }}</span>
+                </summary>
+
+                <!-- Edit form -->
+                <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border,#e5e7eb);">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_user">
+                  <input type="hidden" name="username" value="{{ person.username }}">
+                  <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div>
+                      <label class="form-label">{% trans "Nombre" %}</label>
+                      <input type="text" name="first_name" value="{{ person.first_name }}">
+                    </div>
+                    <div>
+                      <label class="form-label">{% trans "Apellidos" %}</label>
+                      <input type="text" name="last_name" value="{{ person.last_name }}">
+                    </div>
+                    <div>
+                      <label class="form-label">{% trans "Email" %}</label>
+                      <input type="email" name="email" value="{{ person.email }}">
+                    </div>
                   </div>
-                  <div>
-                    <label class="form-label">{% trans "Nombre / username" %}</label>
-                    <input type="text" name="user_name" value="{{ person.user_name }}" required>
+                  <div class="grid" style="grid-template-columns: 1fr auto auto auto;">
+                    <div>
+                      <label class="form-label">{% trans "Avatar" %}</label>
+                      <input type="file" name="image" accept="image/*">
+                    </div>
+                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:6px;">
+                      <label class="legend-badge" style="cursor:pointer;">
+                        <input type="checkbox" name="remove_image" value="1">
+                        {% trans "Quitar foto" %}
+                      </label>
+                    </div>
+                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:6px;">
+                      <label class="legend-badge" style="cursor:pointer;">
+                        <input type="checkbox" name="is_staff" value="1" {% if person.is_staff %}checked{% endif %}>
+                        {% trans "Administrador" %}
+                      </label>
+                      <input type="hidden" name="is_active" id="ia_{{ person.username }}"
+                             value="{% if person.is_active %}1{% else %}0{% endif %}">
+                      <label class="legend-badge" style="cursor:pointer;">
+                        <input type="checkbox" {% if person.is_active %}checked{% endif %}
+                               onchange="document.getElementById('ia_{{ person.username }}').value = this.checked ? '1' : '0'">
+                        {% trans "Activo" %}
+                      </label>
+                    </div>
+                    <div class="newpost-cta" style="align-items:flex-end;">
+                      <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
+                    </div>
                   </div>
+                </form>
+
+                <!-- Set password form -->
+                <form method="post" class="section-stack" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border,#e5e7eb);">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_password">
+                  <input type="hidden" name="username" value="{{ person.username }}">
+                  <div class="grid" style="grid-template-columns: 1fr auto;">
+                    <div>
+                      <label class="form-label">{% trans "Nueva contraseña" %}</label>
+                      <input type="password" name="new_password" placeholder="Mín. 6 caracteres" autocomplete="new-password">
+                    </div>
+                    <div class="newpost-cta" style="align-items:flex-end;">
+                      <button class="btn-outline" type="submit">{% trans "Cambiar contraseña" %}</button>
+                    </div>
+                  </div>
+                </form>
+
+                <!-- Delete -->
+                <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border,#e5e7eb);">
+                  <form method="post" onsubmit="return confirm('¿Seguro? Se eliminará el usuario {{ person.username }} permanentemente.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="username" value="{{ person.username }}">
+                    <button class="btn-danger" type="submit">{% trans "Eliminar usuario" %}</button>
+                  </form>
                 </div>
-                <div class="grid" style="grid-template-columns: 1fr auto auto;">
-                  <div>
-                    <label class="form-label">{% trans "Nueva foto" %}</label>
-                    <input type="file" name="image" accept="image/*">
-                  </div>
-                  <div style="display:flex; align-items:end;">
-                    <label class="legend-badge">
-                      <input type="checkbox" name="remove_image" value="1">
-                      {% trans "Quitar foto" %}
-                    </label>
-                  </div>
-                  <div class="newpost-cta">
-                    <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
-                    <button class="btn-secondary" type="submit" name="action" value="delete">{% trans "Eliminar" %}</button>
-                  </div>
-                </div>
-              </form>
+
+              </details>
             </article>
           {% endfor %}
         </div>
       {% else %}
-        <p class="muted">{% trans "Todavía no hay personas guardadas." %}</p>
+        <p class="muted" style="margin-top: 16px;">{% trans "No hay usuarios registrados todavía." %}</p>
       {% endif %}
     </section>
   </div>
