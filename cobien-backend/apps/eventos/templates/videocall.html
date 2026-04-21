@@ -530,10 +530,7 @@
     }
 
     function isCoBienDevice(username) {
-      const cobienNames = ['cobien', 'cobien1', 'cobien2'];
-      return username && cobienNames.some(name =>
-        username.toLowerCase().includes(name.toLowerCase())
-      );
+      return username && username.toLowerCase().includes('cobien');
     }
 
     function updateGridLayout() {
@@ -704,6 +701,30 @@
         const localVideoElement = videoTrack.attach();
         localDiv.appendChild(localVideoElement);
 
+        function attachRemoteTrack(participantDiv, track) {
+          if (track.kind === 'video') {
+            const videoElement = track.attach();
+            videoElement.classList.add('participant-video');
+            participantDiv.appendChild(videoElement);
+            updateGridLayout();
+            return;
+          }
+
+          if (track.kind === 'audio') {
+            const audioElement = track.attach();
+            audioElement.autoplay = true;
+            audioElement.playsInline = true;
+            audioElement.style.display = 'none';
+            participantDiv.appendChild(audioElement);
+            const playPromise = audioElement.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch((error) => {
+                console.warn("⚠️ Could not autoplay remote audio track:", error);
+              });
+            }
+          }
+        }
+
         function addParticipantVideo(participant) {
           const participantDiv = document.createElement('div');
           participantDiv.id = `participant-${participant.identity}`;
@@ -712,16 +733,17 @@
           videoContainer.appendChild(participantDiv);
 
           participant.on('trackSubscribed', track => {
-            if (track.kind === 'video') {
-              const videoElement = track.attach();
-              videoElement.classList.add('participant-video');
-              participantDiv.appendChild(videoElement);
-              updateGridLayout();
-            }
+            attachRemoteTrack(participantDiv, track);
           });
 
           participant.on('trackUnsubscribed', track => {
             track.detach().forEach(element => element.remove());
+          });
+
+          participant.tracks.forEach(publication => {
+            if (publication.track) {
+              attachRemoteTrack(participantDiv, publication.track);
+            }
           });
 
           updateGridLayout();
