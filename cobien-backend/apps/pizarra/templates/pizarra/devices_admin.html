@@ -201,6 +201,21 @@
                 </div>
               </div>
 
+              <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                <div>
+                  <label class="form-label" for="event_visibility_scope">{% trans "Visibilidad del calendario" %}</label>
+                  <select id="event_visibility_scope" name="event_visibility_scope">
+                    <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Mostrar todos los eventos generales" %}</option>
+                    <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones concretas" %}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="event_regions">{% trans "Regiones visibles" %}</label>
+                  <textarea id="event_regions" name="event_regions" rows="3" placeholder="Logroño&#10;Bilbao">{{ event_regions_text }}</textarea>
+                  <small class="muted">{% trans "Una región por línea. Si el filtro regional está activo y esto se deja vacío, el mueble caerá a su ubicación local." %}</small>
+                </div>
+              </div>
+
               <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div style="display:flex; align-items:end;">
                   <label class="legend-badge">

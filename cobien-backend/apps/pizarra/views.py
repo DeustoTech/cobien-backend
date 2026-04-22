@@ -178,6 +178,8 @@ def _build_device_management_context(selected_device, show_hidden=False):
                 "videocall_room": str(item.get("videocall_room") or item.get("device_id") or "").strip(),
                 "last_seen_at": _serialize_datetime(item.get("last_seen_at")),
                 "status": device_online_status(item),
+                "event_visibility_scope": str(item.get("event_visibility_scope") or "all").strip() or "all",
+                "event_regions": list(item.get("event_regions") or []),
                 "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
                 "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
                 "hardware_sections": _device_hardware_sections(item),
@@ -196,6 +198,8 @@ def _build_device_management_context(selected_device, show_hidden=False):
     videocall_room = str((device_doc or {}).get("videocall_room") or selected_device or "").strip()
     enabled = bool((device_doc or {}).get("enabled", True))
     hidden_in_admin = bool((device_doc or {}).get("hidden_in_admin", False))
+    event_visibility_scope = str((device_doc or {}).get("event_visibility_scope") or "all").strip() or "all"
+    event_regions = list((device_doc or {}).get("event_regions") or [])
     assignments = list_device_assignments(selected_device) if selected_device else []
     assigned_users_text = _serialize_usernames_text(
         sorted(
@@ -235,6 +239,9 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "videocall_room": videocall_room,
         "enabled": enabled,
         "hidden_in_admin": hidden_in_admin,
+        "event_visibility_scope": event_visibility_scope,
+        "event_regions": event_regions,
+        "event_regions_text": "\n".join(event_regions),
         "assigned_users_text": assigned_users_text,
         "default_username": default_username,
         "assignments_count": len(assignments),
@@ -1082,6 +1089,8 @@ def devices_admin(request):
                         videocall_room=cleaned.get("videocall_room", ""),
                         enabled=cleaned.get("enabled", False),
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                        event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
+                        event_regions=cleaned.get("event_regions", ""),
                     )
                     replace_device_assignments(selected_device, assigned_users, default_username=default_username)
                     if action == "save":
@@ -1117,6 +1126,8 @@ def devices_admin(request):
                         videocall_room=cleaned.get("videocall_room", ""),
                         enabled=cleaned.get("enabled", False),
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                        event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
+                        event_regions=cleaned.get("event_regions", ""),
                     )
                     selected_device = cleaned["device_id"]
                     messages.success(request, "Dispositivo creado.")
@@ -1127,6 +1138,8 @@ def devices_admin(request):
                         videocall_room=cleaned.get("videocall_room", ""),
                         enabled=cleaned.get("enabled", False),
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
+                        event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
+                        event_regions=cleaned.get("event_regions", ""),
                     )
                     selected_device = cleaned["device_id"]
                     messages.success(request, "Dispositivo actualizado.")

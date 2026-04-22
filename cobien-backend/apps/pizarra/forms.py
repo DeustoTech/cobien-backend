@@ -23,6 +23,8 @@ class DeviceAdminForm(forms.Form):
     videocall_room = forms.CharField(max_length=150, required=False)
     enabled = forms.BooleanField(required=False)
     hidden_in_admin = forms.BooleanField(required=False)
+    event_visibility_scope = forms.ChoiceField(required=False, choices=(("all", "all"), ("region", "region")))
+    event_regions = forms.CharField(widget=forms.Textarea, required=False)
 
     def clean_device_id(self):
         value = str(self.cleaned_data.get("device_id") or "").strip()
@@ -36,6 +38,13 @@ class DeviceAdminForm(forms.Form):
     def clean_videocall_room(self):
         return str(self.cleaned_data.get("videocall_room") or "").strip()
 
+    def clean_event_visibility_scope(self):
+        value = str(self.cleaned_data.get("event_visibility_scope") or "all").strip().lower()
+        return value if value in {"all", "region"} else "all"
+
+    def clean_event_regions(self):
+        return str(self.cleaned_data.get("event_regions") or "").strip()
+
 
 class DeviceContactsAdminForm(forms.Form):
     device_id = forms.CharField(max_length=150)
@@ -43,6 +52,8 @@ class DeviceContactsAdminForm(forms.Form):
     videocall_room = forms.CharField(max_length=150, required=False)
     enabled = forms.BooleanField(required=False)
     hidden_in_admin = forms.BooleanField(required=False)
+    event_visibility_scope = forms.ChoiceField(required=False, choices=(("all", "all"), ("region", "region")))
+    event_regions = forms.CharField(widget=forms.Textarea, required=False)
     contacts = forms.CharField(widget=forms.Textarea, required=False)
     assigned_users = forms.CharField(widget=forms.Textarea, required=False)
     default_username = forms.CharField(max_length=150, required=False)
@@ -58,6 +69,13 @@ class DeviceContactsAdminForm(forms.Form):
 
     def clean_videocall_room(self):
         return str(self.cleaned_data.get("videocall_room") or "").strip()
+
+    def clean_event_visibility_scope(self):
+        value = str(self.cleaned_data.get("event_visibility_scope") or "all").strip().lower()
+        return value if value in {"all", "region"} else "all"
+
+    def clean_event_regions(self):
+        return str(self.cleaned_data.get("event_regions") or "").strip()
 
     def clean_default_username(self):
         return str(self.cleaned_data.get("default_username") or "").strip()

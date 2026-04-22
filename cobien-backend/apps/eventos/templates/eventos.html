@@ -190,10 +190,11 @@
                   <p class="form-text" style="margin-bottom:8px;">{% trans "Selecciona uno o varios muebles. Sin selección el evento será global." %}</p>
                   <div class="pz-device-grid" id="eventDeviceGrid">
                     {% for card in device_cards %}
-                      <button type="button" class="pz-device-card" data-device-id="{{ card.device_id }}">
+                      <label class="pz-device-card" data-device-id="{{ card.device_id }}">
+                        <input type="checkbox" class="pz-device-check" value="{{ card.device_id }}">
                         <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
                         <span class="pz-device-name">{{ card.display_name }}</span>
-                      </button>
+                      </label>
                     {% endfor %}
                   </div>
                   <p class="form-text" id="eventDeviceHint" style="margin-top:6px;">{% trans "Sin selección → evento global visible para todos." %}</p>
@@ -304,10 +305,7 @@
         const grid = document.getElementById('eventDeviceGrid');
         if (!grid) return;
         const hint = document.getElementById('eventDeviceHint');
-        grid.addEventListener('click', function (e) {
-          const card = e.target.closest('.pz-device-card');
-          if (!card) return;
-          card.classList.toggle('is-selected');
+        const refreshState = function () {
           const count = grid.querySelectorAll('.pz-device-card.is-selected').length;
           if (hint) {
             hint.textContent = count === 0
@@ -316,7 +314,17 @@
                 ? '{% trans "1 mueble seleccionado → evento personal." %}'
                 : count + ' {% trans "muebles seleccionados → evento personal." %}';
           }
+        };
+        grid.querySelectorAll('.pz-device-check').forEach(function (checkbox) {
+          checkbox.addEventListener('change', function () {
+            const card = checkbox.closest('.pz-device-card');
+            if (card) {
+              card.classList.toggle('is-selected', checkbox.checked);
+            }
+            refreshState();
+          });
         });
+        refreshState();
       })();
 
       document.getElementById('addEventForm').addEventListener('submit', function(e) {
@@ -332,8 +340,8 @@
         const grid = document.getElementById('eventDeviceGrid');
         let targetDevices = [];
         if (grid) {
-          grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (card) {
-            targetDevices.push(card.dataset.deviceId);
+          grid.querySelectorAll('.pz-device-check:checked').forEach(function (checkbox) {
+            targetDevices.push(checkbox.value);
           });
         }
         const audience = targetDevices.length > 0 ? 'device' : 'all';
@@ -377,7 +385,12 @@
               document.getElementById('addEventForm').reset();
               document.getElementById('eventLocationSelect').value = '';
               document.getElementById('eventLocationCustom').value = '';
-              if (grid) grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (c) { c.classList.remove('is-selected'); });
+              if (grid) {
+                grid.querySelectorAll('.pz-device-check:checked').forEach(function (checkbox) {
+                  checkbox.checked = false;
+                });
+                grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (c) { c.classList.remove('is-selected'); });
+              }
               if (document.getElementById('eventDeviceHint')) {
                 document.getElementById('eventDeviceHint').textContent = '{% trans "Sin selección → evento global visible para todos." %}';
               }

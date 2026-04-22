@@ -922,6 +922,13 @@ pre {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pz-device-check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand-blue);
+  flex: 0 0 auto;
+}
 .pz-device-card:hover {
   border-color: var(--brand-blue);
   background: var(--brand-blue-soft);

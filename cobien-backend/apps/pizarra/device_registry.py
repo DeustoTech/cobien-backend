@@ -86,6 +86,23 @@ def normalize_username_list(raw_usernames):
     return usernames
 
 
+def normalize_event_regions(raw_regions):
+    if isinstance(raw_regions, str):
+        raw_regions = raw_regions.splitlines()
+    regions = []
+    seen = set()
+    for item in raw_regions or []:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        regions.append(value)
+    return regions
+
+
 def _legacy_profile_for_username(username="", email=""):
     for colname in ("auth_user", "users"):
         col = _db[colname]
@@ -145,6 +162,8 @@ def get_or_create_device(device_id):
                 "videocall_room": device_id,
                 "enabled": True,
                 "hidden_in_admin": False,
+                "event_visibility_scope": "all",
+                "event_regions": [],
                 "contacts": contacts,
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
@@ -287,7 +306,7 @@ def replace_device_assignments(device_id, usernames, default_username=""):
         )
 
 
-def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room=""):
+def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -302,6 +321,8 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
             "videocall_room": str(videocall_room or device_id).strip() or device_id,
             "enabled": bool(enabled),
             "hidden_in_admin": bool(hidden_in_admin),
+            "event_visibility_scope": "region" if str(event_visibility_scope or "").strip().lower() == "region" else "all",
+            "event_regions": normalize_event_regions(event_regions),
             "contacts": [],
             "created_at": now,
             "updated_at": now,
@@ -310,7 +331,7 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
     )
 
 
-def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room=""):
+def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -322,6 +343,8 @@ def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_a
                 "videocall_room": str(videocall_room or device_id).strip() or device_id,
                 "enabled": bool(enabled),
                 "hidden_in_admin": bool(hidden_in_admin),
+                "event_visibility_scope": "region" if str(event_visibility_scope or "").strip().lower() == "region" else "all",
+                "event_regions": normalize_event_regions(event_regions),
                 "updated_at": datetime.now(timezone.utc),
             }
         },
