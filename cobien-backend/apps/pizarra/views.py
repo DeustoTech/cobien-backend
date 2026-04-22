@@ -349,6 +349,44 @@ def _build_message_author_meta(username, request=None):
     }
 
 
+def _enqueue_board_reload(recipient_key, show_last=False):
+    target = str(recipient_key or "").strip()
+    if not target:
+        return
+    enqueue_notification(
+        target,
+        {
+            "type": "board_reload",
+            "target": "board",
+            "reload_last": bool(show_last),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+
+def _mark_message_deleted_from_device(doc):
+    if not isinstance(doc, dict) or not doc.get("_id"):
+        return False
+    image_file_id = doc.get("image_file_id")
+    if image_file_id:
+        try:
+            fs.delete(ObjectId(str(image_file_id)))
+        except Exception:
+            pass
+    result = col_messages.update_one(
+        {"_id": doc["_id"]},
+        {
+            "$set": {
+                "content": "Borrado desde el mueble. No se sincronizará.",
+                "image_file_id": None,
+                "deleted_from_device": True,
+                "deleted_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+    return bool(result.modified_count)
+
+
 def _staff_required(user):
     return bool(getattr(user, "is_authenticated", False) and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)))
 
@@ -1233,6 +1271,7 @@ def pizarra_delete(request, post_id: str):
                 pass
 
         col_messages.delete_one({"_id": doc["_id"], "author": request.user.username})
+        _enqueue_board_reload(recipient_key, show_last=False)
         messages.success(request, "Mensaje eliminado.")
     except Exception as e:
         messages.error(request, f"No se pudo eliminar el mensaje: {e}")
@@ -1360,6 +1399,8 @@ def api_pizarra_messages(request):
     cursor = col_messages.find(filt).sort("created_at", DESCENDING).limit(100)
     items = []
     for d in cursor:
+        if d.get("deleted_from_device"):
+            continue
         image_url = ""
         if d.get("image_file_id"):
             image_url = request.build_absolute_uri(
@@ -1401,6 +1442,17 @@ def api_delete_pizarra_message(request, post_id: str):
     if not doc:
         return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
 
+    delete_source = (
+        request.headers.get("X-DELETE-SOURCE")
+        or request.POST.get("source")
+        or request.GET.get("source")
+        or ""
+    ).strip().lower()
+
+    if delete_source == "device":
+        ok = _mark_message_deleted_from_device(doc)
+        return JsonResponse({"ok": ok, "id": post_id, "mode": "soft_deleted_from_device"})
+
     if doc.get("image_file_id"):
         try:
             fs.delete(doc["image_file_id"])
@@ -1408,6 +1460,7 @@ def api_delete_pizarra_message(request, post_id: str):
             pass
 
     col_messages.delete_one({"_id": target_id})
+    _enqueue_board_reload(doc.get("recipient_key", ""), show_last=False)
     return JsonResponse({"ok": True, "id": post_id})
 
 @csrf_exempt
