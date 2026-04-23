@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}CoBien · {% trans "Política de cookies" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:760px; margin:0 auto; padding:40px 0 60px;">
+
+  <div style="margin-bottom:32px;">
+    <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9CA3AF; margin:0 0 6px;">{% trans "Legal" %}</p>
+    <h1 style="margin:0 0 10px; font-size:1.8rem; font-weight:800;">{% trans "Política de cookies" %}</h1>
+    <p style="color:#6B7280; font-size:.9rem; margin:0;">{% trans "Qué cookies utilizamos y cómo puedes gestionarlas." %}</p>
+  </div>
+
+  <div style="background:#fff; border:1px solid #E5E7EB; border-radius:16px; padding:32px 36px; display:flex; flex-direction:column; gap:24px;">
+
+    <div style="padding:20px; background:#FFF9EC; border:1px solid rgba(255,188,68,.4); border-radius:12px; font-size:.85rem; color:#7a5606;">
+      {% trans "Este apartado está actualmente en preparación. El contenido legal completo estará disponible próximamente." %}
+    </div>
+
+    <section>
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 8px;">{% trans "¿Qué son las cookies?" %}</h2>
+      <p style="font-size:.88rem; color:#374151; margin:0; line-height:1.6;">
+        {% trans "Las cookies son pequeños archivos de texto que los sitios web almacenan en tu dispositivo cuando los visitas. Se utilizan para recordar tus preferencias y mejorar tu experiencia de navegación." %}
+      </p>
+    </section>
+
+    <section>
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 8px;">{% trans "Cookies que utilizamos" %}</h2>
+      <p style="font-size:.88rem; color:#374151; margin:0; line-height:1.6;">
+        {% trans "Contenido pendiente de completar." %}
+      </p>
+    </section>
+
+    <section>
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 8px;">{% trans "Cookies técnicas (necesarias)" %}</h2>
+      <p style="font-size:.88rem; color:#374151; margin:0; line-height:1.6;">
+        {% trans "Este sitio utiliza cookies de sesión estrictamente necesarias para el funcionamiento del sistema de autenticación y preferencias de idioma. Estas cookies no requieren tu consentimiento." %}
+      </p>
+    </section>
+
+    <section>
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 8px;">{% trans "Cómo gestionar las cookies" %}</h2>
+      <p style="font-size:.88rem; color:#374151; margin:0; line-height:1.6;">
+        {% trans "Puedes configurar tu navegador para rechazar o eliminar las cookies. Ten en cuenta que algunas funcionalidades del portal podrían dejar de funcionar correctamente si deshabilitas las cookies técnicas." %}
+      </p>
+    </section>
+
+    <section>
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 8px;">{% trans "Actualización de esta política" %}</h2>
+      <p style="font-size:.88rem; color:#374151; margin:0; line-height:1.6;">
+        {% trans "Contenido pendiente de completar." %}
+      </p>
+    </section>
+
+  </div>
+
+  <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+    <a href="{% url 'aviso_legal' %}" style="font-size:.84rem; color:#6366F1; text-decoration:none; font-weight:600;">{% trans "Aviso legal →" %}</a>
+    <a href="{% url 'privacidad' %}" style="font-size:.84rem; color:#6366F1; text-decoration:none; font-weight:600;">{% trans "Política de privacidad →" %}</a>
+  </div>
+</div>
+{% endblock %}

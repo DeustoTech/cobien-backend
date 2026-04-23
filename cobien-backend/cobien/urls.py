@@ -13,6 +13,7 @@ from apps.eventos.views import (
     device_videocall_session,
     toggle_emotion_detection,
 )
+from django.views.generic import TemplateView
 from django.views.i18n import set_language
 from django.conf import settings
 from django.conf.urls.static import static
@@ -41,6 +42,9 @@ urlpatterns = [
     path("activar/<uidb64>/<token>/", ActivateAccountView.as_view(), name="activate"),
     path('accounts/', include('apps.accounts.urls')),
     path('pizarra/', include('apps.pizarra.urls')),
+    path('aviso-legal/', TemplateView.as_view(template_name='legal/aviso_legal.html'), name='aviso_legal'),
+    path('privacidad/', TemplateView.as_view(template_name='legal/privacidad.html'), name='privacidad'),
+    path('cookies/', TemplateView.as_view(template_name='legal/politica_cookies.html'), name='politica_cookies'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

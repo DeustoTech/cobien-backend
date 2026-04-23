@@ -351,22 +351,75 @@ input:focus, textarea:focus, select:focus {
 .alert-list { list-style: none; padding: 0; margin: 0; }
 
 .site-footer {
-  padding: 20px 0 28px;
-  background: linear-gradient(180deg, rgba(255,188,68,0.2) 0%, rgba(255,188,68,0.38) 100%);
+  padding: 44px 0 0;
+  background: linear-gradient(180deg, rgba(255,188,68,0.14) 0%, rgba(255,188,68,0.32) 100%);
   border-top: 1px solid rgba(255, 188, 68, 0.35);
 }
 
-.site-footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+.footer-body {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 36px;
   color: #7a5606;
 }
 
-.footer-copy { display: flex; flex-direction: column; gap: 4px; }
-.footer-socials { display: flex; flex-wrap: wrap; gap: 14px; font-weight: 700; }
-.footer-socials a { text-decoration: none; }
+.footer-brand-logo { height: 38px; width: auto; margin-bottom: 10px; }
+.footer-brand-tagline { font-size: .85rem; color: #9a6e20; max-width: 260px; line-height: 1.55; margin: 0; }
+
+.footer-col-title {
+  font-size: .71rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: #b87d2a;
+  margin: 0 0 14px;
+}
+
+.footer-socials { display: flex; gap: 10px; }
+.footer-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,188,68,0.45);
+  color: #7a5606;
+  text-decoration: none;
+  transition: background .15s, transform .15s, box-shadow .15s;
+}
+.footer-social-link:hover {
+  background: rgba(255,255,255,0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(180,120,0,.15);
+  color: #5a3f00;
+}
+
+.footer-legal-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+.footer-legal-links a {
+  font-size: .84rem;
+  color: #7a5606;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color .12s;
+}
+.footer-legal-links a:hover { color: #5a3f00; text-decoration: underline; }
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 188, 68, 0.35);
+  font-size: .76rem;
+  color: #b87d2a;
+  flex-wrap: wrap;
+}
+
+/* legacy class kept for responsive rules */
+.site-footer-inner { color: #7a5606; }
 
 .calendar-shell,
 .pz-wrap,
@@ -731,7 +784,8 @@ pre {
 @media (max-width: 720px) {
   :root { --site-width: min(100vw - 24px, 1480px); }
   .site-main { padding-top: 24px; }
-  .site-footer-inner,
+  .footer-body { grid-template-columns: 1fr 1fr; }
+  .footer-brand { grid-column: 1 / -1; }
   .top-actions,
   .calendar-board-head,
   .video-page-head,
