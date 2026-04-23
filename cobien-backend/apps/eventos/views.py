@@ -165,12 +165,18 @@ def lista_eventos(request):
 
     condiciones.append(visibilidad)
 
-    # 3) Build device cards for the event creation selector
+    # 3) Load all registered devices once; never call get_or_create_device here,
+    # as that would silently create MongoDB docs for stale/orphan device IDs.
+    _all_known = {
+        str(d.get("device_id") or "").strip(): d
+        for d in list_known_devices()
+        if str(d.get("device_id") or "").strip()
+    }
+
     if is_admin:
-        selector_devices = [d for d in list_known_devices() if not d.get("hidden_in_admin")]
+        selector_devices = [d for d in _all_known.values() if not d.get("hidden_in_admin")]
     else:
-        selector_devices = [get_or_create_device(did) for did in accessible_devices]
-        selector_devices = [d for d in selector_devices if d]
+        selector_devices = [_all_known[did] for did in accessible_devices if did in _all_known]
 
     device_cards = []
     for device in selector_devices:
@@ -183,15 +189,13 @@ def lista_eventos(request):
             "status": device_online_status(device),
         })
 
-    # 4) Picker legend — only show devices that are actually registered in the registry.
-    # We do NOT include orphan device IDs from old events that have no matching device doc,
-    # because those are stale data (e.g. a "maria" ID from a test event years ago).
+    # 4) Picker legend — only devices that exist in the registry, never orphan IDs.
     _display_map = {card["device_id"]: card["display_name"] for card in device_cards}
+    # Add any accessible device that exists in the registry but wasn't in device_cards
     for did in accessible_devices:
-        if did not in _display_map:
-            _dev = get_or_create_device(did)
-            if _dev:
-                _display_map[did] = str(_dev.get("display_name") or did).strip() or did
+        if did not in _display_map and did in _all_known:
+            _dev = _all_known[did]
+            _display_map[did] = str(_dev.get("display_name") or did).strip() or did
 
     _registered_ids = set(_display_map)
     filtro_devices = {"$and": (condiciones[:] + [{"audience": "device"}])} if condiciones else {"audience": "device"}
