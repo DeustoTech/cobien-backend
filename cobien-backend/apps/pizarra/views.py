@@ -1075,6 +1075,17 @@ def device_delete(request):
         col_icso_events.delete_many({"device_id": device_id})
         col_user_device_access.delete_many({"device_id": device_id})
         col_devices.delete_one({"device_id": device_id})
+        _ref_filter = {"$or": [
+            {"target_device": device_id},
+            {"default_room": device_id},
+            {"linked_device": device_id},
+        ]}
+        _ref_unset = {"$unset": {"target_device": "", "default_room": "", "linked_device": ""}}
+        for _colname in ("auth_user", "users"):
+            try:
+                db[_colname].update_many(_ref_filter, _ref_unset)
+            except Exception:
+                pass
         return JsonResponse({"ok": True, "device_id": device_id})
     except Exception as exc:
         return JsonResponse({"error": str(exc)}, status=500)
@@ -1131,6 +1142,19 @@ def devices_admin(request):
                 col_icso_events.delete_many({"device_id": selected_device})
                 col_user_device_access.delete_many({"device_id": selected_device})
                 col_devices.delete_one({"device_id": selected_device})
+                # Remove device references from user profiles so list_known_devices()
+                # doesn't rediscover and recreate the device via get_or_create_device().
+                _ref_filter = {"$or": [
+                    {"target_device": selected_device},
+                    {"default_room": selected_device},
+                    {"linked_device": selected_device},
+                ]}
+                _ref_unset = {"$unset": {"target_device": "", "default_room": "", "linked_device": ""}}
+                for _colname in ("auth_user", "users"):
+                    try:
+                        db[_colname].update_many(_ref_filter, _ref_unset)
+                    except Exception:
+                        pass
                 messages.success(request, f"Mueble '{selected_device}' y todos sus datos eliminados.")
                 return redirect(reverse("pizarra_devices_admin"))
             else:
