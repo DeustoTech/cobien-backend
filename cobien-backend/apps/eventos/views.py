@@ -186,24 +186,13 @@ def lista_eventos(request):
         device_cards.append({
             "device_id": did,
             "display_name": str(device.get("display_name") or did).strip() or did,
+            "color": color_for_device(did),
             "status": device_online_status(device),
         })
 
-    # 4) Picker legend — only devices that exist in the registry, never orphan IDs.
-    _display_map = {card["device_id"]: card["display_name"] for card in device_cards}
-    # Add any accessible device that exists in the registry but wasn't in device_cards
-    for did in accessible_devices:
-        if did not in _display_map and did in _all_known:
-            _dev = _all_known[did]
-            _display_map[did] = str(_dev.get("display_name") or did).strip() or did
-
-    _registered_ids = set(_display_map)
-    filtro_devices = {"$and": (condiciones[:] + [{"audience": "device"}])} if condiciones else {"audience": "device"}
-    _candidate_ids = set(d for d in collection.distinct("target_device", filtro_devices) if d).union(accessible_devices)
-    my_devices = [
-        {"device_id": did, "display_name": _display_map[did], "color": color_for_device(did)}
-        for did in sorted(_candidate_ids & _registered_ids, key=lambda d: _display_map[d].casefold())
-    ]
+    # The personal-mode filter picker shows exactly the same set as device_cards
+    # (registered devices only, never orphan IDs from event history).
+    my_devices = device_cards
     my_device_colors = my_devices
 
     # 4) NUEVO: parámetros modernos

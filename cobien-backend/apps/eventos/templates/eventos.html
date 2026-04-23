@@ -12,46 +12,62 @@
     .device-chip-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
       align-items: center;
-      padding: 4px 0;
+      padding: 6px 0 2px;
     }
+
     .device-chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
+      gap: 7px;
+      padding: 5px 14px;
       border-radius: 20px;
       border: 1.5px solid var(--chip-accent, #9CA3AF);
       background: transparent;
       color: var(--chip-accent, #6B7280);
       font-size: .82rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: background .15s, color .15s;
       white-space: nowrap;
+      transition: background .15s, color .15s, border-color .15s;
+      user-select: none;
+      line-height: 1;
     }
+    .device-chip:hover {
+      background: color-mix(in srgb, var(--chip-accent, #9CA3AF) 12%, transparent);
+    }
+    .device-chip--all { --chip-accent: #6B7280; }
+
+    /* Status dot */
     .device-chip .chip-dot {
       width: 8px; height: 8px;
       border-radius: 50%;
-      background: var(--chip-accent, #9CA3AF);
       flex-shrink: 0;
+      background: var(--chip-accent, #9CA3AF);
+      transition: background .15s;
     }
-    .device-chip--all {
-      --chip-accent: #6B7280;
-    }
+    .device-chip .chip-dot--online  { background: #34D399; }
+    .device-chip .chip-dot--offline { background: #9CA3AF; }
+
+    /* Active state */
     .device-chip.is-active {
       background: var(--chip-accent, #6B7280);
       color: #fff;
     }
-    .device-chip.is-active .chip-dot {
-      background: rgba(255,255,255,.7);
-    }
+    .device-chip.is-active .chip-dot { background: rgba(255,255,255,.75); }
+    .device-chip.is-active .chip-dot--online  { background: rgba(255,255,255,.9); }
+    .device-chip.is-active .chip-dot--offline { background: rgba(255,255,255,.45); }
+
     /* ── Legend strip ─────────────────────────────────────────────────── */
-    .compact-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .legend-badge { font-size: .75rem; padding: 2px 9px; border-radius: 12px;
-      background: color-mix(in srgb, var(--swatch) 18%, white);
-      border: 1px solid var(--swatch); color: color-mix(in srgb, var(--swatch) 60%, #1f2937); }
+    .compact-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .legend-badge {
+      font-size: .75rem; padding: 3px 10px; border-radius: 12px;
+      background: color-mix(in srgb, var(--swatch) 15%, white);
+      border: 1px solid color-mix(in srgb, var(--swatch) 45%, transparent);
+      color: color-mix(in srgb, var(--swatch) 70%, #1f2937);
+      font-weight: 500;
+    }
   </style>
 {% endblock %}
 
@@ -102,7 +118,7 @@
               <button type="button" class="device-chip"
                       data-device="{{ device.device_id }}"
                       style="--chip-accent: {{ device.color }}">
-                <span class="chip-dot"></span>
+                <span class="chip-dot chip-dot--{{ device.status }}"></span>
                 <span>{{ device.display_name }}</span>
               </button>
             {% endfor %}
