@@ -64,7 +64,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 10px;
+  padding: 10px;
   border-radius: 10px;
   text-decoration: none;
   color: inherit;
@@ -158,24 +158,118 @@
 .dm-toggle { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border,#E5E7EB); border-radius:8px; cursor:pointer; font-size:.88rem; font-weight:500; }
 .dm-toggle input { width:16px; height:16px; cursor:pointer; accent-color:#6366F1; }
 
-/* ── Contact rows ── */
-.dm-contact-row {
-  display:grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap:10px;
-  align-items:end;
-  padding:12px 14px;
-  border:1px solid var(--border,#E5E7EB);
-  border-radius:10px;
-  background:#FAFAFA;
+/* ── Tabs ── */
+.dm-tabs-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  margin-bottom: 20px;
 }
-.dm-contact-thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; }
+.dm-tab-btn {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: .88rem;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s;
+}
+.dm-tab-btn:hover { color: #374151; }
+.dm-tab-btn.is-active { color: #4F46E5; border-bottom-color: #6366F1; }
+.dm-tab-pane { display: none; }
+.dm-tab-pane.is-active { display: block; }
 
-/* ── User checklist ── */
-.dm-user-list { max-height:220px; overflow-y:auto; border:1px solid var(--border,#E5E7EB); border-radius:10px; padding:6px; }
-.dm-user-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; font-size:.85rem; }
-.dm-user-item:hover { background:#F3F4F6; }
-.dm-user-item input { accent-color:#6366F1; }
+/* ── Contact rows (simplified, no image upload) ── */
+.dm-contact-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border,#E5E7EB);
+  border-radius: 10px;
+  background: #FAFAFA;
+}
+.dm-contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #EEF2FF;
+  color: #4F46E5;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  user-select: none;
+}
+.dm-contact-avatar img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.dm-contact-avatar-placeholder {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #F3F4F6; color: #9CA3AF;
+  font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+}
+
+/* ── User access list ── */
+.dm-user-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border,#E5E7EB);
+  border-radius: 10px;
+  padding: 4px;
+}
+.dm-user-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: .85rem;
+  transition: background .1s;
+}
+.dm-user-item:hover { background: #F3F4F6; }
+.dm-user-item input[type="checkbox"] { accent-color: #6366F1; width:16px; height:16px; flex-shrink:0; }
+.dm-user-avatar-sm {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #E5E7EB; color: #6B7280;
+  font-size: .8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; text-transform: uppercase;
+}
+.dm-user-info { flex:1; min-width:0; }
+.dm-user-info strong { display:block; font-size:.85rem; font-weight:600; }
+.dm-user-info span { font-size:.76rem; color:#9CA3AF; }
+
+/* ── Default user select ── */
+.dm-default-user-box {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dm-default-user-box .dm-field { flex: 1; margin: 0; }
+.dm-default-user-box .dm-field label { margin-bottom: 4px; }
+.dm-default-user-hint {
+  font-size: .76rem;
+  color: #6B7280;
+  margin-top: 6px;
+  line-height: 1.4;
+}
 
 /* ── ICSO ── */
 .dm-icso-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
@@ -199,7 +293,7 @@
 .dm-empty-icon { font-size:2.5rem; }
 
 /* ── Buttons ── */
-.dm-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:none; transition:background .15s; white-space:nowrap; }
+.dm-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:none; transition:background .15s, opacity .15s; white-space:nowrap; }
 .dm-btn-primary { background:#6366F1; color:#fff; }
 .dm-btn-primary:hover { background:#4F46E5; }
 .dm-btn-outline { background:transparent; color:#374151; border:1px solid var(--border,#D1D5DB); }
@@ -207,10 +301,11 @@
 .dm-btn-ghost  { background:transparent; color:#6B7280; border:1px solid transparent; }
 .dm-btn-ghost:hover { background:#F3F4F6; }
 .dm-btn-danger { background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; }
-.dm-btn-danger:hover { background:#FECACA; }
+.dm-btn-danger:hover:not(:disabled) { background:#FECACA; }
+.dm-btn-danger:disabled { opacity:.45; cursor:not-allowed; }
 .dm-btn-sm { padding:5px 12px; font-size:.78rem; }
 
-/* ── Modal ── */
+/* ── Modals ── */
 .dm-modal-overlay {
   display: none;
   position: fixed; inset:0;
@@ -237,6 +332,25 @@
 .dm-modal-close { background:none; border:none; font-size:1.2rem; cursor:pointer; color:#9CA3AF; padding:4px; border-radius:6px; }
 .dm-modal-close:hover { background:#F3F4F6; color:#374151; }
 .dm-modal-body { padding:18px 22px 22px; display:flex; flex-direction:column; gap:14px; }
+.dm-modal-warning {
+  padding: 12px 14px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  font-size: .84rem;
+  color: #991B1B;
+  line-height: 1.45;
+}
+
+/* ── Section separator ── */
+.dm-section-label {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #9CA3AF;
+  margin: 0 0 10px;
+}
 
 /* ── Responsive ── */
 @media (max-width:900px) {
@@ -244,6 +358,8 @@
   .dm-stats { grid-template-columns:repeat(2,1fr); }
   .dm-grid-2, .dm-grid-3 { grid-template-columns:1fr; }
   .dm-icso-grid, .dm-hw-grid { grid-template-columns:1fr; }
+  .dm-contact-row { grid-template-columns: 40px 1fr auto; }
+  .dm-contact-row .dm-field:last-of-type { display:none; }
 }
 @media (max-width:640px) {
   .dm-body { flex-direction:column; }
@@ -335,15 +451,6 @@
         <div class="dm-card">
           <div class="dm-card-head">
             <h2>{% trans "Configuración" %} · <span style="font-weight:400; color:#374151;">{{ selected_device }}</span></h2>
-            <div style="display:flex; gap:8px;">
-              <form method="post" style="display:contents;">
-                {% csrf_token %}
-                <input type="hidden" name="device_id" value="{{ selected_device }}">
-                <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
-                <button class="dm-btn dm-btn-outline dm-btn-sm" type="submit" name="action" value="sync">{% trans "Sincronizar" %}</button>
-                <button class="dm-btn dm-btn-primary dm-btn-sm" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
-              </form>
-            </div>
           </div>
 
           <form method="post" enctype="multipart/form-data" id="deviceForm">
@@ -352,8 +459,8 @@
             <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
 
             <!-- Identidad -->
-            <div style="margin-bottom:18px;">
-              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Identidad" %}</p>
+            <div style="margin-bottom:20px;">
+              <p class="dm-section-label">{% trans "Identidad" %}</p>
               <div class="dm-grid-2">
                 <div class="dm-field">
                   <label for="display_name_device">{% trans "Nombre visible" %}</label>
@@ -367,11 +474,11 @@
             </div>
 
             <!-- Calendario -->
-            <div style="margin-bottom:18px;">
-              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Calendario" %}</p>
+            <div style="margin-bottom:20px;">
+              <p class="dm-section-label">{% trans "Calendario" %}</p>
               <div class="dm-grid-2">
                 <div class="dm-field">
-                  <label for="event_visibility_scope">{% trans "Visibilidad" %}</label>
+                  <label for="event_visibility_scope">{% trans "Visibilidad de eventos" %}</label>
                   <select id="event_visibility_scope" name="event_visibility_scope">
                     <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Todos los eventos generales" %}</option>
                     <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones" %}</option>
@@ -384,10 +491,10 @@
               </div>
             </div>
 
-            <!-- Opciones -->
-            <div style="margin-bottom:18px;">
-              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Opciones" %}</p>
-              <div class="dm-grid-3">
+            <!-- Opciones básicas -->
+            <div style="margin-bottom:24px;">
+              <p class="dm-section-label">{% trans "Opciones" %}</p>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <label class="dm-toggle">
                   <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
                   {% trans "Habilitado" %}
@@ -396,26 +503,29 @@
                   <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
                   {% trans "Oculto en panel" %}
                 </label>
-                <div class="dm-field">
-                  <label for="default_username">{% trans "Usuario por defecto" %}</label>
-                  <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
-                </div>
               </div>
             </div>
 
-            <!-- Contactos + Usuarios -->
-            <div class="dm-grid-2" style="align-items:start;">
+            <!-- ── Tabs: Contactos / Acceso ── -->
+            <div class="dm-tabs-nav" role="tablist">
+              <button class="dm-tab-btn is-active" type="button" role="tab" data-tab="contacts" aria-selected="true">
+                {% trans "Contactos" %}
+                <span style="margin-left:6px; font-size:.74rem; font-weight:600; padding:1px 7px; border-radius:8px; background:#EEF2FF; color:#4F46E5;">{{ contact_rows|length }}</span>
+              </button>
+              <button class="dm-tab-btn" type="button" role="tab" data-tab="access" aria-selected="false">
+                {% trans "Acceso de usuarios" %}
+                <span style="margin-left:6px; font-size:.74rem; font-weight:600; padding:1px 7px; border-radius:8px; background:#EEF2FF; color:#4F46E5;" id="accessCountBadge">{{ assigned_set|length }}</span>
+              </button>
+            </div>
 
-              <!-- Contactos -->
-              <div>
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                  <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0;">{% trans "Contactos" %}</p>
-                  <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Añadir" %}</button>
-                </div>
-                {% if people_profiles %}
-                  <div style="display:grid; grid-template-columns:1fr auto; gap:6px; margin-bottom:10px;">
-                    <select id="people-profile-select" style="font-size:.82rem;">
-                      <option value="">{% trans "Añadir desde libreta central…" %}</option>
+            <!-- Tab: Contactos -->
+            <div class="dm-tab-pane is-active" id="tab-contacts" role="tabpanel">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px;">
+                <p style="font-size:.82rem; color:#6B7280; margin:0;">{% trans "Las imágenes de los contactos se obtienen automáticamente del perfil del usuario web vinculado." %}</p>
+                <div style="display:flex; gap:8px; flex-shrink:0;">
+                  {% if people_profiles %}
+                    <select id="people-profile-select" style="font-size:.82rem; padding:5px 8px; border:1px solid var(--border,#D1D5DB); border-radius:8px;">
+                      <option value="">{% trans "Añadir desde libreta…" %}</option>
                       {% for person in people_profiles %}
                         <option value="{{ person.person_id }}" data-display-name="{{ person.display_name }}" data-user-name="{{ person.user_name }}" data-image-url="{{ person.image_url }}">
                           {{ person.display_name }}{% if person.user_name %} · {{ person.user_name }}{% endif %}
@@ -423,53 +533,85 @@
                       {% endfor %}
                     </select>
                     <button class="dm-btn dm-btn-ghost dm-btn-sm" type="button" id="add-person-profile">{% trans "Añadir" %}</button>
-                  </div>
-                {% endif %}
-                <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
-                  {% for contact in contact_rows %}
-                    <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
-                      <div class="dm-field">
-                        <label>{% trans "Nombre" %}</label>
-                        <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
-                        <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
-                      </div>
-                      <div class="dm-field">
-                        <label>{% trans "Usuario web" %}</label>
-                        <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
-                      </div>
-                      <div style="display:flex; flex-direction:column; gap:6px; align-items:end;">
-                        {% if contact.image_url %}
-                          <img class="dm-contact-thumb" src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
-                        {% endif %}
-                        <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*" style="font-size:.72rem; max-width:120px;">
-                        <label style="font-size:.72rem; color:#6B7280; display:flex; align-items:center; gap:4px; cursor:pointer;">
-                          <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1"> {% trans "Quitar img" %}
-                        </label>
-                        <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button" style="color:#EF4444;">✕</button>
-                      </div>
-                    </div>
-                  {% endfor %}
+                  {% endif %}
+                  <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Nuevo contacto" %}</button>
                 </div>
-                <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
               </div>
 
-              <!-- Usuarios con acceso -->
-              <div>
-                <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Acceso de usuarios" %}</p>
-                <input type="text" id="userSearch" placeholder="{% trans 'Buscar…' %}" style="width:100%; margin-bottom:8px; font-size:.82rem; padding:6px 10px; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
-                <div class="dm-user-list">
-                  {% for u in all_users %}
-                    <label class="dm-user-item user-check-item" data-username="{{ u.username }}">
-                      <input type="checkbox" name="assigned_users_check" value="{{ u.username }}" {% if u.username in assigned_set %}checked{% endif %}>
-                      <span><strong>{{ u.username }}</strong>{% if u.first_name or u.last_name %} — {{ u.first_name }} {{ u.last_name }}{% endif %}</span>
-                    </label>
-                  {% empty %}
-                    <p class="muted" style="padding:8px; font-size:.82rem;">{% trans "No hay usuarios." %}</p>
-                  {% endfor %}
+              <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
+                {% for contact in contact_rows %}
+                  <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
+                    <div class="dm-contact-avatar" id="avatar-{{ forloop.counter0 }}">
+                      {% if contact.image_url %}
+                        <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
+                      {% else %}
+                        {{ contact.display_name|first|upper }}
+                      {% endif %}
+                    </div>
+                    <div class="dm-field" style="margin:0;">
+                      <label>{% trans "Nombre" %}</label>
+                      <input type="text" name="contact_display_name_{{ forloop.counter0 }}"
+                             value="{{ contact.display_name }}" placeholder="María"
+                             data-avatar-for="{{ forloop.counter0 }}">
+                      <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                    </div>
+                    <div class="dm-field" style="margin:0;">
+                      <label>{% trans "Usuario web vinculado" %}</label>
+                      <input type="text" name="contact_user_name_{{ forloop.counter0 }}"
+                             value="{{ contact.user_name }}" placeholder="maria">
+                    </div>
+                    <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
+                            style="color:#EF4444; padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>
+                  </div>
+                {% endfor %}
+              </div>
+              <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
+            </div>
+
+            <!-- Tab: Acceso de usuarios -->
+            <div class="dm-tab-pane" id="tab-access" role="tabpanel">
+              <div style="margin-bottom:10px;">
+                <input type="text" id="userSearch" placeholder="{% trans 'Buscar usuario…' %}"
+                       style="width:100%; padding:8px 12px; font-size:.82rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
+              </div>
+              <div class="dm-user-list">
+                {% for u in all_users %}
+                  <label class="dm-user-item user-check-item" data-username="{{ u.username }}">
+                    <input type="checkbox" name="assigned_users_check" value="{{ u.username }}"
+                           {% if u.username in assigned_set %}checked{% endif %}>
+                    <div class="dm-user-avatar-sm">{{ u.username|first|upper }}</div>
+                    <div class="dm-user-info">
+                      <strong>{{ u.username }}</strong>
+                      {% if u.first_name or u.last_name %}
+                        <span>{{ u.first_name }} {{ u.last_name }}</span>
+                      {% endif %}
+                    </div>
+                  </label>
+                {% empty %}
+                  <p style="padding:10px 12px; font-size:.82rem; color:#9CA3AF; margin:0;">{% trans "No hay usuarios registrados." %}</p>
+                {% endfor %}
+              </div>
+              <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
+
+              <!-- Usuario por defecto -->
+              <div class="dm-default-user-box">
+                <div class="dm-field" style="flex:1; margin:0;">
+                  <label for="default_username">{% trans "Usuario de inicio automático" %}</label>
+                  <select id="default_username" name="default_username">
+                    <option value="">— {% trans "Ninguno" %} —</option>
+                    {% for u in all_users %}
+                      <option value="{{ u.username }}" {% if u.username == default_username %}selected{% endif %}>
+                        {{ u.username }}{% if u.first_name or u.last_name %} ({{ u.first_name }} {{ u.last_name }}){% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <p class="dm-default-user-hint">
+                    {% trans "El perfil de este usuario se cargará automáticamente en el mueble al arrancar, sin necesidad de que nadie inicie sesión." %}
+                  </p>
                 </div>
-                <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
               </div>
             </div>
+            <!-- /Tabs -->
 
             <!-- Acciones form -->
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
@@ -559,13 +701,9 @@
               <strong>{% trans "Zona de peligro" %}</strong>
               <p>{% trans "Eliminar este mueble borrará todos sus mensajes, notificaciones, ICSO y asignaciones. Irreversible." %}</p>
             </div>
-            <form method="post" onsubmit="return confirm('{% trans "¿Eliminar el mueble" %} &quot;{{ selected_device }}&quot;{% trans " y todos sus datos? Esta acción es irreversible." %}');">
-              {% csrf_token %}
-              <input type="hidden" name="device_id" value="{{ selected_device }}">
-              <button type="submit" name="action" value="delete" class="dm-btn dm-btn-danger">
-                {% trans "Eliminar mueble" %}
-              </button>
-            </form>
+            <button type="button" class="dm-btn dm-btn-danger" id="openDeleteModal">
+              {% trans "Eliminar mueble" %}
+            </button>
           </div>
         </div>
 
@@ -623,6 +761,40 @@
     </div>
   </div>
 </div>
+
+<!-- ── Modal: Confirmar eliminación ── -->
+{% if selected_device %}
+<div class="dm-modal-overlay" id="deleteDeviceModal">
+  <div class="dm-modal-box" style="width:440px;">
+    <div class="dm-modal-head">
+      <h2 style="color:#DC2626;">{% trans "Eliminar mueble" %}</h2>
+      <button class="dm-modal-close" id="closeDeleteModal" type="button">✕</button>
+    </div>
+    <div class="dm-modal-body">
+      <div class="dm-modal-warning">
+        {% trans "Esta acción eliminará permanentemente el mueble" %} <strong>{{ selected_device }}</strong>{% trans ", incluyendo todos sus mensajes, notificaciones, datos ICSO y asignaciones de usuario. No se puede deshacer." %}
+      </div>
+      <div class="dm-field">
+        <label for="deleteConfirmInput">
+          {% trans "Escribe" %} <strong style="font-family:monospace; color:#374151;">{{ selected_device }}</strong> {% trans "para confirmar" %}
+        </label>
+        <input type="text" id="deleteConfirmInput" placeholder="{{ selected_device }}" autocomplete="off">
+      </div>
+      <form method="post" id="deleteDeviceForm">
+        {% csrf_token %}
+        <input type="hidden" name="device_id" value="{{ selected_device }}">
+        <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:4px;">
+          <button class="dm-btn dm-btn-outline" type="button" id="cancelDeleteModal">{% trans "Cancelar" %}</button>
+          <button type="submit" name="action" value="delete" id="deleteConfirmBtn"
+                  class="dm-btn dm-btn-danger" disabled>
+            {% trans "Eliminar definitivamente" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -635,6 +807,21 @@
       const q = this.value.toLowerCase();
       document.querySelectorAll('.dm-device-item[data-name]').forEach(function (el) {
         el.style.display = el.dataset.name.includes(q) ? '' : 'none';
+      });
+    });
+  })();
+
+  // ── Tabs ────────────────────────────────────────────────────────
+  (function () {
+    const btns = document.querySelectorAll('.dm-tab-btn[data-tab]');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btns.forEach(function (b) { b.classList.remove('is-active'); b.setAttribute('aria-selected','false'); });
+        btn.classList.add('is-active');
+        btn.setAttribute('aria-selected','true');
+        document.querySelectorAll('.dm-tab-pane').forEach(function (p) { p.classList.remove('is-active'); });
+        const pane = document.getElementById('tab-' + btn.dataset.tab);
+        if (pane) pane.classList.add('is-active');
       });
     });
   })();
@@ -652,7 +839,32 @@
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (cancelBtn) cancelBtn.addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); closeDelete(); } });
+  })();
+
+  // ── Modal: confirmar eliminación ────────────────────────────────
+  (function () {
+    const overlay   = document.getElementById('deleteDeviceModal');
+    const openBtn   = document.getElementById('openDeleteModal');
+    const closeBtn  = document.getElementById('closeDeleteModal');
+    const cancelBtn = document.getElementById('cancelDeleteModal');
+    const input     = document.getElementById('deleteConfirmInput');
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
+    const DEVICE_ID = '{{ selected_device|escapejs }}';
+
+    function openDelete()  { if (overlay) { overlay.classList.add('open'); if (input) { input.value = ''; input.focus(); confirmBtn.disabled = true; } } }
+    function closeDelete() { if (overlay) { overlay.classList.remove('open'); } }
+
+    if (openBtn)   openBtn.addEventListener('click', openDelete);
+    if (closeBtn)  closeBtn.addEventListener('click', closeDelete);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeDelete);
+    if (overlay)   overlay.addEventListener('click', function (e) { if (e.target === overlay) closeDelete(); });
+
+    if (input && confirmBtn) {
+      input.addEventListener('input', function () {
+        confirmBtn.disabled = (this.value.trim() !== DEVICE_ID);
+      });
+    }
   })();
 
   // ── Sync user checkboxes → hidden textarea ──────────────────────
@@ -663,6 +875,13 @@
       const checks = document.querySelectorAll('input[name="assigned_users_check"]:checked');
       const ta = document.getElementById('assigned_users');
       if (ta) ta.value = Array.from(checks).map(function (c) { return c.value; }).join('\n');
+    });
+    // Live badge update for access count
+    document.querySelectorAll('input[name="assigned_users_check"]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        const badge = document.getElementById('accessCountBadge');
+        if (badge) badge.textContent = String(document.querySelectorAll('input[name="assigned_users_check"]:checked').length);
+      });
     });
     const userSearch = document.getElementById('userSearch');
     if (userSearch) {
@@ -684,11 +903,27 @@
     const addPersonBtn = document.getElementById('add-person-profile');
     if (!grid || !totalInput || !addBtn) return;
 
-    function syncTotal() { totalInput.value = String(grid.querySelectorAll('.contact-row').length); }
+    function syncTotal() {
+      const count = grid.querySelectorAll('.contact-row').length;
+      totalInput.value = String(count);
+      // Update contacts tab badge
+      const badge = document.querySelector('.dm-tab-btn[data-tab="contacts"] span');
+      if (badge) badge.textContent = String(count);
+    }
+
+    function updateAvatarFromName(input) {
+      const idx = input.dataset.avatarFor;
+      const avatar = document.getElementById('avatar-' + idx);
+      if (!avatar) return;
+      const letter = (input.value || '?').trim().charAt(0).toUpperCase();
+      if (!avatar.querySelector('img')) avatar.textContent = letter;
+    }
 
     function bindRow(row) {
       const removeBtn = row.querySelector('.remove-contact-row');
       if (removeBtn) removeBtn.addEventListener('click', function () { row.remove(); syncTotal(); });
+      const nameInput = row.querySelector('[data-avatar-for]');
+      if (nameInput) nameInput.addEventListener('input', function () { updateAvatarFromName(this); });
     }
 
     Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
@@ -696,27 +931,26 @@
 
     function createRow(index, displayName, userName, imageUrl) {
       displayName = displayName || ''; userName = userName || ''; imageUrl = imageUrl || '';
+      const letter = displayName ? displayName.charAt(0).toUpperCase() : '?';
+      const avatarContent = imageUrl
+        ? `<img src="${imageUrl}" alt="${displayName}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">`
+        : letter;
       const el = document.createElement('div');
       el.className = 'dm-contact-row contact-row';
       el.dataset.rowIndex = index;
       el.innerHTML = `
-        <div class="dm-field">
+        <div class="dm-contact-avatar" id="avatar-${index}">${avatarContent}</div>
+        <div class="dm-field" style="margin:0;">
           <label>{% trans "Nombre" %}</label>
-          <input type="text" name="contact_display_name_${index}" value="${displayName}" placeholder="María">
+          <input type="text" name="contact_display_name_${index}" value="${displayName}" placeholder="María" data-avatar-for="${index}">
           <input type="hidden" name="contact_existing_image_url_${index}" value="${imageUrl}">
         </div>
-        <div class="dm-field">
-          <label>{% trans "Usuario web" %}</label>
+        <div class="dm-field" style="margin:0;">
+          <label>{% trans "Usuario web vinculado" %}</label>
           <input type="text" name="contact_user_name_${index}" value="${userName}" placeholder="maria">
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:end;">
-          ${imageUrl ? `<img class="dm-contact-thumb" src="${imageUrl}" alt="${displayName}">` : ''}
-          <input type="file" name="contact_image_${index}" accept="image/*" style="font-size:.72rem;max-width:120px;">
-          <label style="font-size:.72rem;color:#6B7280;display:flex;align-items:center;gap:4px;cursor:pointer;">
-            <input type="checkbox" name="contact_remove_image_${index}" value="1"> {% trans "Quitar img" %}
-          </label>
-          <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button" style="color:#EF4444;">✕</button>
-        </div>`;
+        <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
+                style="color:#EF4444;padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>`;
       grid.appendChild(el);
       bindRow(el);
       syncTotal();
