@@ -2,557 +2,799 @@
 {% load i18n %}
 
 {% block title %}CoBien · {% trans "Eventos" %}{% endblock %}
-{% block page_class %}calendar-shell{% endblock %}
+{% block page_class %}ev-page{% endblock %}
 
 {% block extra_head %}
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
-  <style>
-    /* ── Device chip strip (personal mode filter) ─────────────────────── */
-    .device-chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      padding: 6px 0 2px;
-    }
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
+<style>
+/* ── FullCalendar theme overrides ─────────────────────────────── */
+:root {
+  --fc-button-bg-color: #6366F1;
+  --fc-button-border-color: #4F46E5;
+  --fc-button-hover-bg-color: #4F46E5;
+  --fc-button-hover-border-color: #4338CA;
+  --fc-button-active-bg-color: #4338CA;
+  --fc-button-active-border-color: #3730A3;
+  --fc-today-bg-color: #EEF2FF;
+  --fc-event-bg-color: #6366F1;
+  --fc-event-border-color: #4F46E5;
+  --fc-border-color: #E5E7EB;
+  --fc-page-bg-color: transparent;
+}
+.fc .fc-button { font-size: .82rem; font-weight: 600; border-radius: 8px; padding: 6px 14px; }
+.fc .fc-button-group { gap: 4px; }
+.fc .fc-toolbar-title { font-size: 1rem; font-weight: 700; }
+.fc .fc-col-header-cell { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; }
+.fc .fc-daygrid-day-number { font-size: .82rem; color: #374151; padding: 6px 8px; }
+.fc .fc-day-today .fc-daygrid-day-number { color: #4F46E5; font-weight: 700; }
+.fc .fc-event { border-radius: 5px; font-size: .77rem; font-weight: 600; padding: 1px 5px; }
+.fc .fc-event-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc .fc-daygrid-event-harness { margin-bottom: 1px; }
+.fc .fc-toolbar { margin-bottom: 14px; }
 
-    .device-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 14px;
-      border-radius: 20px;
-      border: 1.5px solid #6366F1;
-      background: transparent;
-      color: #6366F1;
-      font-size: .82rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background .15s, color .15s;
-      user-select: none;
-      line-height: 1;
-    }
-    .device-chip:hover { background: #EEF2FF; }
-    .device-chip--all { border-color: #6B7280; color: #6B7280; }
-    .device-chip--all:hover { background: #F3F4F6; }
-    .device-chip .chip-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; background:#D1D5DB; }
-    .device-chip .chip-dot--online  { background: #34D399; }
-    .device-chip .chip-dot--offline { background: #D1D5DB; }
-    .device-chip.is-active { background:#6366F1; color:#fff; border-color:#6366F1; }
-    .device-chip--all.is-active { background:#6B7280; border-color:#6B7280; }
-    .device-chip.is-active .chip-dot--online  { background:rgba(255,255,255,.9); }
-    .device-chip.is-active .chip-dot--offline { background:rgba(255,255,255,.4); }
+/* ── Page layout ────────────────────────────────────────────────── */
+.ev-page { display: flex; flex-direction: column; gap: 0; }
 
-  </style>
+/* ── Topbar ─────────────────────────────────────────────────────── */
+.ev-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ev-topbar-left h1 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.ev-topbar-left p  { margin: 2px 0 0; font-size: .82rem; color: #6B7280; }
+.ev-topbar-right   { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ── Filter bar ─────────────────────────────────────────────────── */
+.ev-filters {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 0 14px;
+  flex-wrap: wrap;
+}
+
+/* Segmented control */
+.ev-seg {
+  display: flex;
+  gap: 0;
+  background: #F3F4F6;
+  border-radius: 10px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.ev-seg-input { display: none; }
+.ev-seg-label {
+  padding: 7px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: .84rem;
+  font-weight: 600;
+  color: #6B7280;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.ev-seg-input:checked + .ev-seg-label {
+  background: #fff;
+  color: #4F46E5;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* Chip row */
+.ev-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  padding: 3px 0;
+}
+.device-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #6366F1;
+  background: transparent;
+  color: #6366F1;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+  user-select: none;
+  line-height: 1;
+}
+.device-chip:hover { background: #EEF2FF; }
+.device-chip--all { border-color: #9CA3AF; color: #6B7280; }
+.device-chip--all:hover { background: #F3F4F6; }
+.device-chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #D1D5DB; }
+.device-chip .chip-dot--online  { background: #34D399; }
+.device-chip .chip-dot--offline { background: #D1D5DB; }
+.device-chip.is-active { background: #6366F1; color: #fff; border-color: #6366F1; }
+.device-chip--all.is-active { background: #6B7280; border-color: #6B7280; color: #fff; }
+.device-chip.is-active .chip-dot--online  { background: rgba(255,255,255,.9); }
+.device-chip.is-active .chip-dot--offline { background: rgba(255,255,255,.4); }
+
+/* ── Calendar card ──────────────────────────────────────────────── */
+.ev-card {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+}
+.ev-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ev-card-head h2 {
+  margin: 0;
+  font-size: .95rem;
+  font-weight: 700;
+  color: #111827;
+}
+.ev-card-head p { margin: 0; font-size: .8rem; color: #9CA3AF; }
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.ev-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 9px;
+  font-size: .85rem; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: background .13s, opacity .13s;
+  white-space: nowrap;
+}
+.ev-btn-primary { background: #6366F1; color: #fff; }
+.ev-btn-primary:hover { background: #4F46E5; }
+.ev-btn-outline { background: transparent; color: #374151; border: 1px solid #D1D5DB; }
+.ev-btn-outline:hover { background: #F3F4F6; }
+.ev-btn-ghost { background: transparent; color: #6B7280; border: 1px solid transparent; }
+.ev-btn-ghost:hover { background: #F3F4F6; }
+.ev-btn-sm { padding: 6px 12px; font-size: .78rem; }
+
+/* ── Modals ─────────────────────────────────────────────────────── */
+.ev-modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.42);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.ev-modal-overlay.open { display: flex; }
+.ev-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 520px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  animation: evModalIn .18s ease;
+}
+.ev-modal-box--sm { width: 400px; }
+@keyframes evModalIn { from { opacity: 0; transform: scale(.96); } }
+.ev-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 0;
+  position: sticky; top: 0; background: #fff; z-index: 1;
+}
+.ev-modal-head h2 { margin: 0; font-size: 1rem; font-weight: 700; }
+.ev-modal-close {
+  background: none; border: none; font-size: 1.1rem;
+  cursor: pointer; color: #9CA3AF; padding: 4px 6px; border-radius: 6px;
+}
+.ev-modal-close:hover { background: #F3F4F6; color: #374151; }
+.ev-modal-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+.ev-modal-footer {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding-top: 10px; border-top: 1px solid #E5E7EB;
+}
+
+/* ── Event detail modal ─────────────────────────────────────────── */
+.ev-detail-header {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 18px 22px 14px;
+}
+.ev-detail-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #6366F1; flex-shrink: 0; margin-top: 5px;
+}
+.ev-detail-title { margin: 0; font-size: 1.05rem; font-weight: 700; flex: 1; }
+.ev-detail-meta {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 22px 18px;
+}
+.ev-detail-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: .85rem; color: #374151;
+}
+.ev-detail-row-label {
+  font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: #9CA3AF; min-width: 80px; padding-top: 2px;
+}
+.ev-detail-row-val { flex: 1; line-height: 1.45; }
+
+/* ── Add event form ─────────────────────────────────────────────── */
+.ev-field label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.ev-field { display: flex; flex-direction: column; }
+.ev-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Device targeting grid */
+.ev-device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.ev-device-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 10px;
+  background: #FAFAFA;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 500;
+  transition: border-color .12s, background .12s;
+}
+.ev-device-card:hover { border-color: #A5B4FC; background: #EEF2FF; }
+.ev-device-card.is-selected { border-color: #6366F1; background: #EEF2FF; }
+.ev-device-card input[type="checkbox"] { accent-color: #6366F1; width: 15px; height: 15px; flex-shrink: 0; }
+.ev-device-hint { font-size: .76rem; color: #9CA3AF; margin: 6px 0 0; }
+
+/* ── Image upload button ────────────────────────────────────────── */
+.ev-file-label {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border: 1.5px dashed #D1D5DB;
+  border-radius: 9px; cursor: pointer; font-size: .82rem;
+  color: #6B7280; font-weight: 500;
+  transition: border-color .12s, background .12s;
+}
+.ev-file-label:hover { border-color: #6366F1; background: #EEF2FF; color: #4F46E5; }
+.ev-file-name { font-size: .76rem; color: #9CA3AF; margin-top: 4px; }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ev-topbar { flex-direction: column; align-items: flex-start; }
+  .ev-topbar-right { width: 100%; }
+  .ev-grid-2 { grid-template-columns: 1fr; }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-  <section class="module-panel calendar-hero">
-    <div class="section-heading">
-      <div>
-        <span class="hero-kicker">{% trans "Agenda CoBien" %}</span>
-        <h1>{% trans "Calendario común y personal en una sola vista" %}</h1>
-        <p class="lead-text">
-          {% trans "Consulta los eventos públicos, filtra los dirigidos a muebles concretos y añade nuevos contenidos sin salir del calendario." %}
-        </p>
-      </div>
-    </div>
-  </section>
 
-  <div class="top-actions">
-    <div class="actions-left">
-      {% if user.is_authenticated %}
-        <button id="addEventBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
-          {% trans "Añadir evento" %}
-        </button>
-      {% endif %}
-
-      <button id="changeRegionBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#regionModal">
-        {% trans "Cambiar región" %}
+<!-- ── Top bar ── -->
+<div class="ev-topbar">
+  <div class="ev-topbar-left">
+    <h1>{% trans "Calendario de eventos" %}</h1>
+    <p id="currentRegionSub">{% trans "Eventos de todas las regiones" %}</p>
+  </div>
+  <div class="ev-topbar-right">
+    {% if user.is_authenticated %}
+      <button class="ev-btn ev-btn-primary" id="openAddEventBtn" type="button">
+        + {% trans "Añadir evento" %}
       </button>
+    {% endif %}
+    <button class="ev-btn ev-btn-outline" id="openRegionBtn" type="button">
+      &#9881; {% trans "Cambiar región" %}
+    </button>
+  </div>
+</div>
+
+<!-- ── Filters ── -->
+<div class="ev-filters">
+  <div class="ev-seg" id="modeSelector">
+    <input type="radio" class="ev-seg-input" name="mode" id="modeGlobal" value="global">
+    <label class="ev-seg-label" for="modeGlobal">{% trans "Global" %}</label>
+    <input type="radio" class="ev-seg-input" name="mode" id="modePersonal" value="personal">
+    <label class="ev-seg-label" for="modePersonal">{% trans "Personal" %}</label>
+  </div>
+
+  {% if my_devices %}
+    <div id="personalPicker" class="ev-chip-row" style="display:none;">
+      <button type="button" class="device-chip device-chip--all" data-device="all">
+        {% trans "Todos" %}
+      </button>
+      {% for device in my_devices %}
+        <button type="button" class="device-chip" data-device="{{ device.device_id }}">
+          <span class="chip-dot chip-dot--{{ device.status }}"></span>
+          <span>{{ device.display_name }}</span>
+        </button>
+      {% endfor %}
     </div>
+  {% endif %}
+</div>
 
-    <div class="actions-right">
-      <div class="filters-area">
-        <div class="filters-bar">
-          <div class="segmented" id="modeSelector">
-            <input type="radio" class="sgmt-input" name="mode" id="modeGlobal" value="global">
-            <label class="sgmt" for="modeGlobal">{% trans "Global" %}</label>
+<!-- ── Calendar card ── -->
+<div class="ev-card">
+  <div class="ev-card-head">
+    <div>
+      <h2 id="currentRegionTitle"></h2>
+    </div>
+  </div>
+  <div id="calendar"></div>
+</div>
 
-            <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
-            <label class="sgmt" for="modePersonal">{% trans "Personal" %}</label>
-          </div>
-        </div>
-
-        {% if my_devices %}
-          <div id="personalPicker" class="device-chip-row" style="display:none;">
-            <button type="button" class="device-chip device-chip--all" data-device="all">
-              {% trans "Todos" %}
-            </button>
-            {% for device in my_devices %}
-              <button type="button" class="device-chip"
-                      data-device="{{ device.device_id }}">
-                <span class="chip-dot chip-dot--{{ device.status }}"></span>
-                <span>{{ device.display_name }}</span>
-              </button>
-            {% endfor %}
-          </div>
-        {% endif %}
+<!-- ── Modal: Detalle de evento ── -->
+<div class="ev-modal-overlay" id="eventDetailModal">
+  <div class="ev-modal-box ev-modal-box--sm">
+    <div class="ev-modal-head">
+      <span></span>
+      <button class="ev-modal-close" data-close="eventDetailModal" type="button">✕</button>
+    </div>
+    <div class="ev-detail-header">
+      <div class="ev-detail-dot" id="detailDot"></div>
+      <h2 class="ev-detail-title" id="detailTitle"></h2>
+    </div>
+    <div class="ev-detail-meta">
+      <div class="ev-detail-row">
+        <span class="ev-detail-row-label">{% trans "Fecha" %}</span>
+        <span class="ev-detail-row-val" id="detailDate"></span>
+      </div>
+      <div class="ev-detail-row" id="detailLocationRow">
+        <span class="ev-detail-row-label">{% trans "Lugar" %}</span>
+        <span class="ev-detail-row-val" id="detailLocation"></span>
+      </div>
+      <div class="ev-detail-row" id="detailDescRow">
+        <span class="ev-detail-row-label">{% trans "Descripción" %}</span>
+        <span class="ev-detail-row-val" id="detailDesc"></span>
+      </div>
+      <div class="ev-detail-row" id="detailCreatedRow" style="display:none;">
+        <span class="ev-detail-row-label">{% trans "Añadido por" %}</span>
+        <span class="ev-detail-row-val" id="detailCreated"></span>
       </div>
     </div>
   </div>
+</div>
 
-  <section class="content-card calendar-board">
-    <div class="calendar-board-head">
-      <h2 id="currentRegion" class="video-page-title"></h2>
-      <p class="muted">{% trans "Cambia entre calendario global y vistas personales usando los filtros superiores." %}</p>
+<!-- ── Modal: Cambiar región ── -->
+<div class="ev-modal-overlay" id="regionModal">
+  <div class="ev-modal-box ev-modal-box--sm">
+    <div class="ev-modal-head">
+      <h2>{% trans "Seleccionar región" %}</h2>
+      <button class="ev-modal-close" data-close="regionModal" type="button">✕</button>
     </div>
-    <div id="calendar"></div>
-  </section>
+    <div class="ev-modal-body">
+      <div class="ev-field">
+        <label for="regionSelect">{% trans "Región" %}</label>
+        <select id="regionSelect">
+          <option value="all">{% trans "Todas las regiones" %}</option>
+          {% for region in regiones %}
+            <option value="{{ region }}">{{ region }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ev-modal-footer">
+        <button class="ev-btn ev-btn-outline ev-btn-sm" data-close="regionModal" type="button">{% trans "Cancelar" %}</button>
+        <button class="ev-btn ev-btn-primary ev-btn-sm" type="button" onclick="irAEventosConFiltro()">{% trans "Ver eventos" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <div class="modal fade" id="regionModal" tabindex="-1" aria-labelledby="regionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="regionModalLabel">{% trans "Selecciona una región" %}</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
+{% if user.is_authenticated %}
+<!-- ── Modal: Añadir evento ── -->
+<div class="ev-modal-overlay" id="addEventModal">
+  <div class="ev-modal-box">
+    <div class="ev-modal-head">
+      <h2>{% trans "Añadir nuevo evento" %}</h2>
+      <button class="ev-modal-close" data-close="addEventModal" type="button">✕</button>
+    </div>
+    <div class="ev-modal-body">
+      <form id="addEventForm">
+
+        <!-- Image extraction -->
+        <div class="ev-field">
+          <label>{% trans "Extraer datos de imagen" %}</label>
+          <label class="ev-file-label" for="eventImage">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            {% trans "Subir imagen del evento…" %}
+          </label>
+          <input type="file" id="eventImage" accept="image/*" style="display:none;">
+          <div class="ev-file-name" id="eventImageName"></div>
         </div>
-        <div class="modal-body">
-          <label for="regionSelect" class="form-label">{% trans "Elige una región" %}</label>
-          <select id="regionSelect" class="form-select">
-            <option value="all">{% trans "Todos" %}</option>
+
+        <div class="ev-grid-2">
+          <div class="ev-field">
+            <label for="eventTitle">{% trans "Título" %} <span style="color:#EF4444;">*</span></label>
+            <input type="text" id="eventTitle" placeholder="{% trans 'Nombre del evento' %}" required>
+          </div>
+          <div class="ev-field">
+            <label for="eventDate">{% trans "Fecha" %} <span style="color:#EF4444;">*</span></label>
+            <input type="date" id="eventDate" required>
+          </div>
+        </div>
+
+        <div class="ev-field">
+          <label for="eventLocationSelect">{% trans "Localización" %}</label>
+          <select id="eventLocationSelect">
+            <option value="">{% trans "— Selecciona —" %}</option>
             {% for region in regiones %}
               <option value="{{ region }}">{{ region }}</option>
             {% endfor %}
+            <option value="_new">+ {% trans "Nueva ubicación…" %}</option>
           </select>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" onclick="irAEventosConFiltro()">{% trans "Ver eventos" %}</button>
+
+        <div class="ev-field" id="eventLocationCustomGroup" style="display:none;">
+          <label for="eventLocationCustom">{% trans "Nueva ubicación" %}</label>
+          <input type="text" id="eventLocationCustom" placeholder="{% trans 'Escribe una nueva ubicación' %}">
         </div>
-      </div>
+
+        <div class="ev-field">
+          <label for="eventDescription">{% trans "Descripción" %}</label>
+          <textarea id="eventDescription" rows="3" placeholder="{% trans 'Detalle del evento…' %}"></textarea>
+        </div>
+
+        <div class="ev-field">
+          <label>{% trans "Dirigido a" %}</label>
+          {% if device_cards %}
+            <p style="font-size:.76rem; color:#9CA3AF; margin:0 0 8px;">{% trans "Sin selección → evento global visible para todos." %}</p>
+            <div class="ev-device-grid" id="eventDeviceGrid">
+              {% for card in device_cards %}
+                <label class="ev-device-card" data-device-id="{{ card.device_id }}">
+                  <input type="checkbox" class="ev-device-check" value="{{ card.device_id }}">
+                  <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+                  <span>{{ card.display_name }}</span>
+                </label>
+              {% endfor %}
+            </div>
+            <p class="ev-device-hint" id="eventDeviceHint">{% trans "Sin selección → evento global visible para todos." %}</p>
+          {% else %}
+            <select id="audienceSelect">
+              <option value="all">{% trans "Todos (global)" %}</option>
+            </select>
+            {% if linked_device %}
+              <input type="hidden" id="targetDeviceFallback" value="{{ linked_device }}">
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="ev-modal-footer" style="margin-top:4px;">
+          <button class="ev-btn ev-btn-outline" type="button" data-close="addEventModal">{% trans "Cancelar" %}</button>
+          <button class="ev-btn ev-btn-primary" type="submit">{% trans "Guardar evento" %}</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
+{% endif %}
 
-  <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="eventModalLabel">{% trans "Detalles del evento" %}</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
-        </div>
-        <div class="modal-body">
-          <p><strong>{% trans "Título:" %}</strong> <span id="modal-title"></span></p>
-          <p><strong>{% trans "Fecha:" %}</strong> <span id="modal-date"></span></p>
-          <p><strong>{% trans "Localización:" %}</strong> <span id="modal-location"></span></p>
-          <p><strong>{% trans "Descripción:" %}</strong> <span id="modal-description"></span></p>
-          <p id="modal-createdby-row" style="display:none;"><strong>{% trans "Añadido por:" %}</strong> <span id="modal-createdby"></span></p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {% if user.is_authenticated %}
-    <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="addEventModalLabel">{% trans "Añadir nuevo evento" %}</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Cerrar' %}"></button>
-          </div>
-          <div class="modal-body">
-            <form id="addEventForm" class="section-stack">
-              <div>
-                <label for="eventImage" class="form-label">{% trans "Subir imagen" %}</label>
-                <input type="file" class="form-control" id="eventImage" accept="image/*">
-              </div>
-              <div>
-                <label for="eventTitle" class="form-label">{% trans "Título" %}</label>
-                <input type="text" class="form-control" id="eventTitle" required>
-              </div>
-              <div>
-                <label for="eventDate" class="form-label">{% trans "Fecha" %}</label>
-                <input type="date" class="form-control" id="eventDate" required>
-              </div>
-              <div>
-                <label for="eventLocationSelect" class="form-label">{% trans "Localización" %}</label>
-                <select id="eventLocationSelect" class="form-select">
-                  <option value="">{% trans "— Selecciona —" %}</option>
-                  {% for region in regiones %}
-                    <option value="{{ region }}">{{ region }}</option>
-                  {% endfor %}
-                  <option value="_new">+ {% trans "Nueva ubicación…" %}</option>
-                </select>
-              </div>
-
-              <div id="eventLocationCustomGroup" style="display:none;">
-                <label for="eventLocationCustom" class="form-label">{% trans "Nueva ubicación" %}</label>
-                <input type="text" class="form-control" id="eventLocationCustom" placeholder="{% trans 'Escribe una nueva ubicación' %}">
-                <div class="form-text">
-                  {% trans "Si eliges “Nueva ubicación…”, se guardará el texto que escribas aquí." %}
-                </div>
-              </div>
-
-              <div>
-                <label for="eventDescription" class="form-label">{% trans "Descripción" %}</label>
-                <textarea class="form-control" id="eventDescription" rows="3"></textarea>
-              </div>
-              <div>
-                <label class="form-label">{% trans "Dirigido a" %}</label>
-                {% if device_cards %}
-                  <p class="form-text" style="margin-bottom:8px;">{% trans "Selecciona uno o varios muebles. Sin selección el evento será global." %}</p>
-                  <div class="pz-device-grid" id="eventDeviceGrid">
-                    {% for card in device_cards %}
-                      <label class="pz-device-card" data-device-id="{{ card.device_id }}">
-                        <input type="checkbox" class="pz-device-check" value="{{ card.device_id }}">
-                        <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
-                        <span class="pz-device-name">{{ card.display_name }}</span>
-                      </label>
-                    {% endfor %}
-                  </div>
-                  <p class="form-text" id="eventDeviceHint" style="margin-top:6px;">{% trans "Sin selección → evento global visible para todos." %}</p>
-                {% else %}
-                  <select id="audienceSelect" class="form-select">
-                    <option value="all">{% trans "Todos (global)" %}</option>
-                  </select>
-                  {% if linked_device %}
-                    <input type="hidden" id="targetDeviceFallback" value="{{ linked_device }}">
-                  {% endif %}
-                {% endif %}
-              </div>
-              <button type="submit" class="btn btn-success">{% trans "Guardar evento" %}</button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  {% endif %}
 {% endblock %}
 
 {% block extra_js %}
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
-  <script>
-    let calendar;
-    const I18N_EVENTS = {
-      allRegions: "{% trans 'Eventos de todas las regiones' %}",
-      regionPrefix: "{% trans 'Eventos de' %}",
-      chooseLocation: "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
-      saveErrorPrefix: "{% trans 'Error al guardar el evento:' %}",
-      imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
-    };
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
+<script>
+  let calendar;
+  const I18N_EVENTS = {
+    allRegions:       "{% trans 'Eventos de todas las regiones' %}",
+    regionPrefix:     "{% trans 'Eventos de' %}",
+    chooseLocation:   "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
+    saveErrorPrefix:  "{% trans 'Error al guardar el evento:' %}",
+    imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
+  };
 
-    const PALETTE = ["#A3E635", "#F472B6", "#F59E0B", "#34D399", "#F87171", "#C084FC", "#FB7185", "#FBBF24"];
-    function colorForDevice(name) {
-      if (!name) return "#9CA3AF";
-      let h = 0;
-      for (let i = 0; i < name.length; i++) {
-        h = ((h * 31) + name.charCodeAt(i)) >>> 0;
-      }
-      return PALETTE[h % PALETTE.length];
+  // ── Modal helpers ───────────────────────────────────────────────
+  function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
+  function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
+
+  document.addEventListener('click', function (e) {
+    // Close buttons
+    const closeBtn = e.target.closest('[data-close]');
+    if (closeBtn) { closeModal(closeBtn.dataset.close); return; }
+    // Backdrop click
+    if (e.target.classList.contains('ev-modal-overlay')) closeModal(e.target.id);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.ev-modal-overlay.open').forEach(function (el) {
+        el.classList.remove('open');
+      });
     }
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const heading = document.getElementById('currentRegion');
-      if (heading) {
-        const loc = new URLSearchParams(location.search).get('location');
-        heading.textContent = (!loc || loc === 'all')
-          ? I18N_EVENTS.allRegions
-          : `${I18N_EVENTS.regionPrefix} ${decodeURIComponent(loc)}`;
-      }
+  });
 
-      const calendarEl = document.getElementById('calendar');
-      calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'es',
-        height: 'auto',
-        headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        events: [
-          {% for evento in eventos %}
-            {
-              title: "{{ evento.title|escapejs }}",
-              start: "{{ evento.date }}",
-              description: "{{ evento.description|escapejs }}",
-              location: "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
-              color: "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
-              target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.created_by %},
-              created_by: "{{ evento.created_by|escapejs }}"{% endif %}
-            },
-          {% endfor %}
-        ],
-        eventClick: function(info) {
-          document.getElementById('modal-title').textContent = info.event.title;
-          document.getElementById('modal-date').textContent = info.event.start.toISOString().split('T')[0];
-          document.getElementById('modal-description').textContent = info.event.extendedProps.description;
-          document.getElementById('modal-location').textContent = info.event.extendedProps.location || '';
+  document.getElementById('openRegionBtn').addEventListener('click', function () { openModal('regionModal'); });
+  {% if user.is_authenticated %}
+    document.getElementById('openAddEventBtn').addEventListener('click', function () { openModal('addEventModal'); });
+  {% endif %}
 
-          const isPersonal = !!info.event.extendedProps.target_device;
-          const createdBy = info.event.extendedProps.created_by;
-          const row = document.getElementById('modal-createdby-row');
+  // ── Region title ────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    const loc = new URLSearchParams(location.search).get('location');
+    const label = (!loc || loc === 'all')
+      ? I18N_EVENTS.allRegions
+      : `${I18N_EVENTS.regionPrefix} ${decodeURIComponent(loc)}`;
+    const sub   = document.getElementById('currentRegionSub');
+    const title = document.getElementById('currentRegionTitle');
+    if (sub)   sub.textContent   = label;
+    if (title) title.textContent = label;
+  });
 
-          if (isPersonal && createdBy) {
-            document.getElementById('modal-createdby').textContent = createdBy;
-            row.style.display = 'block';
-          } else {
-            row.style.display = 'none';
-          }
+  // ── FullCalendar ────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    const calendarEl = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      locale: '{{ LANGUAGE_CODE }}',
+      height: 'auto',
+      headerToolbar: {
+        left:   'prev,next today',
+        center: 'title',
+        right:  'dayGridMonth,timeGridWeek,listMonth'
+      },
+      buttonText: {
+        today:     '{% trans "Hoy" %}',
+        month:     '{% trans "Mes" %}',
+        week:      '{% trans "Semana" %}',
+        list:      '{% trans "Lista" %}',
+      },
+      events: [
+        {% for evento in eventos %}
+          {
+            title:       "{{ evento.title|escapejs }}",
+            start:       "{{ evento.date }}",
+            description: "{{ evento.description|escapejs }}",
+            location:    "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
+            color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
+            target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.created_by %},
+            created_by:  "{{ evento.created_by|escapejs }}"{% endif %}
+          },
+        {% endfor %}
+      ],
+      eventClick: function (info) {
+        const dot  = document.getElementById('detailDot');
+        const props = info.event.extendedProps;
 
-          const eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
-          eventModal.show();
-        }
-      });
+        document.getElementById('detailTitle').textContent = info.event.title;
+        document.getElementById('detailDate').textContent  = info.event.start
+          ? info.event.start.toLocaleDateString('{{ LANGUAGE_CODE }}', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
+          : '';
 
-      calendar.render();
-    });
+        if (dot && info.event.backgroundColor) dot.style.background = info.event.backgroundColor;
 
-    {% if user.is_authenticated %}
-      // Device card multi-select for event creation
-      (function () {
-        const grid = document.getElementById('eventDeviceGrid');
-        if (!grid) return;
-        const hint = document.getElementById('eventDeviceHint');
-        const refreshState = function () {
-          const count = grid.querySelectorAll('.pz-device-card.is-selected').length;
-          if (hint) {
-            hint.textContent = count === 0
-              ? '{% trans "Sin selección → evento global visible para todos." %}'
-              : count === 1
-                ? '{% trans "1 mueble seleccionado → evento personal." %}'
-                : count + ' {% trans "muebles seleccionados → evento personal." %}';
-          }
-        };
-        grid.querySelectorAll('.pz-device-check').forEach(function (checkbox) {
-          checkbox.addEventListener('change', function () {
-            const card = checkbox.closest('.pz-device-card');
-            if (card) {
-              card.classList.toggle('is-selected', checkbox.checked);
-            }
-            refreshState();
-          });
-        });
-        refreshState();
-      })();
+        const loc = props.location || '';
+        document.getElementById('detailLocation').textContent = loc;
+        document.getElementById('detailLocationRow').style.display = loc ? '' : 'none';
 
-      document.getElementById('addEventForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+        const desc = props.description || '';
+        document.getElementById('detailDesc').textContent = desc;
+        document.getElementById('detailDescRow').style.display = desc ? '' : 'none';
 
-        const title = document.getElementById('eventTitle').value;
-        const date = document.getElementById('eventDate').value;
-        const description = document.getElementById('eventDescription').value;
-        const locSelectEl = document.getElementById('eventLocationSelect');
-        const locCustomEl = document.getElementById('eventLocationCustom');
-
-        // Collect selected device cards (multi-select)
-        const grid = document.getElementById('eventDeviceGrid');
-        let targetDevices = [];
-        if (grid) {
-          grid.querySelectorAll('.pz-device-check:checked').forEach(function (checkbox) {
-            targetDevices.push(checkbox.value);
-          });
-        }
-        const audience = targetDevices.length > 0 ? 'device' : 'all';
-        const color = targetDevices.length === 1 ? colorForDevice(targetDevices[0]) : null;
-
-        let eventLocation;
-        if (locSelectEl.value === '_new') {
-          eventLocation = (locCustomEl.value || '').trim();
+        const createdRow = document.getElementById('detailCreatedRow');
+        if (props.target_device && props.created_by) {
+          document.getElementById('detailCreated').textContent = props.created_by;
+          createdRow.style.display = '';
         } else {
-          eventLocation = (locSelectEl.value || '').trim();
+          createdRow.style.display = 'none';
         }
 
-        if (!eventLocation) {
-          alert(I18N_EVENTS.chooseLocation);
-          return;
-        }
+        openModal('eventDetailModal');
+      }
+    });
+    calendar.render();
+  });
 
-        fetch('/api/guardar_evento/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-          },
-          body: JSON.stringify({
-            title, date, description,
-            location: eventLocation,
-            audience,
-            target_devices: targetDevices,
-          })
-        })
-          .then(r => r.json())
-          .then(data => {
-            if (data.success) {
-              calendar.addEvent({
-                title: title,
-                start: date,
-                description: description,
-                location: eventLocation,
-                ...(color ? { color } : {})
-              });
-              document.getElementById('addEventForm').reset();
-              document.getElementById('eventLocationSelect').value = '';
-              document.getElementById('eventLocationCustom').value = '';
-              if (grid) {
-                grid.querySelectorAll('.pz-device-check:checked').forEach(function (checkbox) {
-                  checkbox.checked = false;
-                });
-                grid.querySelectorAll('.pz-device-card.is-selected').forEach(function (c) { c.classList.remove('is-selected'); });
-              }
-              if (document.getElementById('eventDeviceHint')) {
-                document.getElementById('eventDeviceHint').textContent = '{% trans "Sin selección → evento global visible para todos." %}';
-              }
-              const modal = bootstrap.Modal.getInstance(document.getElementById('addEventModal'));
-              modal.hide();
-            } else {
-              alert(`${I18N_EVENTS.saveErrorPrefix} ${data.error || ''}`);
-            }
-          })
-          .catch(err => console.error('Error en la solicitud:', err));
-      });
+  // ── Region filter ───────────────────────────────────────────────
+  function irAEventosConFiltro() {
+    const sel = document.getElementById('regionSelect').value;
+    window.location.href = '/eventos/?location=' + encodeURIComponent(sel || 'all');
+  }
 
-      document.getElementById('eventImage').addEventListener('change', function() {
-        const file = this.files[0];
-        if (!file) return;
+  // Pre-select current region in picker
+  document.addEventListener('DOMContentLoaded', function () {
+    const params = new URLSearchParams(window.location.search);
+    const loc    = params.get('location');
+    const sel    = document.getElementById('regionSelect');
+    if (sel && loc) {
+      const opt = Array.from(sel.options).find(o => o.value === loc);
+      if (opt) sel.value = loc;
+    }
+  });
 
-        const formData = new FormData();
-        formData.append('image', file);
+  // ── Global / Personal mode + chip filter ────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    const params       = new URLSearchParams(window.location.search);
+    const serverMode   = "{{ mode_selected|default:'' }}";
+    const serverTargets = new Set({{ selected_targets|default:'[]'|safe }});
 
-        fetch('/api/extraer_evento/', {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-          },
-          body: formData
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              document.getElementById('eventTitle').value = data.title || '';
-              document.getElementById('eventDate').value = data.date || '';
-              document.getElementById('eventDescription').value = data.description || '';
-            } else {
-              alert(`${I18N_EVENTS.imageErrorPrefix} ${data.error}`);
-            }
-          })
-          .catch(error => console.error('Error en la solicitud:', error));
-      });
-    {% endif %}
-  </script>
-  <script>
-    function irAEventosConFiltro() {
-      const seleccion = document.getElementById('regionSelect').value;
-      if (seleccion === "all") {
-        window.location.href = "/eventos/?location=all";
-      } else if (seleccion) {
-        window.location.href = `/eventos/?location=${encodeURIComponent(seleccion)}`;
+    const mode         = params.get('mode') || serverMode || 'global';
+    const targetsParam = (params.get('targets') || '').trim();
+
+    const modeGlobal   = document.getElementById('modeGlobal');
+    const modePersonal = document.getElementById('modePersonal');
+    const chipRow      = document.getElementById('personalPicker');
+
+    if (!modeGlobal || !modePersonal) return;
+    (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
+
+    function showPersonalControls(v) { if (chipRow) chipRow.style.display = v ? 'flex' : 'none'; }
+    showPersonalControls(mode === 'personal');
+
+    function navigate(nextMode, selectedIds) {
+      const p = new URLSearchParams(window.location.search);
+      p.set('mode', nextMode);
+      if (nextMode === 'personal') {
+        p.set('targets', selectedIds.size ? [...selectedIds].join(',') : 'all');
+      } else {
+        p.delete('targets');
+      }
+      window.location.search = p.toString();
+    }
+
+    const activeIds = new Set();
+    if (mode === 'personal') {
+      if (targetsParam && targetsParam !== 'all') {
+        targetsParam.split(',').filter(Boolean).forEach(id => activeIds.add(id));
+      } else {
+        serverTargets.forEach(id => activeIds.add(id));
       }
     }
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const locSelect = document.getElementById('eventLocationSelect');
-      const customGroup = document.getElementById('eventLocationCustomGroup');
-      const customInput = document.getElementById('eventLocationCustom');
 
-      if (!locSelect) return;
+    const chips = chipRow ? Array.from(chipRow.querySelectorAll('.device-chip')) : [];
 
-      const params = new URLSearchParams(window.location.search);
-      const currentLoc = params.get('location');
-      if (currentLoc && currentLoc !== 'all') {
-        const opt = Array.from(locSelect.options).find(o => o.value === currentLoc);
-        if (opt) locSelect.value = currentLoc;
-      }
-
-      const toggleCustom = () => {
-        const isNew = (locSelect.value === '_new');
-        customGroup.style.display = isNew ? 'block' : 'none';
-        if (!isNew) customInput.value = '';
-      };
-
-      locSelect.addEventListener('change', toggleCustom);
-      toggleCustom();
-    });
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const params      = new URLSearchParams(window.location.search);
-      const serverMode  = "{{ mode_selected|default:'' }}";
-      const serverTargets = new Set({{ selected_targets|default:'[]'|safe }});
-
-      const mode        = params.get('mode') || serverMode || 'global';
-      const targetsParam = (params.get('targets') || '').trim();
-
-      const modeGlobal   = document.getElementById('modeGlobal');
-      const modePersonal = document.getElementById('modePersonal');
-      const chipRow      = document.getElementById('personalPicker');
-
-      if (!(modeGlobal && modePersonal)) return;
-
-      (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
-
-      function showPersonalControls(visible) {
-        if (chipRow) chipRow.style.display = visible ? 'flex' : 'none';
-      }
-      showPersonalControls(mode === 'personal');
-
-      function navigate(nextMode, selectedIds) {
-        const p = new URLSearchParams(window.location.search);
-        p.set('mode', nextMode);
-        if (nextMode === 'personal') {
-          p.set('targets', selectedIds.size ? [...selectedIds].join(',') : 'all');
-        } else {
-          p.delete('targets');
-        }
-        window.location.search = p.toString();
-      }
-
-      // Initialise active chip set from URL / server state
-      const activeIds = new Set();
-      if (mode === 'personal') {
-        if (targetsParam && targetsParam !== 'all') {
-          targetsParam.split(',').filter(Boolean).forEach(id => activeIds.add(id));
-        } else {
-          serverTargets.forEach(id => activeIds.add(id));
-        }
-      }
-
-      const chips = chipRow ? Array.from(chipRow.querySelectorAll('.device-chip')) : [];
-
-      function refreshChips() {
-        chips.forEach(chip => {
-          const id = chip.dataset.device;
-          chip.classList.toggle('is-active',
-            id === 'all' ? activeIds.size === 0 : activeIds.has(id));
-        });
-      }
-      refreshChips();
-
+    function refreshChips() {
       chips.forEach(chip => {
-        chip.addEventListener('click', () => {
-          const id = chip.dataset.device;
-          if (id === 'all') {
-            activeIds.clear();
-          } else {
-            if (activeIds.has(id)) activeIds.delete(id); else activeIds.add(id);
-          }
-          navigate('personal', activeIds);
-        });
+        chip.classList.toggle('is-active',
+          chip.dataset.device === 'all' ? activeIds.size === 0 : activeIds.has(chip.dataset.device));
       });
+    }
+    refreshChips();
 
-      modeGlobal.addEventListener('change', () => {
-        showPersonalControls(false);
-        navigate('global', new Set());
-      });
-
-      modePersonal.addEventListener('change', () => {
-        showPersonalControls(true);
-        navigate('personal', new Set());
+    chips.forEach(chip => {
+      chip.addEventListener('click', function () {
+        const id = chip.dataset.device;
+        if (id === 'all') { activeIds.clear(); }
+        else { if (activeIds.has(id)) activeIds.delete(id); else activeIds.add(id); }
+        navigate('personal', activeIds);
       });
     });
-  </script>
+
+    modeGlobal.addEventListener('change',   function () { showPersonalControls(false); navigate('global', new Set()); });
+    modePersonal.addEventListener('change', function () { showPersonalControls(true);  navigate('personal', new Set()); });
+  });
+
+  {% if user.is_authenticated %}
+  // ── Location custom field toggle ────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    const locSel    = document.getElementById('eventLocationSelect');
+    const customGrp = document.getElementById('eventLocationCustomGroup');
+    const customIn  = document.getElementById('eventLocationCustom');
+    if (!locSel) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const cur    = params.get('location');
+    if (cur && cur !== 'all') {
+      const opt = Array.from(locSel.options).find(o => o.value === cur);
+      if (opt) locSel.value = cur;
+    }
+
+    function toggleCustom() {
+      const isNew = locSel.value === '_new';
+      customGrp.style.display = isNew ? '' : 'none';
+      if (!isNew) customIn.value = '';
+    }
+    locSel.addEventListener('change', toggleCustom);
+    toggleCustom();
+  });
+
+  // ── Device targeting grid ───────────────────────────────────────
+  (function () {
+    const grid = document.getElementById('eventDeviceGrid');
+    if (!grid) return;
+    const hint = document.getElementById('eventDeviceHint');
+
+    function refreshState() {
+      const count = grid.querySelectorAll('.ev-device-check:checked').length;
+      if (hint) hint.textContent = count === 0
+        ? '{% trans "Sin selección → evento global visible para todos." %}'
+        : count === 1
+          ? '{% trans "1 mueble seleccionado → evento personal." %}'
+          : count + ' {% trans "muebles seleccionados → evento personal." %}';
+    }
+
+    grid.querySelectorAll('.ev-device-check').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        cb.closest('.ev-device-card').classList.toggle('is-selected', cb.checked);
+        refreshState();
+      });
+    });
+    refreshState();
+  })();
+
+  // ── Image file label update ─────────────────────────────────────
+  document.getElementById('eventImage').addEventListener('change', function () {
+    const name = document.getElementById('eventImageName');
+    if (name) name.textContent = this.files[0] ? this.files[0].name : '';
+
+    const file = this.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    fetch('/api/extraer_evento/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+      body: formData
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          if (data.title)       document.getElementById('eventTitle').value       = data.title;
+          if (data.date)        document.getElementById('eventDate').value        = data.date;
+          if (data.description) document.getElementById('eventDescription').value = data.description;
+        } else {
+          window.showToast(`${I18N_EVENTS.imageErrorPrefix} ${data.error}`, 'error');
+        }
+      })
+      .catch(err => console.error(err));
+  });
+
+  // ── Submit add event ────────────────────────────────────────────
+  document.getElementById('addEventForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const title       = document.getElementById('eventTitle').value;
+    const date        = document.getElementById('eventDate').value;
+    const description = document.getElementById('eventDescription').value;
+    const locSel      = document.getElementById('eventLocationSelect');
+    const locCustom   = document.getElementById('eventLocationCustom');
+
+    const grid = document.getElementById('eventDeviceGrid');
+    let targetDevices = [];
+    if (grid) {
+      grid.querySelectorAll('.ev-device-check:checked').forEach(cb => targetDevices.push(cb.value));
+    }
+
+    let eventLocation = locSel.value === '_new'
+      ? (locCustom.value || '').trim()
+      : (locSel.value || '').trim();
+
+    if (!eventLocation) { window.showToast(I18N_EVENTS.chooseLocation, 'warning'); return; }
+
+    const audience = targetDevices.length > 0 ? 'device' : 'all';
+
+    fetch('/api/guardar_evento/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ title, date, description, location: eventLocation, audience, target_devices: targetDevices })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          calendar.addEvent({ title, start: date, description, location: eventLocation });
+          document.getElementById('addEventForm').reset();
+          if (grid) {
+            grid.querySelectorAll('.ev-device-check:checked').forEach(cb => { cb.checked = false; });
+            grid.querySelectorAll('.ev-device-card.is-selected').forEach(c => c.classList.remove('is-selected'));
+          }
+          const hint = document.getElementById('eventDeviceHint');
+          if (hint) hint.textContent = '{% trans "Sin selección → evento global visible para todos." %}';
+          const name = document.getElementById('eventImageName');
+          if (name) name.textContent = '';
+          closeModal('addEventModal');
+          window.showToast('{% trans "Evento guardado correctamente." %}', 'success');
+        } else {
+          window.showToast(`${I18N_EVENTS.saveErrorPrefix} ${data.error || ''}`, 'error');
+        }
+      })
+      .catch(err => { console.error(err); window.showToast(I18N_EVENTS.saveErrorPrefix, 'error'); });
+  });
+  {% endif %}
+</script>
 {% endblock %}
