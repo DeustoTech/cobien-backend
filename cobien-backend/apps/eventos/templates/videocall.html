@@ -640,6 +640,23 @@
       return username && username.toLowerCase().includes('cobien');
     }
 
+    function closeEmbeddedCall(reason = 'ended') {
+      const target = `cobien://call-ended?reason=${encodeURIComponent(reason)}`;
+      try {
+        window.location.href = target;
+      } catch (error) {
+        console.warn('⚠️ Could not trigger embedded close sentinel:', error);
+        window.location.href = HOME_URL;
+        return;
+      }
+      setTimeout(() => {
+        if (window.location.href !== target) {
+          return;
+        }
+        window.location.href = HOME_URL;
+      }, 1500);
+    }
+
     function updateGridLayout() {
       const videoContainer = document.getElementById('video-container');
       const remoteParticipants = document.querySelectorAll('.video-box.remote-participant');
@@ -747,7 +764,7 @@
         } else {
           identity = "{{ identity|escapejs }}";
           if (!identity || !identity.trim()) {
-            window.location.href = HOME_URL;
+            closeEmbeddedCall('missing-identity');
             return;
           }
 
@@ -755,7 +772,7 @@
           const sel = document.getElementById('roomSelect');
           roomName = (sel && sel.value) ? sel.value.trim() : "{{ default_room|escapejs }}";
           if (!roomName) {
-            window.location.href = HOME_URL;
+            closeEmbeddedCall('missing-room');
             return;
           }
 
@@ -835,6 +852,7 @@
               cancelAnimationFrame(rafId);
               actx.close();
               if (vuWrap) vuWrap.style.display = 'none';
+              closeEmbeddedCall('room-disconnected');
             });
           } catch (e) {
             console.warn('VU meter unavailable:', e);
@@ -938,7 +956,13 @@
           }
         }
 
+        let autoCloseIfNoRemoteParticipants = null;
+
         function addParticipantVideo(participant) {
+          if (autoCloseIfNoRemoteParticipants) {
+            clearTimeout(autoCloseIfNoRemoteParticipants);
+            autoCloseIfNoRemoteParticipants = null;
+          }
           const participantDiv = document.createElement('div');
           participantDiv.id = `participant-${participant.identity}`;
           participantDiv.classList.add('video-box', 'remote-participant');
@@ -974,6 +998,11 @@
             updateGridLayout();
             updateParticipantCount();
           }
+          if (room.participants.size === 0) {
+            autoCloseIfNoRemoteParticipants = setTimeout(() => {
+              closeEmbeddedCall('no-remote-participants');
+            }, 1800);
+          }
         });
 
         updateGridLayout();
@@ -986,7 +1015,7 @@
         document.getElementById('leave-room').onclick = () => {
           cleanup();
           room.disconnect();
-          window.location.href = HOME_URL;
+          closeEmbeddedCall('manual-leave');
         };
       } catch (error) {
         console.error("❌ Error en la videollamada:", error);
@@ -999,7 +1028,7 @@
           ? I18N_VIDEOCALL.missingDevices
           : `${I18N_VIDEOCALL.startupErrorPrefix} ${msg}`;
         alert(mensaje);
-        window.location.href = HOME_URL;
+        closeEmbeddedCall('startup-error');
       }
     }
 
