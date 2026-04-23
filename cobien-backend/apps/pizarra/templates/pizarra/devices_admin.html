@@ -344,12 +344,14 @@
                   <strong style="color:var(--danger, #dc2626);">{% trans "Zona de peligro" %}</strong>
                   <p class="muted" style="margin:4px 0 0;">{% trans "Eliminar este mueble borrará también todos sus mensajes, notificaciones, eventos ICSO y asignaciones de usuarios. Esta acción es irreversible." %}</p>
                 </div>
-                <button type="button" class="btn-danger"
-                        data-device-id="{{ selected_device }}"
-                        data-delete-url="{% url 'pizarra_device_delete' %}"
-                        id="deleteDeviceBtn">
-                  {% trans "Eliminar mueble" %}
-                </button>
+                <form method="post"
+                      onsubmit="return confirm('{% trans "¿Eliminar el mueble" %} &quot;{{ selected_device }}&quot;{% trans " y todos sus datos asociados (mensajes, notificaciones, ICSO, asignaciones)? Esta acción es irreversible." %}');">
+                  {% csrf_token %}
+                  <input type="hidden" name="device_id" value="{{ selected_device }}">
+                  <button type="submit" name="action" value="delete" class="btn-danger">
+                    {% trans "Eliminar mueble" %}
+                  </button>
+                </form>
               </div>
             </div>
           </section>
@@ -473,45 +475,6 @@
 
 {% block extra_js %}
   <script>
-    // --- Delete device via dedicated endpoint ---
-    (function () {
-      const btn = document.getElementById('deleteDeviceBtn');
-      if (!btn) return;
-      btn.addEventListener('click', function () {
-        const deviceId = btn.dataset.deviceId;
-        const url = btn.dataset.deleteUrl;
-        if (!deviceId || !url) return;
-        if (!confirm('¿Eliminar el mueble "' + deviceId + '" y todos sus datos asociados (mensajes, notificaciones, ICSO, asignaciones)? Esta acción es irreversible.')) return;
-        btn.disabled = true;
-        btn.textContent = 'Eliminando…';
-        const csrf = document.querySelector('meta[name="csrf-token"]') || document.querySelector('[name=csrfmiddlewaretoken]');
-        const csrfValue = csrf ? (csrf.content || csrf.value || '') : '';
-        const body = new URLSearchParams({ device_id: deviceId });
-        fetch(url, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfValue,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: body.toString(),
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.ok) {
-            window.location.href = '{% url "pizarra_devices_admin" %}';
-          } else {
-            alert('Error al eliminar: ' + (data.error || 'desconocido'));
-            btn.disabled = false;
-            btn.textContent = '{% trans "Eliminar mueble" %}';
-          }
-        })
-        .catch(err => {
-          alert('Error de red: ' + err);
-          btn.disabled = false;
-          btn.textContent = '{% trans "Eliminar mueble" %}';
-        });
-      });
-    })();
 
     (function () {
       // Sync user checkboxes → hidden textarea on form submit
