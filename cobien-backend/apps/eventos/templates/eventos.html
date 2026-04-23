@@ -59,15 +59,6 @@
     .device-chip.is-active .chip-dot--online  { background: rgba(255,255,255,.9); }
     .device-chip.is-active .chip-dot--offline { background: rgba(255,255,255,.45); }
 
-    /* ── Legend strip ─────────────────────────────────────────────────── */
-    .compact-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-    .legend-badge {
-      font-size: .75rem; padding: 3px 10px; border-radius: 12px;
-      background: color-mix(in srgb, var(--swatch) 15%, white);
-      border: 1px solid color-mix(in srgb, var(--swatch) 45%, transparent);
-      color: color-mix(in srgb, var(--swatch) 70%, #1f2937);
-      font-weight: 500;
-    }
   </style>
 {% endblock %}
 
@@ -121,11 +112,6 @@
                 <span class="chip-dot chip-dot--{{ device.status }}"></span>
                 <span>{{ device.display_name }}</span>
               </button>
-            {% endfor %}
-          </div>
-          <div class="legend compact-legend" id="deviceLegend" style="display:none;">
-            {% for d in my_device_colors %}
-              <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.display_name }}</span>
             {% endfor %}
           </div>
         {% endif %}
@@ -519,7 +505,6 @@
       const modeGlobal   = document.getElementById('modeGlobal');
       const modePersonal = document.getElementById('modePersonal');
       const chipRow      = document.getElementById('personalPicker');
-      const legend       = document.getElementById('deviceLegend');
 
       if (!(modeGlobal && modePersonal)) return;
 
@@ -527,7 +512,6 @@
 
       function showPersonalControls(visible) {
         if (chipRow) chipRow.style.display = visible ? 'flex' : 'none';
-        if (legend)  legend.style.display  = visible ? 'flex' : 'none';
       }
       showPersonalControls(mode === 'personal');
 
