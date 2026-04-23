@@ -7,6 +7,52 @@
 {% block extra_head %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
+  <style>
+    /* ── Device chip strip (personal mode filter) ─────────────────────── */
+    .device-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .device-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--chip-accent, #9CA3AF);
+      background: transparent;
+      color: var(--chip-accent, #6B7280);
+      font-size: .82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      white-space: nowrap;
+    }
+    .device-chip .chip-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--chip-accent, #9CA3AF);
+      flex-shrink: 0;
+    }
+    .device-chip--all {
+      --chip-accent: #6B7280;
+    }
+    .device-chip.is-active {
+      background: var(--chip-accent, #6B7280);
+      color: #fff;
+    }
+    .device-chip.is-active .chip-dot {
+      background: rgba(255,255,255,.7);
+    }
+    /* ── Legend strip ─────────────────────────────────────────────────── */
+    .compact-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .legend-badge { font-size: .75rem; padding: 2px 9px; border-radius: 12px;
+      background: color-mix(in srgb, var(--swatch) 18%, white);
+      border: 1px solid var(--swatch); color: color-mix(in srgb, var(--swatch) 60%, #1f2937); }
+  </style>
 {% endblock %}
 
 {% block content %}
@@ -45,44 +91,25 @@
             <input type="radio" class="sgmt-input" name="mode" id="modePersonal" value="personal">
             <label class="sgmt" for="modePersonal">{% trans "Personal" %}</label>
           </div>
-
-          {% if my_devices %}
-            <div id="personalPicker" class="personal-picker">
-              <button id="personalToggle" type="button" class="btn btn-ghost">
-                <span id="personalLabel">{% trans "Todos los destinatarios" %}</span>
-              </button>
-              <div id="personalPanel" class="personal-panel" style="display:none;">
-                <label class="form-label" for="targetSearch">{% trans "Buscar mueble" %}</label>
-                <input id="targetSearch" type="text" placeholder="{% trans 'Filtrar por nombre o ID' %}">
-                <ul class="target-list">
-                  <li>
-                    <label class="legend-badge">
-                      <input id="targets_all" type="checkbox" checked>
-                      {% trans "Todos los destinatarios" %}
-                    </label>
-                  </li>
-                  {% for device in my_devices %}
-                    <li>
-                      <label class="legend-badge">
-                        <input class="target-item" type="checkbox" value="{{ device }}">
-                        {{ device }}
-                      </label>
-                    </li>
-                  {% endfor %}
-                </ul>
-                <div class="bottom-action-bar">
-                  <button id="targets_clear" type="button" class="btn btn-ghost">{% trans "Limpiar" %}</button>
-                  <button id="targets_apply" type="button" class="btn btn-primary">{% trans "Aplicar" %}</button>
-                </div>
-              </div>
-            </div>
-          {% endif %}
         </div>
 
-        {% if my_device_colors %}
-          <div class="legend compact-legend">
+        {% if my_devices %}
+          <div id="personalPicker" class="device-chip-row" style="display:none;">
+            <button type="button" class="device-chip device-chip--all" data-device="all">
+              {% trans "Todos" %}
+            </button>
+            {% for device in my_devices %}
+              <button type="button" class="device-chip"
+                      data-device="{{ device.device_id }}"
+                      style="--chip-accent: {{ device.color }}">
+                <span class="chip-dot"></span>
+                <span>{{ device.display_name }}</span>
+              </button>
+            {% endfor %}
+          </div>
+          <div class="legend compact-legend" id="deviceLegend" style="display:none;">
             {% for d in my_device_colors %}
-              <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.name }}</span>
+              <span class="legend-badge" style="--swatch: {{ d.color }}">{{ d.display_name }}</span>
             {% endfor %}
           </div>
         {% endif %}
@@ -227,8 +254,6 @@
       chooseLocation: "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
       saveErrorPrefix: "{% trans 'Error al guardar el evento:' %}",
       imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
-      allRecipients: "{% trans 'Todos los destinatarios' %}",
-      selectedPrefix: "{% trans 'Seleccionados' %}"
     };
 
     const PALETTE = ["#A3E635", "#F472B6", "#F59E0B", "#34D399", "#F87171", "#C084FC", "#FB7185", "#FBBF24"];
@@ -468,142 +493,81 @@
   </script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const params = new URLSearchParams(window.location.search);
-      const serverMode = "{{ mode_selected|default:'' }}";
-      const serverTargets = ({{ selected_targets|default:'[]'|safe }});
+      const params      = new URLSearchParams(window.location.search);
+      const serverMode  = "{{ mode_selected|default:'' }}";
+      const serverTargets = new Set({{ selected_targets|default:'[]'|safe }});
 
-      let mode = params.get('mode') || serverMode || 'global';
-      let targets = (params.get('targets') || '').trim();
+      const mode        = params.get('mode') || serverMode || 'global';
+      const targetsParam = (params.get('targets') || '').trim();
 
-      const modeGlobal = document.getElementById('modeGlobal');
+      const modeGlobal   = document.getElementById('modeGlobal');
       const modePersonal = document.getElementById('modePersonal');
-      const personalBox = document.getElementById('personalPicker');
-      const btnToggle = document.getElementById('personalToggle');
-      const panel = document.getElementById('personalPanel');
-      const labelBtn = document.getElementById('personalLabel');
-      const checkAll = document.getElementById('targets_all');
-      const targetChecks = Array.from(document.querySelectorAll('.target-item'));
-      const btnApply = document.getElementById('targets_apply');
-      const btnClear = document.getElementById('targets_clear');
-      const inputSearch = document.getElementById('targetSearch');
+      const chipRow      = document.getElementById('personalPicker');
+      const legend       = document.getElementById('deviceLegend');
 
       if (!(modeGlobal && modePersonal)) return;
 
       (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
-      if (personalBox) {
-        personalBox.style.display = (mode === 'personal') ? 'inline-block' : 'none';
-      }
 
-      function setChecksFromValue(list) {
-        if (!(checkAll && targetChecks.length)) return;
-        if (!list || list === 'all') {
-          checkAll.checked = true;
-          targetChecks.forEach(c => c.checked = false);
-          updateSummary();
-          return;
-        }
-        const wanted = new Set(list.split(',').filter(Boolean));
-        checkAll.checked = false;
-        targetChecks.forEach(c => c.checked = wanted.has(c.value));
-        updateSummary();
+      function showPersonalControls(visible) {
+        if (chipRow) chipRow.style.display = visible ? 'flex' : 'none';
+        if (legend)  legend.style.display  = visible ? 'flex' : 'none';
       }
+      showPersonalControls(mode === 'personal');
 
-      function currentSelectionCSV() {
-        if (!checkAll) return 'all';
-        return checkAll.checked ? 'all' : targetChecks.filter(c => c.checked).map(c => c.value).join(',');
-      }
-
-      function updateSummary() {
-        if (!labelBtn) return;
-        const csv = currentSelectionCSV();
-        if (csv === 'all' || csv === '') {
-          labelBtn.textContent = I18N_EVENTS.allRecipients;
-          return;
-        }
-        const count = csv.split(',').length;
-        labelBtn.textContent = `${I18N_EVENTS.selectedPrefix} (${count})`;
-      }
-
-      function navigate(nextMode, targetsCSV) {
+      function navigate(nextMode, selectedIds) {
         const p = new URLSearchParams(window.location.search);
         p.set('mode', nextMode);
         if (nextMode === 'personal') {
-          p.set('targets', (targetsCSV && targetsCSV.length) ? targetsCSV : 'all');
+          p.set('targets', selectedIds.size ? [...selectedIds].join(',') : 'all');
         } else {
           p.delete('targets');
         }
         window.location.search = p.toString();
       }
 
-      if (targets) setChecksFromValue(targets);
-      else if (serverTargets && serverTargets.length) setChecksFromValue(serverTargets.join(','));
-      else setChecksFromValue('all');
+      // Initialise active chip set from URL / server state
+      const activeIds = new Set();
+      if (mode === 'personal') {
+        if (targetsParam && targetsParam !== 'all') {
+          targetsParam.split(',').filter(Boolean).forEach(id => activeIds.add(id));
+        } else {
+          serverTargets.forEach(id => activeIds.add(id));
+        }
+      }
+
+      const chips = chipRow ? Array.from(chipRow.querySelectorAll('.device-chip')) : [];
+
+      function refreshChips() {
+        chips.forEach(chip => {
+          const id = chip.dataset.device;
+          chip.classList.toggle('is-active',
+            id === 'all' ? activeIds.size === 0 : activeIds.has(id));
+        });
+      }
+      refreshChips();
+
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          const id = chip.dataset.device;
+          if (id === 'all') {
+            activeIds.clear();
+          } else {
+            if (activeIds.has(id)) activeIds.delete(id); else activeIds.add(id);
+          }
+          navigate('personal', activeIds);
+        });
+      });
 
       modeGlobal.addEventListener('change', () => {
-        if (personalBox) personalBox.style.display = 'none';
-        navigate('global', '');
+        showPersonalControls(false);
+        navigate('global', new Set());
       });
 
       modePersonal.addEventListener('change', () => {
-        if (personalBox) personalBox.style.display = 'inline-block';
+        showPersonalControls(true);
+        navigate('personal', new Set());
       });
-
-      let open = false;
-      function setOpen(v) {
-        if (!panel) return;
-        open = v;
-        panel.style.display = open ? 'block' : 'none';
-      }
-      setOpen(false);
-
-      if (btnToggle) {
-        btnToggle.addEventListener('click', () => setOpen(!open));
-      }
-      document.addEventListener('click', (e) => {
-        if (!open || !personalBox) return;
-        if (!personalBox.contains(e.target)) setOpen(false);
-      });
-
-      if (inputSearch) {
-        inputSearch.addEventListener('input', () => {
-          const q = inputSearch.value.toLowerCase();
-          document.querySelectorAll('.target-list li').forEach(li => {
-            const name = li.textContent.trim().toLowerCase();
-            li.style.display = name.includes(q) ? '' : 'none';
-          });
-        });
-      }
-
-      if (checkAll) {
-        checkAll.addEventListener('change', () => {
-          if (checkAll.checked) targetChecks.forEach(c => c.checked = false);
-          updateSummary();
-        });
-      }
-
-      targetChecks.forEach(c => {
-        c.addEventListener('change', () => {
-          if (checkAll) {
-            if (targetChecks.some(t => t.checked)) checkAll.checked = false;
-            else checkAll.checked = true;
-          }
-          updateSummary();
-        });
-      });
-
-      if (btnClear) {
-        btnClear.addEventListener('click', () => {
-          if (checkAll) checkAll.checked = true;
-          targetChecks.forEach(c => c.checked = false);
-          updateSummary();
-        });
-      }
-
-      if (btnApply) {
-        btnApply.addEventListener('click', () => {
-          navigate('personal', currentSelectionCSV());
-        });
-      }
     });
   </script>
 {% endblock %}

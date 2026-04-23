@@ -183,13 +183,24 @@ def lista_eventos(request):
             "status": device_online_status(device),
         })
 
-    # 4) Picker legend — union of accessible + any device targeted by visible events
+    # 4) Picker legend — only show devices that are actually registered in the registry.
+    # We do NOT include orphan device IDs from old events that have no matching device doc,
+    # because those are stale data (e.g. a "maria" ID from a test event years ago).
+    _display_map = {card["device_id"]: card["display_name"] for card in device_cards}
+    for did in accessible_devices:
+        if did not in _display_map:
+            _dev = get_or_create_device(did)
+            if _dev:
+                _display_map[did] = str(_dev.get("display_name") or did).strip() or did
+
+    _registered_ids = set(_display_map)
     filtro_devices = {"$and": (condiciones[:] + [{"audience": "device"}])} if condiciones else {"audience": "device"}
-    my_devices = sorted(
-        set(d for d in collection.distinct("target_device", filtro_devices) if d).union(accessible_devices),
-        key=str.casefold,
-    )
-    my_device_colors = [{"name": d, "color": color_for_device(d)} for d in my_devices]
+    _candidate_ids = set(d for d in collection.distinct("target_device", filtro_devices) if d).union(accessible_devices)
+    my_devices = [
+        {"device_id": did, "display_name": _display_map[did], "color": color_for_device(did)}
+        for did in sorted(_candidate_ids & _registered_ids, key=lambda d: _display_map[d].casefold())
+    ]
+    my_device_colors = my_devices
 
     # 4) NUEVO: parámetros modernos
     mode = request.GET.get("mode")  # 'global' | 'personal' | None
@@ -211,7 +222,8 @@ def lista_eventos(request):
         condiciones.append({"audience": "device"})
         selected_targets = []
         if targets_param and targets_param != "all":
-            selected_targets = [t for t in targets_param.split(",") if t in my_devices]
+            _my_device_ids = {d["device_id"] for d in my_devices}
+            selected_targets = [t for t in targets_param.split(",") if t in _my_device_ids]
             if selected_targets:
                 condiciones.append({"$or": [
                     {"target_device": {"$in": selected_targets}},
