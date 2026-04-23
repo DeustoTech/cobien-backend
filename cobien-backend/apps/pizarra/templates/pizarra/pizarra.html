@@ -63,9 +63,9 @@
     gap: 7px;
     padding: 5px 14px;
     border-radius: 20px;
-    border: 1.5px solid var(--c, #9CA3AF);
+    border: 1.5px solid #6366F1;
     background: transparent;
-    color: var(--c, #6B7280);
+    color: #6366F1;
     font-size: .82rem;
     font-weight: 600;
     cursor: pointer;
@@ -73,23 +73,14 @@
     transition: background .15s, color .15s;
     user-select: none;
   }
-  .pz-chip:hover { background: color-mix(in srgb, var(--c) 12%, transparent); }
-  .pz-chip.active { background: var(--c); color: #fff; }
-  .pz-chip.active .pz-chip-dot { background: rgba(255,255,255,.7); }
+  .pz-chip:hover { background: #EEF2FF; }
+  .pz-chip.active { background: #6366F1; color: #fff; border-color: #6366F1; }
 
-  .pz-chip-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--c, #9CA3AF);
-    flex-shrink: 0;
-    transition: background .15s;
-  }
-  .pz-chip.active .pz-chip-dot { background: rgba(255,255,255,.8); }
-
+  .pz-chip-dot { width:8px; height:8px; border-radius:50%; background:#D1D5DB; flex-shrink:0; }
   .pz-chip-dot--online  { background: #34D399; }
-  .pz-chip-dot--offline { background: #9CA3AF; }
+  .pz-chip-dot--offline { background: #D1D5DB; }
   .pz-chip.active .pz-chip-dot--online  { background: rgba(255,255,255,.9); }
-  .pz-chip.active .pz-chip-dot--offline { background: rgba(255,255,255,.5); }
+  .pz-chip.active .pz-chip-dot--offline { background: rgba(255,255,255,.4); }
 
   /* ── Dropzone de imagen ── */
   .pz-dropzone {
@@ -325,8 +316,7 @@
         {% for card in device_cards %}
           <button type="button" class="pz-chip{% if card.is_selected %} active{% endif %}"
                   data-device="{{ card.device_id }}"
-                  data-name="{{ card.display_name }}"
-                  style="--c: {{ card.color }}">
+                  data-name="{{ card.display_name }}">
             <span class="pz-chip-dot pz-chip-dot--{{ card.status }}"></span>
             <span>{{ card.display_name }}</span>
           </button>

@@ -29,7 +29,6 @@
             <a class="site-nav-link{% if request.resolver_match.url_name == 'videocall' %} is-active{% endif %}" href="{% url 'videocall' %}">{% trans "Videollamadas" %}</a>
             <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_home' %} is-active{% endif %}" href="{% url 'pizarra_home' %}">{% trans "Pizarra" %}</a>
             {% if user.is_staff or user.is_superuser %}
-              <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_icso_dashboard' %} is-active{% endif %}" href="{% url 'pizarra_icso_dashboard' %}">ICSO</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_directory_people_admin' %} is-active{% endif %}" href="{% url 'pizarra_directory_people_admin' %}">{% trans "Usuarios" %}</a>
             {% endif %}
@@ -87,13 +86,8 @@
         </div>
       </header>
 
-      {% if messages %}
-        <div class="site-width flash-stack">
-          {% for m in messages %}
-            <div class="flash-message">{{ m }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
+      <!-- Toast container (fed by JS below) -->
+      <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
       <main class="site-main">
         <div class="site-width site-content {% block page_class %}{% endblock %}">
@@ -115,6 +109,94 @@
         </div>
       </footer>
     </div>
+
+    {% if messages %}
+    <script>
+    window.__cobienMessages = [
+      {% for m in messages %}{"text":"{{ m.message|escapejs }}","level":"{{ m.tags|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
+    ];
+    </script>
+    {% endif %}
+
+    <style>
+      #toastContainer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+        width: 340px;
+      }
+      .cb-toast {
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,.14);
+        border-left: 4px solid #6366F1;
+        padding: 14px 16px 0;
+        pointer-events: all;
+        position: relative;
+        overflow: hidden;
+        animation: cbToastIn .22s ease;
+      }
+      .cb-toast.cb-toast--success { border-left-color: #10B981; }
+      .cb-toast.cb-toast--error   { border-left-color: #EF4444; }
+      .cb-toast.cb-toast--warning { border-left-color: #F59E0B; }
+      .cb-toast.cb-toast--info    { border-left-color: #6366F1; }
+      .cb-toast-msg {
+        font-size: .88rem;
+        color: #111827;
+        line-height: 1.4;
+        padding-bottom: 12px;
+      }
+      .cb-toast-bar {
+        height: 3px;
+        width: 100%;
+        background: #10B981;
+        transform-origin: left;
+        animation: cbToastBar 4s linear forwards;
+      }
+      .cb-toast--error   .cb-toast-bar { background: #EF4444; }
+      .cb-toast--warning .cb-toast-bar { background: #F59E0B; }
+      .cb-toast--info    .cb-toast-bar { background: #6366F1; }
+      .cb-toast--success .cb-toast-bar { background: #10B981; }
+      @keyframes cbToastIn  { from { opacity:0; transform:translateX(16px); } }
+      @keyframes cbToastBar { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+    </style>
+
+    <script>
+    (function () {
+      function showToast(text, level) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const cls = level.includes('error') ? 'cb-toast--error'
+                  : level.includes('success') ? 'cb-toast--success'
+                  : level.includes('warning') ? 'cb-toast--warning'
+                  : 'cb-toast--info';
+        const el = document.createElement('div');
+        el.className = 'cb-toast ' + cls;
+        el.setAttribute('role', 'status');
+        el.innerHTML = '<div class="cb-toast-msg">' + text + '</div><div class="cb-toast-bar"></div>';
+        container.appendChild(el);
+        setTimeout(function () {
+          el.style.transition = 'opacity .3s, transform .3s';
+          el.style.opacity = '0';
+          el.style.transform = 'translateX(16px)';
+          setTimeout(function () { el.remove(); }, 320);
+        }, 4100);
+      }
+      window.showToast = showToast;
+      document.addEventListener('DOMContentLoaded', function () {
+        (window.__cobienMessages || []).forEach(function (m) {
+          showToast(m.text, m.level);
+        });
+      });
+    })();
+    </script>
 
     <script>
       document.addEventListener('DOMContentLoaded', function () {

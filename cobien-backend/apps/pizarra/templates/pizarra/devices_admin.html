@@ -3,584 +3,737 @@
 {% load cobien_filters %}
 
 {% block title %}CoBien · {% trans "Muebles" %}{% endblock %}
-{% block page_class %}pizarra{% endblock %}
+{% block page_class %}dm-page{% endblock %}
 
 {% block extra_head %}
 <meta name="csrf-token" content="{{ csrf_token }}">
 <style>
-.device-selector-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-.device-selector-card {
-  display: block;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: #fff;
-  color: inherit;
-  text-decoration: none;
-  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
-}
-.device-selector-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--brand-blue);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
-}
-.device-selector-card.is-active {
-  border-color: var(--brand-blue);
-  background: var(--brand-blue-soft);
-}
-.device-selector-card h3 {
-  margin: 0 0 8px;
-  font-size: 1.05rem;
-}
-.device-selector-meta {
+/* ── Layout ── */
+.dm-wrap { display:flex; flex-direction:column; gap:0; height:calc(100vh - 70px); overflow:hidden; }
+
+.dm-topbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: var(--muted);
-  font-size: .82rem;
-}
-.device-shell {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-}
-.device-column {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.mini-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-.mini-card {
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-}
-.mini-card strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--text);
-}
-.hardware-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  background: var(--card-bg, #fff);
+  flex-shrink: 0;
   gap: 12px;
 }
-.hardware-card {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+.dm-topbar-left h1 { margin:0; font-size:1.15rem; font-weight:700; }
+.dm-topbar-left p  { margin:2px 0 0; font-size:.82rem; color:var(--text-muted,#6B7280); }
+.dm-topbar-right   { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+
+.dm-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.dm-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border, #E5E7EB);
+  background: var(--surface-muted, #F9FAFB);
+  overflow: hidden;
+}
+.dm-sidebar-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  flex-shrink: 0;
+}
+.dm-sidebar-search {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border, #D1D5DB);
+  border-radius: 8px;
+  font-size: .82rem;
   background: #fff;
+  color: var(--text, #111827);
+  box-sizing: border-box;
 }
-.hardware-card strong { display: block; margin-bottom: 8px; }
-.icso-event-list {
-  max-height: 480px;
+.dm-sidebar-search:focus { outline:none; border-color:#6366F1; }
+
+.dm-device-list { flex:1; overflow-y:auto; padding:6px; }
+
+.dm-device-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .12s;
+  cursor: pointer;
+}
+.dm-device-item:hover  { background: #E5E7EB; }
+.dm-device-item.is-active { background: #EEF2FF; }
+
+.dm-device-item-info { flex:1; min-width:0; }
+.dm-device-item-name {
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--text, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dm-device-item.is-active .dm-device-item-name { color: #4F46E5; }
+.dm-device-item-id {
+  font-size: .74rem;
+  color: var(--text-muted, #9CA3AF);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dm-device-badge {
+  font-size: .72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #E5E7EB;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+.dm-device-item.is-active .dm-device-badge { background:#C7D2FE; color:#4338CA; }
+
+/* ── Main panel ── */
+.dm-main {
+  flex: 1;
   overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-@media (max-width: 1100px) {
-  .device-shell { grid-template-columns: 1fr; }
-  .mini-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hardware-grid { grid-template-columns: 1fr; }
+
+/* ── Cards ── */
+.dm-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.dm-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.dm-card-head h2 {
+  margin: 0;
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--text-muted,#6B7280);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* ── Stats strip ── */
+.dm-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.dm-stat {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-muted, #F9FAFB);
+  border: 1px solid var(--border, #E5E7EB);
+}
+.dm-stat-label { font-size: .74rem; color: var(--text-muted,#9CA3AF); font-weight:500; text-transform:uppercase; letter-spacing:.04em; }
+.dm-stat-value { font-size: 1rem; font-weight:700; color: var(--text,#111827); margin-top:4px; display:flex; align-items:center; gap:6px; }
+
+/* ── Form grid ── */
+.dm-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.dm-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.dm-field label { display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:4px; }
+.dm-toggle { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border,#E5E7EB); border-radius:8px; cursor:pointer; font-size:.88rem; font-weight:500; }
+.dm-toggle input { width:16px; height:16px; cursor:pointer; accent-color:#6366F1; }
+
+/* ── Contact rows ── */
+.dm-contact-row {
+  display:grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap:10px;
+  align-items:end;
+  padding:12px 14px;
+  border:1px solid var(--border,#E5E7EB);
+  border-radius:10px;
+  background:#FAFAFA;
+}
+.dm-contact-thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; }
+
+/* ── User checklist ── */
+.dm-user-list { max-height:220px; overflow-y:auto; border:1px solid var(--border,#E5E7EB); border-radius:10px; padding:6px; }
+.dm-user-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; font-size:.85rem; }
+.dm-user-item:hover { background:#F3F4F6; }
+.dm-user-item input { accent-color:#6366F1; }
+
+/* ── ICSO ── */
+.dm-icso-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.dm-icso-item { padding:10px 12px; border-radius:8px; background:#F9FAFB; border:1px solid #E5E7EB; font-size:.82rem; }
+.dm-icso-item strong { display:block; font-size:.78rem; color:#9CA3AF; margin-bottom:2px; font-weight:500; }
+.dm-event-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #F3F4F6; font-size:.82rem; gap:12px; }
+.dm-event-row:last-child { border-bottom:none; }
+
+/* ── Hardware ── */
+.dm-hw-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.dm-hw-card { padding:12px 14px; border:1px solid var(--border,#E5E7EB); border-radius:10px; font-size:.84rem; }
+.dm-hw-card strong { display:block; margin-bottom:4px; font-size:.8rem; }
+
+/* ── Danger zone ── */
+.dm-danger-zone { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 18px; border-radius:10px; background:#FEF2F2; border:1px solid #FECACA; }
+.dm-danger-text strong { color:#DC2626; font-size:.88rem; }
+.dm-danger-text p { margin:3px 0 0; font-size:.78rem; color:#991B1B; }
+
+/* ── Empty state ── */
+.dm-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:60px 20px; color:var(--text-muted,#9CA3AF); text-align:center; }
+.dm-empty-icon { font-size:2.5rem; }
+
+/* ── Buttons ── */
+.dm-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:none; transition:background .15s; white-space:nowrap; }
+.dm-btn-primary { background:#6366F1; color:#fff; }
+.dm-btn-primary:hover { background:#4F46E5; }
+.dm-btn-outline { background:transparent; color:#374151; border:1px solid var(--border,#D1D5DB); }
+.dm-btn-outline:hover { background:#F3F4F6; }
+.dm-btn-ghost  { background:transparent; color:#6B7280; border:1px solid transparent; }
+.dm-btn-ghost:hover { background:#F3F4F6; }
+.dm-btn-danger { background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; }
+.dm-btn-danger:hover { background:#FECACA; }
+.dm-btn-sm { padding:5px 12px; font-size:.78rem; }
+
+/* ── Modal ── */
+.dm-modal-overlay {
+  display: none;
+  position: fixed; inset:0;
+  background: rgba(0,0,0,.45);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+}
+.dm-modal-overlay.open { display:flex; }
+.dm-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 480px;
+  max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  animation: dmModalIn .2s ease;
+}
+@keyframes dmModalIn { from { opacity:0; transform:scale(.96); } }
+.dm-modal-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 18px 22px 0;
+}
+.dm-modal-head h2 { margin:0; font-size:1rem; font-weight:700; }
+.dm-modal-close { background:none; border:none; font-size:1.2rem; cursor:pointer; color:#9CA3AF; padding:4px; border-radius:6px; }
+.dm-modal-close:hover { background:#F3F4F6; color:#374151; }
+.dm-modal-body { padding:18px 22px 22px; display:flex; flex-direction:column; gap:14px; }
+
+/* ── Responsive ── */
+@media (max-width:900px) {
+  .dm-sidebar { width:220px; }
+  .dm-stats { grid-template-columns:repeat(2,1fr); }
+  .dm-grid-2, .dm-grid-3 { grid-template-columns:1fr; }
+  .dm-icso-grid, .dm-hw-grid { grid-template-columns:1fr; }
+}
+@media (max-width:640px) {
+  .dm-body { flex-direction:column; }
+  .dm-sidebar { width:100%; max-height:220px; border-right:none; border-bottom:1px solid var(--border); }
+  .dm-wrap { height:auto; overflow:visible; }
+  .dm-main { padding:14px; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-  <div class="pz-wrap">
-    <section class="pz-card">
-      <div class="section-heading">
-        <div>
-          <h1 class="pz-h2">{% trans "Gestión integral de muebles" %}</h1>
-          <p class="lead-text">{% trans "Selecciona un mueble y gestiona desde una sola vista su identidad, contactos, datos ICSO e inventario hardware." %}</p>
-        </div>
-        <div class="newpost-cta">
-          {% if show_hidden %}
-            <a class="btn-outline" href="{% url 'pizarra_devices_admin' %}">{% trans "Ocultar elementos ocultos" %}</a>
-          {% else %}
-            <a class="btn-outline" href="{% url 'pizarra_devices_admin' %}?show_hidden=1">{% trans "Mostrar también ocultos" %}</a>
-          {% endif %}
-        </div>
-      </div>
+<div class="dm-wrap">
 
-      <form method="post" class="section-stack" style="margin-top: 18px;">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create">
-        <div class="grid" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
-          <div>
-            <label class="form-label" for="device_id">{% trans "ID del mueble" %}</label>
-            <input type="text" id="device_id" name="device_id" placeholder="CoBien4" required>
-          </div>
-          <div>
-            <label class="form-label" for="display_name">{% trans "Nombre visible" %}</label>
-            <input type="text" id="display_name" name="display_name" placeholder="Habitación 4">
-          </div>
-          <div>
-            <label class="form-label" for="videocall_room">{% trans "Sala videollamada" %}</label>
-            <input type="text" id="videocall_room" name="videocall_room" placeholder="CoBien4">
-          </div>
-          <div style="display:flex; align-items:end;">
-            <label class="legend-badge">
-              <input type="checkbox" name="enabled" value="1" checked>
-              {% trans "Habilitado" %}
-            </label>
-          </div>
-          <div style="display:flex; align-items:end;">
-            <label class="legend-badge">
-              <input type="checkbox" name="hidden_in_admin" value="1">
-              {% trans "Oculto en el panel" %}
-            </label>
-          </div>
-        </div>
-        <div class="newpost-cta">
-          <button class="btn-main" type="submit">{% trans "Crear mueble" %}</button>
-        </div>
-      </form>
-
-      {% if devices %}
-        <div class="device-selector-grid">
-          {% for device in devices %}
-            <a
-              class="device-selector-card {% if device.device_id == selected_device %}is-active{% endif %}"
-              href="{% url 'pizarra_devices_admin' %}?device_id={{ device.device_id|urlencode }}{% if show_hidden %}&show_hidden=1{% endif %}"
-            >
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                <span class="status-dot {% if device.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}" title="{{ device.status }}"></span>
-                <h3 style="margin:0;">{{ device.display_name }}</h3>
-              </div>
-              <div class="muted">{{ device.device_id }}</div>
-              <div class="device-selector-meta" style="margin-top: 10px;">
-                <span>{% trans "Sala" %}: {{ device.videocall_room }}</span>
-                <span>{{ device.contacts_count }} {% trans "contactos" %}</span>
-              </div>
-            </a>
-          {% endfor %}
-        </div>
+  <!-- ── Top bar ── -->
+  <div class="dm-topbar">
+    <div class="dm-topbar-left">
+      <h1>{% trans "Gestión de muebles" %}</h1>
+      <p>{% trans "Configura identidad, contactos, accesos y monitorización de cada mueble." %}</p>
+    </div>
+    <div class="dm-topbar-right">
+      {% if show_hidden %}
+        <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_devices_admin' %}{% if selected_device %}?device_id={{ selected_device }}{% endif %}">{% trans "Ocultar ocultos" %}</a>
+      {% else %}
+        <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_devices_admin' %}?show_hidden=1{% if selected_device %}&device_id={{ selected_device }}{% endif %}">{% trans "Mostrar ocultos" %}</a>
       {% endif %}
-    </section>
+      <button class="dm-btn dm-btn-primary" id="openNewDeviceBtn" type="button">
+        + {% trans "Nuevo mueble" %}
+      </button>
+    </div>
+  </div>
 
-    {% if selected_device %}
-      <div class="device-shell">
-        <div class="device-column">
-          <section class="pz-card">
-            <div class="section-heading">
-              <div>
-                <h2>{{ selected_device }}</h2>
-                <p class="lead-text">{% trans "Panel principal de configuración y operación del mueble seleccionado." %}</p>
-              </div>
+  <!-- ── Body ── -->
+  <div class="dm-body">
+
+    <!-- Sidebar: device list -->
+    <aside class="dm-sidebar">
+      <div class="dm-sidebar-head">
+        <input class="dm-sidebar-search" id="sidebarSearch" type="search" placeholder="{% trans 'Buscar mueble…' %}">
+      </div>
+      <nav class="dm-device-list" id="deviceList">
+        {% for device in devices %}
+          <a class="dm-device-item{% if device.device_id == selected_device %} is-active{% endif %}"
+             href="{% url 'pizarra_devices_admin' %}?device_id={{ device.device_id|urlencode }}{% if show_hidden %}&show_hidden=1{% endif %}"
+             data-name="{{ device.display_name|lower }} {{ device.device_id|lower }}">
+            <span class="status-dot {% if device.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+            <div class="dm-device-item-info">
+              <div class="dm-device-item-name">{{ device.display_name }}</div>
+              <div class="dm-device-item-id">{{ device.device_id }}</div>
             </div>
+            <span class="dm-device-badge" title="{% trans 'Contactos' %}">{{ device.contacts_count }}</span>
+          </a>
+        {% empty %}
+          <div class="dm-empty" style="padding:30px 14px;">
+            <span class="dm-empty-icon">📭</span>
+            <span style="font-size:.82rem;">{% trans "No hay muebles registrados." %}</span>
+          </div>
+        {% endfor %}
+      </nav>
+    </aside>
 
-            <div class="mini-cards" style="margin-top: 18px;">
-              <div class="mini-card">{% trans "Estado" %}<strong style="display:flex; align-items:center; gap:6px;"><span class="status-dot {% if status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>{{ status }}</strong></div>
-              <div class="mini-card">{% trans "Último heartbeat" %}<strong>{{ last_seen_at|fecha_legible }}</strong></div>
-              <div class="mini-card">{% trans "Contactos" %}<strong>{{ contacts_count }}</strong></div>
-              <div class="mini-card">{% trans "Eventos ICSO" %}<strong>{{ events_count }}</strong></div>
+    <!-- Main: device detail -->
+    <main class="dm-main">
+      {% if selected_device %}
+
+        <!-- Stats strip -->
+        <div class="dm-stats">
+          <div class="dm-stat">
+            <div class="dm-stat-label">{% trans "Estado" %}</div>
+            <div class="dm-stat-value">
+              <span class="status-dot {% if status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+              {{ status }}
             </div>
+          </div>
+          <div class="dm-stat">
+            <div class="dm-stat-label">{% trans "Último heartbeat" %}</div>
+            <div class="dm-stat-value" style="font-size:.88rem; font-weight:600;">{{ last_seen_at|fecha_legible }}</div>
+          </div>
+          <div class="dm-stat">
+            <div class="dm-stat-label">{% trans "Contactos" %}</div>
+            <div class="dm-stat-value">{{ contacts_count }}</div>
+          </div>
+          <div class="dm-stat">
+            <div class="dm-stat-label">{% trans "Eventos ICSO" %}</div>
+            <div class="dm-stat-value">{{ events_count }}</div>
+          </div>
+        </div>
 
-            <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top:20px;">
-              {% csrf_token %}
-              <input type="hidden" name="device_id" value="{{ selected_device }}">
-              <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
+        <!-- ── Configuración ── -->
+        <div class="dm-card">
+          <div class="dm-card-head">
+            <h2>{% trans "Configuración" %} · <span style="font-weight:400; color:#374151;">{{ selected_device }}</span></h2>
+            <div style="display:flex; gap:8px;">
+              <form method="post" style="display:contents;">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
+                <button class="dm-btn dm-btn-outline dm-btn-sm" type="submit" name="action" value="sync">{% trans "Sincronizar" %}</button>
+                <button class="dm-btn dm-btn-primary dm-btn-sm" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
+              </form>
+            </div>
+          </div>
 
-              <div class="grid" style="grid-template-columns: 1fr 1fr;">
-                <div>
-                  <label class="form-label" for="display_name_device">{% trans "Nombre visible" %}</label>
+          <form method="post" enctype="multipart/form-data" id="deviceForm">
+            {% csrf_token %}
+            <input type="hidden" name="device_id" value="{{ selected_device }}">
+            <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
+
+            <!-- Identidad -->
+            <div style="margin-bottom:18px;">
+              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Identidad" %}</p>
+              <div class="dm-grid-2">
+                <div class="dm-field">
+                  <label for="display_name_device">{% trans "Nombre visible" %}</label>
                   <input type="text" id="display_name_device" name="display_name" value="{{ profile_source|default:selected_device }}">
                 </div>
-                <div>
-                  <label class="form-label" for="videocall_room_device">{% trans "Sala videollamada" %}</label>
+                <div class="dm-field">
+                  <label for="videocall_room_device">{% trans "Sala de videollamada" %}</label>
                   <input type="text" id="videocall_room_device" name="videocall_room" value="{{ videocall_room }}" placeholder="{{ selected_device }}">
                 </div>
               </div>
+            </div>
 
-              <div class="grid" style="grid-template-columns: 1fr 1fr;">
-                <div>
-                  <label class="form-label" for="event_visibility_scope">{% trans "Visibilidad del calendario" %}</label>
+            <!-- Calendario -->
+            <div style="margin-bottom:18px;">
+              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Calendario" %}</p>
+              <div class="dm-grid-2">
+                <div class="dm-field">
+                  <label for="event_visibility_scope">{% trans "Visibilidad" %}</label>
                   <select id="event_visibility_scope" name="event_visibility_scope">
-                    <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Mostrar todos los eventos generales" %}</option>
-                    <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones concretas" %}</option>
+                    <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Todos los eventos generales" %}</option>
+                    <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones" %}</option>
                   </select>
                 </div>
-                <div>
-                  <label class="form-label" for="event_regions">{% trans "Regiones visibles" %}</label>
+                <div class="dm-field">
+                  <label for="event_regions">{% trans "Regiones visibles" %} <span style="font-weight:400; color:#9CA3AF;">({% trans "una por línea" %})</span></label>
                   <textarea id="event_regions" name="event_regions" rows="3" placeholder="Logroño&#10;Bilbao">{{ event_regions_text }}</textarea>
-                  <small class="muted">{% trans "Una región por línea. Si el filtro regional está activo y esto se deja vacío, el mueble caerá a su ubicación local." %}</small>
                 </div>
               </div>
+            </div>
 
-              <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                <div style="display:flex; align-items:end;">
-                  <label class="legend-badge">
-                    <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
-                    {% trans "Mueble habilitado" %}
-                  </label>
-                </div>
-                <div style="display:flex; align-items:end;">
-                  <label class="legend-badge">
-                    <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
-                    {% trans "Oculto en el panel" %}
-                  </label>
-                </div>
-                <div>
-                  <label class="form-label" for="default_username">{% trans "Usuario por defecto" %}</label>
+            <!-- Opciones -->
+            <div style="margin-bottom:18px;">
+              <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Opciones" %}</p>
+              <div class="dm-grid-3">
+                <label class="dm-toggle">
+                  <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
+                  {% trans "Habilitado" %}
+                </label>
+                <label class="dm-toggle">
+                  <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
+                  {% trans "Oculto en panel" %}
+                </label>
+                <div class="dm-field">
+                  <label for="default_username">{% trans "Usuario por defecto" %}</label>
                   <input type="text" id="default_username" name="default_username" value="{{ default_username }}" placeholder="maria">
                 </div>
               </div>
-
-              <div class="grid" style="grid-template-columns: 1fr 1fr;">
-                <div>
-                  <div class="section-heading" style="margin-bottom: 10px;">
-                    <div>
-                      <label class="form-label" for="contacts-grid">{% trans "Contactos" %}</label>
-                      <small class="muted">{% trans "Edita nombre, usuario e imagen de cada contacto que verá el mueble." %}</small>
-                    </div>
-                    <div class="newpost-cta">
-                      <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
-                    </div>
-                  </div>
-                  {% if people_profiles %}
-                    <div class="grid" style="grid-template-columns: 1fr auto; margin-bottom: 12px;">
-                      <div>
-                        <label class="form-label" for="people-profile-select">{% trans "Añadir desde libreta central" %}</label>
-                        <select id="people-profile-select">
-                          <option value="">{% trans "Selecciona una persona" %}</option>
-                          {% for person in people_profiles %}
-                            <option
-                              value="{{ person.person_id }}"
-                              data-display-name="{{ person.display_name }}"
-                              data-user-name="{{ person.user_name }}"
-                              data-image-url="{{ person.image_url }}"
-                            >
-                              {{ person.display_name }} · {{ person.user_name }}
-                            </option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                      <div style="display:flex; align-items:end;">
-                        <button class="btn-outline" type="button" id="add-person-profile">{% trans "Añadir persona" %}</button>
-                      </div>
-                    </div>
-                  {% endif %}
-                  <div id="contacts-grid" class="section-stack">
-                    {% for contact in contact_rows %}
-                      <div class="pz-card contact-row" data-row-index="{{ forloop.counter0 }}" style="padding:16px;">
-                        <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
-                        <div class="grid" style="grid-template-columns: 1fr 1fr;">
-                          <div>
-                            <label class="form-label">{% trans "Nombre visible" %}</label>
-                            <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
-                          </div>
-                          <div>
-                            <label class="form-label">{% trans "Username web" %}</label>
-                            <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
-                          </div>
-                        </div>
-                        <div class="grid" style="grid-template-columns: 1fr auto;">
-                          <div>
-                            <label class="form-label">{% trans "Imagen" %}</label>
-                            <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*">
-                            {% if contact.image_url %}
-                              <div style="margin-top: 8px;">
-                                <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}" style="max-height: 90px; border-radius: 12px;">
-                              </div>
-                            {% endif %}
-                          </div>
-                          <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
-                            <label class="legend-badge">
-                              <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1">
-                              {% trans "Quitar imagen" %}
-                            </label>
-                            <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
-                          </div>
-                        </div>
-                      </div>
-                    {% endfor %}
-                  </div>
-                  <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
-                </div>
-
-                <div>
-                  <div class="section-heading" style="margin-bottom:10px;">
-                    <div>
-                      <label class="form-label">{% trans "Usuarios con acceso" %}</label>
-                      <small class="muted">{% trans "Selecciona los usuarios registrados que tienen acceso a este mueble." %}</small>
-                    </div>
-                  </div>
-                  <input type="text" id="userSearch" placeholder="{% trans 'Buscar usuario…' %}" style="margin-bottom:8px; width:100%;">
-                  <div id="usersCheckList" style="max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:12px; padding:8px;">
-                    {% if all_users %}
-                      {% for u in all_users %}
-                        <label class="legend-badge user-check-item" style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; cursor:pointer;" data-username="{{ u.username }}">
-                          <input type="checkbox" name="assigned_users_check" value="{{ u.username }}" {% if u.username in assigned_set %}checked{% endif %}>
-                          <span><strong>{{ u.username }}</strong>{% if u.first_name or u.last_name %} — {{ u.first_name }} {{ u.last_name }}{% endif %}</span>
-                        </label>
-                      {% endfor %}
-                    {% else %}
-                      <p class="muted" style="padding:8px;">{% trans "No hay usuarios registrados." %}</p>
-                    {% endif %}
-                  </div>
-                  <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
-                </div>
-              </div>
-
-              <div class="newpost-cta">
-                <button class="btn-main" type="submit" name="action" value="save">{% trans "Guardar" %}</button>
-                <button class="btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar ahora" %}</button>
-                <button class="btn-secondary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
-              </div>
-            </form>
-
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
-              <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-                <div>
-                  <strong style="color:var(--danger, #dc2626);">{% trans "Zona de peligro" %}</strong>
-                  <p class="muted" style="margin:4px 0 0;">{% trans "Eliminar este mueble borrará también todos sus mensajes, notificaciones, eventos ICSO y asignaciones de usuarios. Esta acción es irreversible." %}</p>
-                </div>
-                <form method="post"
-                      onsubmit="return confirm('{% trans "¿Eliminar el mueble" %} &quot;{{ selected_device }}&quot;{% trans " y todos sus datos asociados (mensajes, notificaciones, ICSO, asignaciones)? Esta acción es irreversible." %}');">
-                  {% csrf_token %}
-                  <input type="hidden" name="device_id" value="{{ selected_device }}">
-                  <button type="submit" name="action" value="delete" class="btn-danger">
-                    {% trans "Eliminar mueble" %}
-                  </button>
-                </form>
-              </div>
             </div>
-          </section>
 
-          <section class="pz-card">
-            <div class="section-heading">
+            <!-- Contactos + Usuarios -->
+            <div class="dm-grid-2" style="align-items:start;">
+
+              <!-- Contactos -->
               <div>
-                <h2>{% trans "Datos ICSO" %}</h2>
-                <p class="lead-text">{% trans "Último snapshot y eventos recientes asociados al mueble." %}</p>
-              </div>
-            </div>
-
-            {% if snapshot %}
-              <div class="post-meta">
-                <div class="muted">
-                  {% trans "Capturado" %}: {{ snapshot.captured_at|fecha_legible }} ·
-                  {% trans "Actualizado" %}: {{ snapshot.updated_at|fecha_legible }} ·
-                  {{ snapshot.payload_count }} {% trans "campos" %}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                  <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0;">{% trans "Contactos" %}</p>
+                  <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Añadir" %}</button>
                 </div>
-              </div>
-              {% if snapshot.payload_items %}
-                <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px;">
-                  {% for item in snapshot.payload_items %}
-                    <div class="legend-badge" style="display:block; padding: 12px;">
-                      <strong>{{ item.key }}</strong><br>
-                      {% if item.complex %}
-                        <pre style="white-space: pre-wrap; margin-top: 8px;">{{ item.value }}</pre>
-                      {% else %}
-                        <span>{{ item.value }}</span>
-                      {% endif %}
+                {% if people_profiles %}
+                  <div style="display:grid; grid-template-columns:1fr auto; gap:6px; margin-bottom:10px;">
+                    <select id="people-profile-select" style="font-size:.82rem;">
+                      <option value="">{% trans "Añadir desde libreta central…" %}</option>
+                      {% for person in people_profiles %}
+                        <option value="{{ person.person_id }}" data-display-name="{{ person.display_name }}" data-user-name="{{ person.user_name }}" data-image-url="{{ person.image_url }}">
+                          {{ person.display_name }}{% if person.user_name %} · {{ person.user_name }}{% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button class="dm-btn dm-btn-ghost dm-btn-sm" type="button" id="add-person-profile">{% trans "Añadir" %}</button>
+                  </div>
+                {% endif %}
+                <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
+                  {% for contact in contact_rows %}
+                    <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
+                      <div class="dm-field">
+                        <label>{% trans "Nombre" %}</label>
+                        <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
+                        <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                      </div>
+                      <div class="dm-field">
+                        <label>{% trans "Usuario web" %}</label>
+                        <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
+                      </div>
+                      <div style="display:flex; flex-direction:column; gap:6px; align-items:end;">
+                        {% if contact.image_url %}
+                          <img class="dm-contact-thumb" src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
+                        {% endif %}
+                        <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*" style="font-size:.72rem; max-width:120px;">
+                        <label style="font-size:.72rem; color:#6B7280; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                          <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1"> {% trans "Quitar img" %}
+                        </label>
+                        <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button" style="color:#EF4444;">✕</button>
+                      </div>
                     </div>
                   {% endfor %}
                 </div>
-              {% endif %}
-              <details style="margin-top: 14px;">
-                <summary class="muted" style="cursor:pointer;">{% trans "Ver snapshot completo (JSON)" %}</summary>
-                <pre style="white-space: pre-wrap; margin-top: 12px;">{{ snapshot.payload_json }}</pre>
-              </details>
-            {% else %}
-              <p class="muted">{% trans "Todavía no hay snapshot para este dispositivo." %}</p>
-            {% endif %}
-
-            <div class="section-heading" style="margin-top: 20px;">
-              <div>
-                <h3>{% trans "Eventos recientes" %}</h3>
+                <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
               </div>
-              {% if events %}
-                <div class="newpost-cta">
-                  <a class="btn-outline" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv">{% trans "CSV" %}</a>
-                  <a class="btn-outline" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json">{% trans "JSON" %}</a>
+
+              <!-- Usuarios con acceso -->
+              <div>
+                <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:0 0 10px;">{% trans "Acceso de usuarios" %}</p>
+                <input type="text" id="userSearch" placeholder="{% trans 'Buscar…' %}" style="width:100%; margin-bottom:8px; font-size:.82rem; padding:6px 10px; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
+                <div class="dm-user-list">
+                  {% for u in all_users %}
+                    <label class="dm-user-item user-check-item" data-username="{{ u.username }}">
+                      <input type="checkbox" name="assigned_users_check" value="{{ u.username }}" {% if u.username in assigned_set %}checked{% endif %}>
+                      <span><strong>{{ u.username }}</strong>{% if u.first_name or u.last_name %} — {{ u.first_name }} {{ u.last_name }}{% endif %}</span>
+                    </label>
+                  {% empty %}
+                    <p class="muted" style="padding:8px; font-size:.82rem;">{% trans "No hay usuarios." %}</p>
+                  {% endfor %}
                 </div>
-              {% endif %}
+                <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
+              </div>
             </div>
 
-            {% if events %}
-              <div class="history-list icso-event-list">
-                {% for event in events %}
-                  <article class="post-card">
-                    <div class="post-meta">
-                      <div><strong>{{ event.source }}</strong></div>
-                      <div class="muted">{{ event.logged_at|fecha_legible }}</div>
-                    </div>
-                    <div>{{ event.message }}</div>
-                  </article>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="muted">{% trans "No hay eventos ICSO recientes para este dispositivo." %}</p>
-            {% endif %}
-          </section>
+            <!-- Acciones form -->
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
+              <button class="dm-btn dm-btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar" %}</button>
+              <button class="dm-btn dm-btn-outline" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+              <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save">{% trans "Guardar cambios" %}</button>
+            </div>
+          </form>
         </div>
 
-        <div class="device-column">
-          <section class="pz-card">
-            <div class="section-heading">
-              <div>
-                <h2>{% trans "Inventario hardware" %}</h2>
-                <p class="lead-text">
-                  {% if hardware_reported_at %}
-                    {% trans "Último inventario recibido" %}: {{ hardware_reported_at|fecha_legible }}
-                  {% else %}
-                    {% trans "Este mueble todavía no ha enviado inventario hardware." %}
-                  {% endif %}
-                </p>
+        <!-- ── Datos ICSO ── -->
+        {% if snapshot or events %}
+        <div class="dm-card">
+          <div class="dm-card-head">
+            <h2>{% trans "Datos ICSO" %}</h2>
+            {% if events %}
+              <div style="display:flex; gap:6px;">
+                <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv">CSV</a>
+                <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json">JSON</a>
               </div>
-            </div>
-
-            {% if hardware_sections %}
-              <div class="hardware-grid">
-                {% for item in hardware_sections %}
-                  <div class="hardware-card">
-                    <strong>{{ item.label }}</strong>
-                    {% if item.hardware %}<div>{{ item.hardware }}</div>{% endif %}
-                    {% if item.driver %}<div class="muted" style="margin-top: 8px;">{% trans "Driver" %}: {{ item.driver }}</div>{% endif %}
+            {% endif %}
+          </div>
+          {% if snapshot %}
+            <p style="font-size:.78rem; color:#9CA3AF; margin:0 0 12px;">
+              {% trans "Capturado" %}: {{ snapshot.captured_at|fecha_legible }} ·
+              {% trans "Actualizado" %}: {{ snapshot.updated_at|fecha_legible }} ·
+              {{ snapshot.payload_count }} {% trans "campos" %}
+            </p>
+            {% if snapshot.payload_items %}
+              <div class="dm-icso-grid">
+                {% for item in snapshot.payload_items %}
+                  <div class="dm-icso-item">
+                    <strong>{{ item.key }}</strong>
+                    {% if item.complex %}<pre style="white-space:pre-wrap; margin:4px 0 0; font-size:.78rem;">{{ item.value }}</pre>
+                    {% else %}<span>{{ item.value }}</span>{% endif %}
                   </div>
                 {% endfor %}
               </div>
-              <details style="margin-top: 16px;">
-                <summary class="muted" style="cursor:pointer;">{% trans "Ver inventario completo (JSON)" %}</summary>
-                <pre style="white-space: pre-wrap; margin-top: 12px;">{{ hardware_inventory_json }}</pre>
-              </details>
             {% endif %}
-          </section>
-
-          <section class="pz-card">
-            <div class="section-heading">
-              <div>
-                <h2>{% trans "Acceso rápido" %}</h2>
-                <p class="lead-text">{% trans "Acciones auxiliares y navegación operativa del mueble." %}</p>
-              </div>
+            <details style="margin-top:12px;">
+              <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
+              <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ snapshot.payload_json }}</pre>
+            </details>
+          {% endif %}
+          {% if events %}
+            <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:14px 0 8px;">{% trans "Eventos recientes" %}</p>
+            <div style="max-height:280px; overflow-y:auto;">
+              {% for event in events %}
+                <div class="dm-event-row">
+                  <strong>{{ event.source }}</strong>
+                  <span style="flex:1; color:#374151;">{{ event.message }}</span>
+                  <span style="color:#9CA3AF; white-space:nowrap;">{{ event.logged_at|fecha_legible }}</span>
+                </div>
+              {% endfor %}
             </div>
-            <div class="newpost-cta">
-              <a class="btn-outline" href="{% url 'pizarra_icso_dashboard' %}?device_id={{ selected_device|urlencode }}">{% trans "Abrir vista ICSO clásica" %}</a>
-            </div>
-          </section>
+          {% endif %}
         </div>
-      </div>
-    {% endif %}
+        {% endif %}
+
+        <!-- ── Hardware ── -->
+        {% if hardware_sections %}
+        <div class="dm-card">
+          <div class="dm-card-head">
+            <h2>{% trans "Inventario hardware" %}</h2>
+            <span style="font-size:.78rem; color:#9CA3AF;">{{ hardware_reported_at|fecha_legible }}</span>
+          </div>
+          <div class="dm-hw-grid">
+            {% for item in hardware_sections %}
+              <div class="dm-hw-card">
+                <strong>{{ item.label }}</strong>
+                {% if item.hardware %}<div>{{ item.hardware }}</div>{% endif %}
+                {% if item.driver %}<div style="color:#9CA3AF; font-size:.78rem; margin-top:4px;">Driver: {{ item.driver }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
+            <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ hardware_inventory_json }}</pre>
+          </details>
+        </div>
+        {% endif %}
+
+        <!-- ── Zona de peligro ── -->
+        <div class="dm-card" style="border-color:#FECACA;">
+          <div class="dm-danger-zone">
+            <div class="dm-danger-text">
+              <strong>{% trans "Zona de peligro" %}</strong>
+              <p>{% trans "Eliminar este mueble borrará todos sus mensajes, notificaciones, ICSO y asignaciones. Irreversible." %}</p>
+            </div>
+            <form method="post" onsubmit="return confirm('{% trans "¿Eliminar el mueble" %} &quot;{{ selected_device }}&quot;{% trans " y todos sus datos? Esta acción es irreversible." %}');">
+              {% csrf_token %}
+              <input type="hidden" name="device_id" value="{{ selected_device }}">
+              <button type="submit" name="action" value="delete" class="dm-btn dm-btn-danger">
+                {% trans "Eliminar mueble" %}
+              </button>
+            </form>
+          </div>
+        </div>
+
+      {% else %}
+        <div class="dm-empty">
+          <span class="dm-empty-icon">🖥️</span>
+          <span>{% trans "Selecciona un mueble en la barra lateral para ver y editar su configuración." %}</span>
+        </div>
+      {% endif %}
+    </main>
   </div>
+</div>
+
+<!-- ── Modal: Nuevo mueble ── -->
+<div class="dm-modal-overlay" id="newDeviceModal">
+  <div class="dm-modal-box">
+    <div class="dm-modal-head">
+      <h2>{% trans "Registrar nuevo mueble" %}</h2>
+      <button class="dm-modal-close" id="closeNewDeviceModal" type="button">✕</button>
+    </div>
+    <div class="dm-modal-body">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="dm-field">
+            <label for="new_device_id">{% trans "ID del mueble" %} <span style="color:#EF4444;">*</span></label>
+            <input type="text" id="new_device_id" name="device_id" placeholder="CoBien4" required>
+            <small style="color:#9CA3AF; font-size:.74rem;">{% trans "Identificador único, sin espacios." %}</small>
+          </div>
+          <div class="dm-field">
+            <label for="new_display_name">{% trans "Nombre visible" %}</label>
+            <input type="text" id="new_display_name" name="display_name" placeholder="Habitación 4">
+          </div>
+          <div class="dm-field">
+            <label for="new_videocall_room">{% trans "Sala de videollamada" %}</label>
+            <input type="text" id="new_videocall_room" name="videocall_room" placeholder="CoBien4">
+          </div>
+          <div style="display:flex; gap:12px;">
+            <label class="dm-toggle" style="flex:1;">
+              <input type="checkbox" name="enabled" value="1" checked>
+              {% trans "Habilitado" %}
+            </label>
+            <label class="dm-toggle" style="flex:1;">
+              <input type="checkbox" name="hidden_in_admin" value="1">
+              {% trans "Oculto en panel" %}
+            </label>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:6px; border-top:1px solid var(--border,#E5E7EB);">
+            <button class="dm-btn dm-btn-outline" type="button" id="cancelNewDeviceModal">{% trans "Cancelar" %}</button>
+            <button class="dm-btn dm-btn-primary" type="submit">{% trans "Crear mueble" %}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-  <script>
-
-    (function () {
-      // Sync user checkboxes → hidden textarea on form submit
-      const form = document.querySelector('form[enctype]');
-      if (form) {
-        form.addEventListener('submit', function () {
-          const checks = document.querySelectorAll('input[name="assigned_users_check"]:checked');
-          const ta = document.getElementById('assigned_users');
-          if (ta) ta.value = Array.from(checks).map(c => c.value).join('\n');
-        });
-      }
-      // User search
-      const userSearch = document.getElementById('userSearch');
-      if (userSearch) {
-        userSearch.addEventListener('input', function () {
-          const q = this.value.toLowerCase();
-          document.querySelectorAll('.user-check-item').forEach(el => {
-            el.style.display = el.dataset.username.toLowerCase().includes(q) ? '' : 'none';
-          });
-        });
-      }
-    })();
-    (function () {
-      const grid = document.getElementById('contacts-grid');
-      const totalInput = document.getElementById('contact_rows_total');
-      const addBtn = document.getElementById('add-contact-row');
-      const peopleSelect = document.getElementById('people-profile-select');
-      const addPersonBtn = document.getElementById('add-person-profile');
-      if (!grid || !totalInput || !addBtn) return;
-
-      function nextIndex() {
-        return Number(totalInput.value || 0);
-      }
-
-      function syncTotal() {
-        totalInput.value = String(grid.querySelectorAll('.contact-row').length);
-      }
-
-      function bindRow(row) {
-        const removeBtn = row.querySelector('.remove-contact-row');
-        if (removeBtn) {
-          removeBtn.addEventListener('click', function () {
-            row.remove();
-            syncTotal();
-          });
-        }
-      }
-
-      Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
-      syncTotal();
-
-      function createRow(index, displayName = '', userName = '', imageUrl = '') {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'pz-card contact-row';
-        wrapper.setAttribute('data-row-index', String(index));
-        wrapper.style.padding = '16px';
-        wrapper.innerHTML = `
-          <input type="hidden" name="contact_existing_image_url_${index}" value="${imageUrl}">
-          <div class="grid" style="grid-template-columns: 1fr 1fr;">
-            <div>
-              <label class="form-label">{% trans "Nombre visible" %}</label>
-              <input type="text" name="contact_display_name_${index}" placeholder="María" value="${displayName}">
-            </div>
-            <div>
-              <label class="form-label">{% trans "Username web" %}</label>
-              <input type="text" name="contact_user_name_${index}" placeholder="maria" value="${userName}">
-            </div>
-          </div>
-          <div class="grid" style="grid-template-columns: 1fr auto;">
-            <div>
-              <label class="form-label">{% trans "Imagen" %}</label>
-              <input type="file" name="contact_image_${index}" accept="image/*">
-              ${imageUrl ? `<div style="margin-top: 8px;"><img src="${imageUrl}" alt="${displayName}" style="max-height: 90px; border-radius: 12px;"></div>` : ''}
-            </div>
-            <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
-              <label class="legend-badge">
-                <input type="checkbox" name="contact_remove_image_${index}" value="1">
-                {% trans "Quitar imagen" %}
-              </label>
-              <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
-            </div>
-          </div>
-        `;
-        grid.appendChild(wrapper);
-        totalInput.value = String(index + 1);
-        bindRow(wrapper);
-        syncTotal();
-      }
-
-      addBtn.addEventListener('click', function () {
-        createRow(nextIndex());
+<script>
+  // ── Sidebar search ──────────────────────────────────────────────
+  (function () {
+    const input = document.getElementById('sidebarSearch');
+    if (!input) return;
+    input.addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      document.querySelectorAll('.dm-device-item[data-name]').forEach(function (el) {
+        el.style.display = el.dataset.name.includes(q) ? '' : 'none';
       });
+    });
+  })();
 
-      if (peopleSelect && addPersonBtn) {
-        addPersonBtn.addEventListener('click', function () {
-          const option = peopleSelect.options[peopleSelect.selectedIndex];
-          if (!option || !option.value) return;
-          createRow(
-            nextIndex(),
-            option.dataset.displayName || '',
-            option.dataset.userName || '',
-            option.dataset.imageUrl || ''
-          );
-          peopleSelect.value = '';
+  // ── Modal: nuevo mueble ─────────────────────────────────────────
+  (function () {
+    const overlay = document.getElementById('newDeviceModal');
+    const openBtn = document.getElementById('openNewDeviceBtn');
+    const closeBtn = document.getElementById('closeNewDeviceModal');
+    const cancelBtn = document.getElementById('cancelNewDeviceModal');
+    if (!overlay || !openBtn) return;
+    function open()  { overlay.classList.add('open'); document.getElementById('new_device_id').focus(); }
+    function close() { overlay.classList.remove('open'); }
+    openBtn.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (cancelBtn) cancelBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  })();
+
+  // ── Sync user checkboxes → hidden textarea ──────────────────────
+  (function () {
+    const form = document.getElementById('deviceForm');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+      const checks = document.querySelectorAll('input[name="assigned_users_check"]:checked');
+      const ta = document.getElementById('assigned_users');
+      if (ta) ta.value = Array.from(checks).map(function (c) { return c.value; }).join('\n');
+    });
+    const userSearch = document.getElementById('userSearch');
+    if (userSearch) {
+      userSearch.addEventListener('input', function () {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.user-check-item').forEach(function (el) {
+          el.style.display = el.dataset.username.toLowerCase().includes(q) ? '' : 'none';
         });
-      }
-    })();
-  </script>
+      });
+    }
+  })();
+
+  // ── Contact rows ────────────────────────────────────────────────
+  (function () {
+    const grid = document.getElementById('contacts-grid');
+    const totalInput = document.getElementById('contact_rows_total');
+    const addBtn = document.getElementById('add-contact-row');
+    const peopleSelect = document.getElementById('people-profile-select');
+    const addPersonBtn = document.getElementById('add-person-profile');
+    if (!grid || !totalInput || !addBtn) return;
+
+    function syncTotal() { totalInput.value = String(grid.querySelectorAll('.contact-row').length); }
+
+    function bindRow(row) {
+      const removeBtn = row.querySelector('.remove-contact-row');
+      if (removeBtn) removeBtn.addEventListener('click', function () { row.remove(); syncTotal(); });
+    }
+
+    Array.from(grid.querySelectorAll('.contact-row')).forEach(bindRow);
+    syncTotal();
+
+    function createRow(index, displayName, userName, imageUrl) {
+      displayName = displayName || ''; userName = userName || ''; imageUrl = imageUrl || '';
+      const el = document.createElement('div');
+      el.className = 'dm-contact-row contact-row';
+      el.dataset.rowIndex = index;
+      el.innerHTML = `
+        <div class="dm-field">
+          <label>{% trans "Nombre" %}</label>
+          <input type="text" name="contact_display_name_${index}" value="${displayName}" placeholder="María">
+          <input type="hidden" name="contact_existing_image_url_${index}" value="${imageUrl}">
+        </div>
+        <div class="dm-field">
+          <label>{% trans "Usuario web" %}</label>
+          <input type="text" name="contact_user_name_${index}" value="${userName}" placeholder="maria">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:end;">
+          ${imageUrl ? `<img class="dm-contact-thumb" src="${imageUrl}" alt="${displayName}">` : ''}
+          <input type="file" name="contact_image_${index}" accept="image/*" style="font-size:.72rem;max-width:120px;">
+          <label style="font-size:.72rem;color:#6B7280;display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" name="contact_remove_image_${index}" value="1"> {% trans "Quitar img" %}
+          </label>
+          <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button" style="color:#EF4444;">✕</button>
+        </div>`;
+      grid.appendChild(el);
+      bindRow(el);
+      syncTotal();
+    }
+
+    addBtn.addEventListener('click', function () {
+      createRow(Number(totalInput.value || 0));
+    });
+
+    if (peopleSelect && addPersonBtn) {
+      addPersonBtn.addEventListener('click', function () {
+        const opt = peopleSelect.options[peopleSelect.selectedIndex];
+        if (!opt || !opt.value) return;
+        createRow(Number(totalInput.value || 0), opt.dataset.displayName, opt.dataset.userName, opt.dataset.imageUrl);
+        peopleSelect.value = '';
+      });
+    }
+  })();
+</script>
 {% endblock %}
