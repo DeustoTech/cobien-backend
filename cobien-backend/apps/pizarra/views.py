@@ -74,6 +74,21 @@ except Exception:
     pass
 
 
+_PALETTE = [
+    "#A3E635", "#F472B6", "#F59E0B", "#34D399",
+    "#F87171", "#C084FC", "#FB7185", "#FBBF24",
+]
+
+
+def _color_for_device(name: str) -> str:
+    if not name:
+        return "#9CA3AF"
+    h = 0
+    for ch in name:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return _PALETTE[h % len(_PALETTE)]
+
+
 def _require_api_key(request):
     expected = getattr(settings, "NOTIFY_API_KEY", "")
     if not expected:
@@ -822,12 +837,15 @@ def pizarra_home(request):
     selected_contact = (request.GET.get("to") or linked_device or "").strip()
 
     # Build device cards for the visual selector
+    _all_known = {
+        str(d.get("device_id") or "").strip(): d
+        for d in list_known_devices()
+        if str(d.get("device_id") or "").strip()
+    }
     if is_admin:
-        all_devices = list_known_devices()
-        visible_devices = [d for d in all_devices if not d.get("hidden_in_admin")]
+        visible_devices = [d for d in _all_known.values() if not d.get("hidden_in_admin")]
     else:
-        visible_devices = [get_or_create_device(did) for did in accessible_devices]
-        visible_devices = [d for d in visible_devices if d]
+        visible_devices = [_all_known[did] for did in accessible_devices if did in _all_known]
 
     device_cards = []
     for device in visible_devices:
@@ -837,6 +855,7 @@ def pizarra_home(request):
         device_cards.append({
             "device_id": did,
             "display_name": str(device.get("display_name") or did).strip() or did,
+            "color": _color_for_device(did),
             "status": device_online_status(device),
             "is_selected": did == selected_contact,
         })
@@ -1355,6 +1374,97 @@ def pizarra_create(request):
 
     messages.success(request, "¡Mensaje guardado!")
     return redirect(f"{reverse('pizarra_home')}?to={doc['recipient_key']}")
+
+
+@login_required
+def pizarra_web_messages(request):
+    recipient = request.GET.get("recipient", "").strip()
+    if not recipient:
+        return JsonResponse({"ok": False, "error": "Missing recipient"}, status=400)
+    cursor = col_messages.find(
+        {"author": request.user.username, "recipient_key": recipient}
+    ).sort("created_at", DESCENDING).limit(50)
+    posts = []
+    for d in cursor:
+        image_url = ""
+        if d.get("image_file_id"):
+            image_url = request.build_absolute_uri(
+                reverse("pizarra_image", args=[str(d["image_file_id"])])
+            )
+        posts.append({
+            "id": str(d["_id"]),
+            "content": d.get("content", ""),
+            "image_url": image_url,
+            "created_at_human": fecha_chat(d.get("created_at")),
+        })
+    return JsonResponse({"ok": True, "posts": posts})
+
+
+@login_required
+def pizarra_send_multi(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+    recipients = [r.strip() for r in request.POST.getlist("recipient_keys") if r.strip()]
+    if not recipients:
+        single = request.POST.get("recipient_key", "").strip()
+        if single:
+            recipients = [single]
+    if not recipients:
+        return JsonResponse({"ok": False, "error": "Falta el destinatario"}, status=400)
+    content = request.POST.get("content", "").strip()
+    img = request.FILES.get("image")
+    if not content and not img:
+        return JsonResponse({"ok": False, "error": "Escribe un mensaje o sube una imagen."}, status=400)
+    file_id = None
+    if img:
+        file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
+    now = datetime.now(timezone.utc)
+    for rk in recipients:
+        doc = {
+            "author": request.user.username,
+            "recipient_key": rk,
+            "content": content,
+            "image_file_id": file_id,
+            "created_at": now,
+        }
+        col_messages.insert_one(doc)
+        try:
+            image_url = (
+                request.build_absolute_uri(reverse("pizarra_image", args=[str(file_id)]))
+                if file_id else ""
+            )
+            enqueue_notification(rk, {
+                "type": "new_message",
+                "from": request.user.username,
+                "to": rk,
+                "text": content,
+                "image_url": image_url,
+                "timestamp": now.isoformat(),
+            })
+        except Exception as e:
+            print(f"[PIZARRA] Enqueue error for {rk}: {e}")
+    return JsonResponse({"ok": True, "count": len(recipients)})
+
+
+@login_required
+def pizarra_web_delete(request, post_id: str):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "post_id inválido"}, status=400)
+    doc = col_messages.find_one({"_id": target_id, "author": request.user.username})
+    if not doc:
+        return JsonResponse({"ok": False, "error": "Mensaje no encontrado"}, status=404)
+    if doc.get("image_file_id"):
+        try:
+            fs.delete(doc["image_file_id"])
+        except Exception:
+            pass
+    col_messages.delete_one({"_id": target_id})
+    _enqueue_board_reload(doc.get("recipient_key", ""), show_last=False)
+    return JsonResponse({"ok": True, "id": post_id})
 
 
 def fecha_chat(value):

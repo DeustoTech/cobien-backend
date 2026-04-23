@@ -5,195 +5,708 @@
 {% block title %}CoBien · {% trans "Pizarra" %}{% endblock %}
 {% block page_class %}pizarra{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* ── Layout principal ── */
+  .pz-shell {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 20px 24px;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── Panel izquierdo: redacción ── */
+  .pz-compose {
+    flex: 0 0 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Panel derecho: historial ── */
+  .pz-history {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── Tarjetas de sección ── */
+  .pz-panel {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+
+  .pz-panel h2 {
+    margin: 0 0 14px;
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--text-muted, #6B7280);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* ── Chips de dispositivo ── */
+  .pz-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--c, #9CA3AF);
+    background: transparent;
+    color: var(--c, #6B7280);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+    user-select: none;
+  }
+  .pz-chip:hover { background: color-mix(in srgb, var(--c) 12%, transparent); }
+  .pz-chip.active { background: var(--c); color: #fff; }
+  .pz-chip.active .pz-chip-dot { background: rgba(255,255,255,.7); }
+
+  .pz-chip-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--c, #9CA3AF);
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .pz-chip.active .pz-chip-dot { background: rgba(255,255,255,.8); }
+
+  .pz-chip-dot--online  { background: #34D399; }
+  .pz-chip-dot--offline { background: #9CA3AF; }
+  .pz-chip.active .pz-chip-dot--online  { background: rgba(255,255,255,.9); }
+  .pz-chip.active .pz-chip-dot--offline { background: rgba(255,255,255,.5); }
+
+  /* ── Dropzone de imagen ── */
+  .pz-dropzone {
+    border: 2px dashed var(--border, #D1D5DB);
+    border-radius: 10px;
+    padding: 18px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .pz-dropzone:hover,
+  .pz-dropzone.dragover { border-color: #6366F1; background: color-mix(in srgb, #6366F1 6%, transparent); }
+
+  .pz-dropzone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .pz-dropzone-label {
+    font-size: .82rem;
+    color: var(--text-muted, #6B7280);
+    pointer-events: none;
+  }
+  .pz-dropzone-label strong { color: #6366F1; }
+
+  .pz-img-preview {
+    margin-top: 10px;
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 8px;
+    object-fit: contain;
+    display: none;
+  }
+  .pz-preview-clear {
+    display: none;
+    font-size: .78rem;
+    color: #EF4444;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+
+  /* ── Textarea ── */
+  .pz-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 88px;
+    border: 1px solid var(--border, #D1D5DB);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .9rem;
+    font-family: inherit;
+    color: var(--text, #111827);
+    background: var(--input-bg, #fff);
+    transition: border-color .15s;
+    box-sizing: border-box;
+  }
+  .pz-textarea:focus { outline: none; border-color: #6366F1; }
+
+  /* ── Botón enviar ── */
+  .pz-send-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    background: #6366F1;
+    color: #fff;
+    font-weight: 700;
+    font-size: .92rem;
+    border: none;
+    cursor: pointer;
+    transition: background .15s, opacity .15s;
+  }
+  .pz-send-btn:hover { background: #4F46E5; }
+  .pz-send-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ── Indicador selección múltiple ── */
+  .pz-multi-badge {
+    display: none;
+    font-size: .78rem;
+    color: var(--text-muted, #6B7280);
+    text-align: center;
+  }
+
+  /* ── Panel historial ── */
+  .pz-history-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pz-history-title { flex: 1; }
+  .pz-recipient-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: .82rem;
+    font-weight: 600;
+    background: var(--chip-bg, #F3F4F6);
+    color: var(--text, #374151);
+    border: 1.5px solid var(--chip-border, #E5E7EB);
+  }
+
+  /* ── Skeleton loader ── */
+  .pz-skeleton { display: none; flex-direction: column; gap: 12px; }
+  .pz-skeleton.visible { display: flex; }
+  .pz-sk-item {
+    height: 72px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+    background-size: 200% 100%;
+    animation: pz-shimmer 1.4s infinite;
+  }
+  @keyframes pz-shimmer { to { background-position: -200% 0; } }
+
+  /* ── Chat burbujas ── */
+  .pz-feed { display: flex; flex-direction: column; gap: 10px; }
+
+  .pz-bubble {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 12px;
+    padding: 12px 14px;
+    gap: 6px;
+    animation: pz-fadein .2s ease;
+  }
+  @keyframes pz-fadein { from { opacity: 0; transform: translateY(6px); } }
+
+  .pz-bubble-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .78rem;
+    color: var(--text-muted, #6B7280);
+  }
+  .pz-bubble-time { font-variant-numeric: tabular-nums; }
+
+  .pz-bubble-del {
+    background: none;
+    border: none;
+    color: #9CA3AF;
+    cursor: pointer;
+    font-size: .78rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: color .15s, background .15s;
+  }
+  .pz-bubble-del:hover { color: #EF4444; background: #FEF2F2; }
+
+  .pz-bubble-text {
+    font-size: .9rem;
+    color: var(--text, #111827);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .pz-bubble-img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 8px;
+    object-fit: contain;
+    cursor: zoom-in;
+  }
+
+  /* ── Estados vacío / no seleccionado ── */
+  .pz-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 40px 20px;
+    color: var(--text-muted, #9CA3AF);
+    text-align: center;
+  }
+  .pz-empty-icon { font-size: 2.4rem; line-height: 1; }
+  .pz-empty-text { font-size: .88rem; }
+
+  /* ── Toast feedback ── */
+  .pz-toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: #1F2937;
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .pz-toast.show { opacity: 1; transform: none; }
+  .pz-toast.error { background: #DC2626; }
+
+  /* ── Imagen ampliada (lightbox) ── */
+  .pz-lightbox {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    cursor: zoom-out;
+  }
+  .pz-lightbox.open { display: flex; }
+  .pz-lightbox img { max-width: 92vw; max-height: 90vh; border-radius: 8px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 760px) {
+    .pz-shell { flex-direction: column; padding: 12px 14px; }
+    .pz-compose { flex: none; width: 100%; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-  <div class="pz-wrap">
-    <section class="pz-card">
-      <div class="section-heading">
-        <div>
-          <h1 class="pz-h2">{% trans "Pizarra" %}</h1>
-          <p class="lead-text">{% trans "Envía mensajes o imágenes al mueble y consulta rápidamente el histórico y las notificaciones pendientes." %}</p>
-        </div>
+<div class="pz-shell">
+
+  <!-- ═══════════════ PANEL IZQUIERDO — REDACCIÓN ═══════════════ -->
+  <aside class="pz-compose">
+
+    <!-- Selector de dispositivos -->
+    {% if device_cards %}
+    <div class="pz-panel">
+      <h2>{% trans "Destinatario" %}</h2>
+      <div class="pz-chip-row" id="deviceChips">
+        {% for card in device_cards %}
+          <button type="button" class="pz-chip{% if card.is_selected %} active{% endif %}"
+                  data-device="{{ card.device_id }}"
+                  data-name="{{ card.display_name }}"
+                  style="--c: {{ card.color }}">
+            <span class="pz-chip-dot pz-chip-dot--{{ card.status }}"></span>
+            <span>{{ card.display_name }}</span>
+          </button>
+        {% endfor %}
       </div>
+      <p class="pz-multi-badge" id="multiBadge"></p>
+    </div>
+    {% endif %}
 
-      {% if device_cards %}
-        <div class="pz-device-grid" style="margin-top: 18px;">
-          {% for card in device_cards %}
-            <a class="pz-device-card{% if card.is_selected %} is-selected{% endif %}"
-               href="?to={{ card.device_id|urlencode }}"
-               title="{{ card.device_id }}">
-              <span class="status-dot {% if card.status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
-              <span class="pz-device-name">{{ card.display_name }}</span>
-            </a>
-          {% endfor %}
+    <!-- Formulario -->
+    <div class="pz-panel">
+      <h2>{% trans "Nuevo mensaje" %}</h2>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <textarea id="pzContent" class="pz-textarea"
+                  placeholder="{% trans 'Escribe tu mensaje…' %}"></textarea>
+
+        <!-- Dropzone -->
+        <div class="pz-dropzone" id="pzDropzone">
+          <input type="file" id="pzImageInput" name="image" accept="image/*" tabindex="-1">
+          <p class="pz-dropzone-label">
+            <strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}
+          </p>
         </div>
-      {% elif contacts %}
-        <div class="chips" style="margin-top: 18px;">
-          {% for c in contacts %}
-            <a class="chip" href="?to={{ c|urlencode }}">{{ c }}</a>
-          {% endfor %}
-        </div>
-      {% endif %}
-    </section>
+        <img id="pzPreview" class="pz-img-preview" alt="">
+        <span id="pzPreviewClear" class="pz-preview-clear">✕ {% trans "Quitar imagen" %}</span>
 
-    <div class="pz-grid pz-grid--full">
-      <div class="section-stack">
-        <section class="pz-card">
-          <h2>{% trans "Nuevo mensaje" %}</h2>
-          <form id="pizarra-form" method="post" action="{% url 'pizarra_create' %}" enctype="multipart/form-data" class="section-stack">
-            {% csrf_token %}
-
-            <div>
-              <label class="form-label" for="recipient_key">{% trans "Para" %}</label>
-              <input type="text" id="recipient_key" name="recipient_key"
-                     value="{{ form.initial.recipient_key|default:selected_contact }}"
-                     list="recipients-list" placeholder="Ej.: maria, paula, salón…" required>
-              <datalist id="recipients-list">
-                {% for c in contacts %}<option value="{{ c }}">{% endfor %}
-                {% for card in device_cards %}<option value="{{ card.device_id }}">{% endfor %}
-              </datalist>
-              <small class="muted">{% trans "Debe coincidir con el destinatario que usará la app del mueble para consultar." %}</small>
-            </div>
-
-            <div>
-              <label class="form-label" for="content">{% trans "Mensaje (opcional si subes imagen)" %}</label>
-              <textarea id="content" name="content" rows="4" placeholder="Escribe tu mensaje…">{{ form.data.content }}</textarea>
-            </div>
-
-            <div>
-              <label class="form-label" for="image">{% trans "Imagen (máx. 5 MB)" %}</label>
-              <input type="file" id="image" name="image" accept="image/*">
-              <img id="preview" class="post-img" alt="" style="display:none; margin-top: 12px;">
-            </div>
-
-            <div class="newpost-cta">
-              <button class="btn-main" type="submit">{% trans "Enviar" %}</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="pz-card">
-          <h2>{% trans "Historial" %}</h2>
-
-          {% if not selected_contact %}
-            <p class="muted">{% trans "Selecciona un destinatario arriba para consultar su historial." %}</p>
-          {% else %}
-            {% if posts and posts|length > 0 %}
-              <div class="history-list" id="historyList">
-                {% for post in posts %}
-                  <article class="post-card {% if post.image_url %}has-media{% endif %}" data-index="{{ forloop.counter0 }}">
-                    <div class="post-shell">
-                      <div class="post-avatar">
-                        {% if post.author_avatar_url %}
-                          <img src="{{ post.author_avatar_url }}" alt="{{ post.author_name }}">
-                        {% else %}
-                          <span>{{ post.author_name|slice:":1"|upper }}</span>
-                        {% endif %}
-                      </div>
-
-                      <div class="post-bubble">
-                        <div class="post-meta">
-                          <div class="post-meta-main">
-                            <div class="post-author-line">
-                              <strong class="post-author">{{ post.author_name }}</strong>
-                              <span class="post-time">{{ post.created_at_human }}</span>
-                            </div>
-                            <div class="post-recipient">{% trans "Para" %} <strong>{{ post.recipient_key }}</strong></div>
-                          </div>
-                          <form method="post" action="{% url 'pizarra_delete' post.id %}">
-                            {% csrf_token %}
-                            <button class="btn-outline" type="submit">{% trans "Eliminar" %}</button>
-                          </form>
-                        </div>
-
-                        <div class="post-content">
-                          <div class="post-text">
-                            {% if post.content %}{{ post.content }}{% else %}
-                              <span class="muted"><em>{% trans "(Sin texto)" %}</em></span>
-                            {% endif %}
-                          </div>
-                          {% if post.image_url %}
-                            <img class="post-img" loading="lazy" src="{{ post.image_url }}" alt="{% trans 'Imagen enviada' %}">
-                          {% endif %}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                {% endfor %}
-              </div>
-              {% if posts|length > 8 %}
-                <div class="newpost-cta" style="justify-content:center;">
-                  <button id="loadMoreHistory" class="btn btn-primary" type="button">{% trans "Cargar más" %}</button>
-                </div>
-              {% endif %}
-            {% else %}
-              <p class="muted">{% trans "No hay mensajes para" %} <strong>{{ selected_contact }}</strong>. {% trans "Envía el primero." %}</p>
-            {% endif %}
-          {% endif %}
-        </section>
+        <button id="pzSendBtn" class="pz-send-btn" type="button">
+          {% trans "Enviar" %}
+        </button>
       </div>
     </div>
-  </div>
+
+  </aside>
+
+  <!-- ═══════════════ PANEL DERECHO — HISTORIAL ═══════════════ -->
+  <section class="pz-history">
+    <div class="pz-panel" style="flex:1;">
+
+      <div class="pz-history-header">
+        <h2 class="pz-history-title" style="margin:0;">{% trans "Historial" %}</h2>
+        <span id="recipientBadge" class="pz-recipient-badge" style="display:none;"></span>
+      </div>
+
+      <!-- Skeleton -->
+      <div class="pz-skeleton" id="pzSkeleton" style="margin-top:14px;">
+        <div class="pz-sk-item"></div>
+        <div class="pz-sk-item" style="height:48px;"></div>
+        <div class="pz-sk-item"></div>
+      </div>
+
+      <!-- Feed de mensajes -->
+      <div class="pz-feed" id="pzFeed" style="margin-top:14px;"></div>
+
+      <!-- Estado vacío / inicial -->
+      <div class="pz-empty" id="pzEmpty">
+        <span class="pz-empty-icon">💬</span>
+        <span class="pz-empty-text">
+          {% if device_cards %}
+            {% trans "Selecciona un dispositivo para ver el historial." %}
+          {% else %}
+            {% trans "No tienes dispositivos asignados." %}
+          {% endif %}
+        </span>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<!-- Lightbox -->
+<div class="pz-lightbox" id="pzLightbox">
+  <img id="pzLightboxImg" src="" alt="">
+</div>
+
+<!-- Toast -->
+<div class="pz-toast" id="pzToast"></div>
 {% endblock %}
 
 {% block extra_js %}
-  <script>
-    (function () {
-      const input = document.getElementById('image');
-      const preview = document.getElementById('preview');
-      if (!input || !preview) return;
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0];
-        if (!file) {
-          preview.style.display = 'none';
-          preview.removeAttribute('src');
-          return;
-        }
-        preview.src = URL.createObjectURL(file);
-        preview.style.display = 'block';
-      });
-    })();
+<script>
+(function () {
+  'use strict';
 
-    (function () {
-      const initial = 8;
-      const step = 6;
-      const list = document.getElementById('historyList');
-      const btn = document.getElementById('loadMoreHistory');
-      if (!list || !btn) return;
-      const items = Array.from(list.querySelectorAll('.post-card'));
-      items.forEach((it) => {
-        const idx = Number(it.getAttribute('data-index') || 0);
-        if (idx >= initial) it.setAttribute('data-hidden', 'true');
-      });
-      btn.addEventListener('click', function () {
-        const hidden = items.filter(i => i.getAttribute('data-hidden') === 'true');
-        hidden.slice(0, step).forEach(i => i.removeAttribute('data-hidden'));
-        if (!items.some(i => i.getAttribute('data-hidden') === 'true')) btn.style.display = 'none';
-      });
-    })();
+  // ── URLs desde Django ──────────────────────────────────────────
+  const URL_SEND    = "{% url 'pizarra_send_multi' %}";
+  const URL_MSGS    = "{% url 'pizarra_web_messages' %}";
+  const URL_DEL_TPL = "{% url 'pizarra_web_delete' '00000000000000000000dead' %}".replace('00000000000000000000dead', '__ID__');
+  const CSRF        = "{{ csrf_token }}";
 
-    (function () {
-      if (window.location.search.includes('to=')) {
-        const ta = document.getElementById('content');
-        if (ta) ta.focus();
+  // ── State ──────────────────────────────────────────────────────
+  const activeIds = new Set();   // selected device_ids
+  let currentSingle = null;      // device shown in history panel (null if multi)
+  let isFetching = false;
+
+  // ── DOM refs ───────────────────────────────────────────────────
+  const chipRow      = document.getElementById('deviceChips');
+  const multiBadge   = document.getElementById('multiBadge');
+  const content      = document.getElementById('pzContent');
+  const dropzone     = document.getElementById('pzDropzone');
+  const fileInput    = document.getElementById('pzImageInput');
+  const preview      = document.getElementById('pzPreview');
+  const previewClear = document.getElementById('pzPreviewClear');
+  const sendBtn      = document.getElementById('pzSendBtn');
+  const feed         = document.getElementById('pzFeed');
+  const skeleton     = document.getElementById('pzSkeleton');
+  const empty        = document.getElementById('pzEmpty');
+  const badge        = document.getElementById('recipientBadge');
+  const lightbox     = document.getElementById('pzLightbox');
+  const lightboxImg  = document.getElementById('pzLightboxImg');
+  const toast        = document.getElementById('pzToast');
+
+  // ── Toast ──────────────────────────────────────────────────────
+  let _toastTimer;
+  function showToast(msg, isError) {
+    clearTimeout(_toastTimer);
+    toast.textContent = msg;
+    toast.className = 'pz-toast show' + (isError ? ' error' : '');
+    _toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  // ── Chip toggle ────────────────────────────────────────────────
+  function syncChipUI() {
+    document.querySelectorAll('.pz-chip[data-device]').forEach(btn => {
+      btn.classList.toggle('active', activeIds.has(btn.dataset.device));
+    });
+    const n = activeIds.size;
+    if (n === 0) {
+      multiBadge.style.display = 'none';
+      sendBtn.disabled = true;
+    } else if (n === 1) {
+      multiBadge.style.display = 'none';
+      sendBtn.disabled = false;
+    } else {
+      multiBadge.textContent = `{% trans "Enviando a" %} ${n} {% trans "dispositivos" %}`;
+      multiBadge.style.display = 'block';
+      sendBtn.disabled = false;
+    }
+    // Update history panel
+    if (n === 1) {
+      const did = [...activeIds][0];
+      const chip = document.querySelector(`.pz-chip[data-device="${did}"]`);
+      const name = chip ? chip.dataset.name : did;
+      loadHistory(did, name, chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280');
+    } else if (n === 0) {
+      currentSingle = null;
+      showEmpty('{% trans "Selecciona un dispositivo para ver el historial." %}');
+    } else {
+      currentSingle = null;
+      showEmpty('{% trans "Con varios dispositivos activos se muestra el historial al seleccionar uno solo." %}');
+    }
+  }
+
+  if (chipRow) {
+    chipRow.addEventListener('click', function (e) {
+      const btn = e.target.closest('.pz-chip[data-device]');
+      if (!btn) return;
+      const did = btn.dataset.device;
+      if (activeIds.has(did)) {
+        activeIds.delete(did);
+      } else {
+        activeIds.add(did);
       }
-    })();
+      syncChipUI();
+    });
+  }
 
-    // Device card click fills recipient input without navigating
-    (function () {
-      const cards = document.querySelectorAll('.pz-device-card');
-      const recipientInput = document.getElementById('recipient_key');
-      if (!cards.length || !recipientInput) return;
-      cards.forEach(function (card) {
-        card.addEventListener('click', function (e) {
-          e.preventDefault();
-          const deviceId = card.getAttribute('href').replace('?to=', '');
-          recipientInput.value = decodeURIComponent(deviceId);
-          cards.forEach(function (c) { c.classList.remove('is-selected'); });
-          card.classList.add('is-selected');
-          const ta = document.getElementById('content');
-          if (ta) ta.focus();
-        });
-      });
-    })();
-  </script>
+  // Pre-select from URL ?to=…
+  const initialTo = new URLSearchParams(location.search).get('to');
+  if (initialTo) {
+    activeIds.add(initialTo);
+    syncChipUI();
+  } else {
+    sendBtn.disabled = true;
+  }
+
+  // ── History panel helpers ──────────────────────────────────────
+  function showEmpty(msg) {
+    skeleton.classList.remove('visible');
+    feed.innerHTML = '';
+    empty.querySelector('.pz-empty-text').textContent = msg;
+    empty.style.display = '';
+    badge.style.display = 'none';
+  }
+
+  function showSkeleton() {
+    empty.style.display = 'none';
+    feed.innerHTML = '';
+    skeleton.classList.add('visible');
+  }
+
+  function renderPosts(posts, deviceName, color) {
+    skeleton.classList.remove('visible');
+    feed.innerHTML = '';
+    if (!posts.length) {
+      empty.querySelector('.pz-empty-text').textContent =
+        `{% trans "Aún no hay mensajes para" %} ${deviceName}.`;
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    posts.forEach(post => {
+      const art = document.createElement('article');
+      art.className = 'pz-bubble';
+      art.dataset.id = post.id;
+      art.innerHTML = `
+        <div class="pz-bubble-meta">
+          <span class="pz-bubble-time">${post.created_at_human}</span>
+          <button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>
+        </div>
+        ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
+        ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
+      `;
+      feed.appendChild(art);
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Load history via AJAX ──────────────────────────────────────
+  function loadHistory(did, name, color) {
+    if (isFetching) return;
+    currentSingle = did;
+    // Update badge
+    badge.style.display = 'inline-flex';
+    badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span> ${escHtml(name)}`;
+    showSkeleton();
+    isFetching = true;
+    fetch(`${URL_MSGS}?recipient=${encodeURIComponent(did)}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      isFetching = false;
+      if (data.ok) {
+        renderPosts(data.posts, name, color);
+      } else {
+        showToast(data.error || '{% trans "Error al cargar mensajes" %}', true);
+        showEmpty(data.error || '');
+      }
+    })
+    .catch(() => {
+      isFetching = false;
+      showToast('{% trans "Error de red" %}', true);
+      showEmpty('{% trans "No se pudo cargar el historial." %}');
+    });
+  }
+
+  // ── Inline delete ──────────────────────────────────────────────
+  feed.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    const id = btn.dataset.del;
+    btn.disabled = true;
+    fetch(URL_DEL_TPL.replace('__ID__', id), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const art = document.querySelector(`.pz-bubble[data-id="${id}"]`);
+        if (art) art.remove();
+        if (!feed.querySelector('.pz-bubble')) {
+          if (currentSingle) {
+            const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
+            const name = chip ? chip.dataset.name : currentSingle;
+            showEmpty(`{% trans "Aún no hay mensajes para" %} ${name}.`);
+          }
+        }
+        showToast('{% trans "Mensaje eliminado" %}', false);
+      } else {
+        btn.disabled = false;
+        showToast(data.error || '{% trans "Error al eliminar" %}', true);
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      showToast('{% trans "Error de red" %}', true);
+    });
+  });
+
+  // ── Dropzone / image preview ───────────────────────────────────
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setPreviewFile(file);
+    }
+  });
+
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files[0]) setPreviewFile(fileInput.files[0]);
+  });
+
+  function setPreviewFile(file) {
+    // Transfer to fileInput's DataTransfer if drop path
+    if (fileInput.files[0] !== file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    previewClear.style.display = 'block';
+    dropzone.querySelector('.pz-dropzone-label').textContent = file.name;
+  }
+
+  previewClear.addEventListener('click', function () {
+    fileInput.value = '';
+    preview.src = '';
+    preview.style.display = 'none';
+    previewClear.style.display = 'none';
+    dropzone.querySelector('.pz-dropzone-label').innerHTML =
+      '<strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}';
+  });
+
+  // ── Send ───────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', function () {
+    if (!activeIds.size) return;
+    const txt = content.value.trim();
+    const img = fileInput.files[0];
+    if (!txt && !img) {
+      showToast('{% trans "Escribe un mensaje o añade una imagen." %}', true);
+      return;
+    }
+    sendBtn.disabled = true;
+    sendBtn.textContent = '{% trans "Enviando…" %}';
+
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    activeIds.forEach(did => fd.append('recipient_keys', did));
+    if (txt) fd.append('content', txt);
+    if (img) fd.append('image', img);
+
+    fetch(URL_SEND, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        content.value = '';
+        previewClear.click();
+        showToast(data.count === 1
+          ? '{% trans "Mensaje enviado" %}'
+          : `{% trans "Enviado a" %} ${data.count} {% trans "dispositivos" %}`, false);
+        // Refresh history if showing single device
+        if (currentSingle && activeIds.has(currentSingle)) {
+          const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
+          const name = chip ? chip.dataset.name : currentSingle;
+          const color = chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280';
+          loadHistory(currentSingle, name, color);
+        }
+      } else {
+        showToast(data.error || '{% trans "Error al enviar" %}', true);
+      }
+    })
+    .catch(() => showToast('{% trans "Error de red" %}', true))
+    .finally(() => {
+      sendBtn.disabled = activeIds.size === 0;
+      sendBtn.textContent = '{% trans "Enviar" %}';
+    });
+  });
+
+  // ── Lightbox ───────────────────────────────────────────────────
+  feed.addEventListener('click', function (e) {
+    const img = e.target.closest('.pz-bubble-img');
+    if (!img) return;
+    lightboxImg.src = img.src;
+    lightbox.classList.add('open');
+  });
+  lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') lightbox.classList.remove('open');
+  });
+
+})();
+</script>
 {% endblock %}
