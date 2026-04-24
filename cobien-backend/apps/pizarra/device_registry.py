@@ -33,6 +33,13 @@ def _device_keys_from_env():
     return normalized
 
 
+def get_device_videocall_key(device_id):
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        return ""
+    return str(_device_keys_from_env().get(device_id) or "").strip()
+
+
 def normalize_contacts_list(raw_contacts):
     contacts = []
     if not isinstance(raw_contacts, (list, tuple)):
@@ -164,6 +171,7 @@ def get_or_create_device(device_id):
                 "hidden_in_admin": False,
                 "event_visibility_scope": "all",
                 "event_regions": [],
+                "deployment_profile": {},
                 "contacts": contacts,
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
@@ -306,7 +314,7 @@ def replace_device_assignments(device_id, usernames, default_username=""):
         )
 
 
-def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None):
+def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None, deployment_profile=None):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -323,6 +331,7 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
             "hidden_in_admin": bool(hidden_in_admin),
             "event_visibility_scope": "region" if str(event_visibility_scope or "").strip().lower() == "region" else "all",
             "event_regions": normalize_event_regions(event_regions),
+            "deployment_profile": deployment_profile if isinstance(deployment_profile, dict) else {},
             "contacts": [],
             "created_at": now,
             "updated_at": now,
@@ -331,7 +340,7 @@ def create_device(device_id, display_name="", enabled=True, hidden_in_admin=Fals
     )
 
 
-def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None):
+def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None, deployment_profile=None):
     device_id = str(device_id or "").strip()
     if not device_id:
         raise ValueError("device_id requerido")
@@ -345,6 +354,7 @@ def update_device_metadata(device_id, display_name="", enabled=True, hidden_in_a
                 "hidden_in_admin": bool(hidden_in_admin),
                 "event_visibility_scope": "region" if str(event_visibility_scope or "").strip().lower() == "region" else "all",
                 "event_regions": normalize_event_regions(event_regions),
+                "deployment_profile": deployment_profile if isinstance(deployment_profile, dict) else {},
                 "updated_at": datetime.now(timezone.utc),
             }
         },

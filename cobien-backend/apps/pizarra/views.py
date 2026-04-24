@@ -7,13 +7,14 @@ import re
 import secrets
 import string
 import uuid
+import base64
 from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.http import HttpResponseNotAllowed
 from pymongo import MongoClient, DESCENDING, ASCENDING
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
@@ -29,6 +30,7 @@ from .device_registry import (
     create_device,
     device_online_status,
     get_accessible_device_ids,
+    get_device_videocall_key,
     get_default_device_id,
     get_device_contacts,
     get_or_create_device,
@@ -119,6 +121,39 @@ def _require_api_key(request):
         return True
     provided = request.headers.get("X-API-KEY") or request.GET.get("api_key") or request.POST.get("api_key")
     return provided == expected
+
+
+def _get_basic_auth_credentials(request):
+    header = str(request.headers.get("Authorization") or "").strip()
+    if not header.startswith("Basic "):
+        return "", ""
+    token = header[6:].strip()
+    if not token:
+        return "", ""
+    try:
+        decoded = base64.b64decode(token).decode("utf-8")
+    except Exception:
+        return "", ""
+    username, _, password = decoded.partition(":")
+    return username.strip(), password
+
+
+def _authenticate_staff_from_request(request):
+    if getattr(request, "user", None) and request.user.is_authenticated and _staff_required(request.user):
+        return request.user
+    username, password = _get_basic_auth_credentials(request)
+    if not username or not password:
+        return None
+    user = authenticate(request, username=username, password=password)
+    if user and _staff_required(user):
+        return user
+    return None
+
+
+def _admin_api_auth_failed_response():
+    response = JsonResponse({"ok": False, "error": "Admin authentication required."}, status=401)
+    response["WWW-Authenticate"] = 'Basic realm="CoBien Admin API"'
+    return response
 
 
 def _read_api_payload(request):
@@ -358,6 +393,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         if item.get("is_default"):
             default_username = str(item.get("username") or "").strip()
             break
+    deployment_profile_json = _default_deployment_profile_json(device_doc or {})
 
     icso_payload = _device_icso_payload(selected_device)
     runtime_logs_payload = _build_device_runtime_logs_payload(selected_device, days=2)
@@ -391,6 +427,8 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "event_regions_text": "\n".join(event_regions),
         "assigned_users_text": assigned_users_text,
         "default_username": default_username,
+        "deployment_profile_json": deployment_profile_json,
+        "device_env_download_url": reverse("pizarra_api_admin_device_env", kwargs={"device_id": selected_device}) if selected_device else "",
         "assignments_count": len(assignments),
         "contacts_count": len(normalize_contacts_list((device_doc or {}).get("contacts", []))),
         "last_seen_at": _serialize_datetime((device_doc or {}).get("last_seen_at")),
@@ -416,6 +454,185 @@ def _parse_datetime_value(value, fallback=None):
         return datetime.fromisoformat(normalized)
     except Exception:
         return fallback
+
+
+def _parse_deployment_profile_json(raw_value):
+    raw_value = str(raw_value or "").strip()
+    if not raw_value:
+        return {}
+    try:
+        payload = json.loads(raw_value)
+    except Exception as exc:
+        raise ValueError(f"Deployment profile JSON is invalid: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Deployment profile JSON must be an object.")
+    normalized = {}
+    for key, value in payload.items():
+        env_key = str(key or "").strip()
+        if not env_key:
+            continue
+        normalized[env_key] = value
+    return normalized
+
+
+def _json_env_value(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _string_env_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
+
+
+def _shell_quote_env_scalar(value):
+    text = _string_env_value(value)
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _resolve_portal_base_url(request=None, deployment_profile=None):
+    profile = deployment_profile if isinstance(deployment_profile, dict) else {}
+    override = str(profile.get("COBIEN_BACKEND_BASE_URL") or os.getenv("COBIEN_BACKEND_BASE_URL") or "").strip()
+    if override:
+        return override.rstrip("/")
+    if request is not None:
+        return f"{request.scheme}://{request.get_host()}".rstrip("/")
+    return "https://portal.co-bien.eu"
+
+
+def _default_deployment_profile_json(device_doc):
+    payload = device_doc.get("deployment_profile") if isinstance(device_doc, dict) else {}
+    payload = payload if isinstance(payload, dict) else {}
+    if not payload:
+        return "{\n  \n}"
+    return json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True)
+
+
+def _build_cobien_env_map(device_doc, request=None):
+    device_doc = device_doc or {}
+    device_id = str(device_doc.get("device_id") or "").strip()
+    deployment_profile = device_doc.get("deployment_profile") if isinstance(device_doc.get("deployment_profile"), dict) else {}
+    base_url = _resolve_portal_base_url(request=request, deployment_profile=deployment_profile)
+
+    env_map = {
+        "COBIEN_WORKSPACE_ROOT": "$HOME/cobien",
+        "COBIEN_FRONTEND_REPO_NAME": "cobien_FrontEnd",
+        "COBIEN_MQTT_REPO_NAME": "cobien_MQTT_Dictionnary",
+        "COBIEN_UPDATE_REMOTE": "origin",
+        "COBIEN_UPDATE_BRANCH": "master",
+        "COBIEN_UPDATE_INTERVAL_SEC": "60",
+        "COBIEN_LOG_RETENTION_DAYS": "90",
+        "COBIEN_LOG_DIR": "$HOME/.local/state/cobien/logs",
+        "COBIEN_RUNTIME_STATE_DIR": "$HOME/.local/state/cobien/runtime",
+        "COBIEN_CACHE_DIR": "$HOME/.cache/cobien",
+        "COBIEN_MODELS_DIR": "$HOME/.local/share/cobien/models/piper",
+        "COBIEN_PIPER_RUNTIME_DIR": "$HOME/.local/share/cobien/piper/runtime",
+        "COBIEN_INSTALL_SYSTEMD_USER": "1",
+        "COBIEN_ENABLE_WATCH": "0",
+        "COBIEN_INSTALL_SYSTEM_DEPS": "1",
+        "COBIEN_RECREATE_VENV": "0",
+        "COBIEN_NON_INTERACTIVE": "1",
+        "COBIEN_AUTO_CONFIRM": "1",
+        "COBIEN_INSTALL_RUSTDESK": "1",
+        "COBIEN_RUSTDESK_VERSION": "1.4.6",
+        "COBIEN_RUSTDESK_URL": "https://github.com/rustdesk/rustdesk/releases/download/1.4.6/rustdesk-1.4.6-x86_64.deb",
+        "COBIEN_RUSTDESK_ARGS": "--tray",
+        "COBIEN_AUTO_REBOOT_AFTER_SETUP": "1",
+        "COBIEN_DISPLAY_OUTPUT": "eDP-1",
+        "COBIEN_DISPLAY_MODE": "1920x1200",
+        "COBIEN_DISPLAY_ROTATION": "inverted",
+        "COBIEN_APP_LANGUAGE": "es",
+        "COBIEN_DEVICE_ID": device_id,
+        "COBIEN_VIDEOCALL_ROOM": str(device_doc.get("videocall_room") or device_id).strip() or device_id,
+        "COBIEN_DEVICE_LOCATION": "Bilbao",
+        "COBIEN_HARDWARE_MODE": "auto",
+        "COBIEN_SETTINGS_PIN": "",
+        "COBIEN_RESTART_PIN": "9999",
+        "COBIEN_WEATHER_CITIES_JSON": ["Bilbao", "Toulouse", "Logroño"],
+        "COBIEN_WEATHER_CITY_CATALOG_JSON": ["Bilbao", "Toulouse", "Logroño"],
+        "COBIEN_WEATHER_PRIMARY_CITY": "Bilbao",
+        "COBIEN_BUTTON_COLORS_JSON": {},
+        "COBIEN_RFID_ACTIONS_JSON": {},
+        "COBIEN_MICROPHONE_DEVICE": "",
+        "COBIEN_AUDIO_OUTPUT_DEVICE": "",
+        "COBIEN_JOKE_CATEGORY": "general",
+        "COBIEN_IDLE_TIMEOUT_SEC": "60",
+        "COBIEN_NOTIFICATIONS_JSON": {
+            "videollamada": {"group": 1, "intensity": 255, "color": "#00FF00", "mode": "ON", "ringtone": ""},
+            "nuevo_evento": {"group": 2, "intensity": 255, "color": "#FF0000", "mode": "ON", "ringtone": ""},
+            "nueva_foto": {"group": 3, "intensity": 255, "color": "#0000FF", "mode": "BLINK", "ringtone": ""},
+        },
+        "COBIEN_BACKEND_BASE_URL": base_url,
+        "COBIEN_NOTIFY_API_KEY": getattr(settings, "NOTIFY_API_KEY", ""),
+        "COBIEN_VIDEOCALL_DEVICE_API_KEY": get_device_videocall_key(device_id),
+        "COBIEN_DEVICE_POLL_URL": f"{base_url}/pizarra/api/device/poll/",
+        "COBIEN_DEVICE_POLL_INTERVAL_SEC": "5",
+        "COBIEN_DEVICE_HEARTBEAT_URL": f"{base_url}/pizarra/api/devices/heartbeat/",
+        "COBIEN_DEVICE_HEARTBEAT_INTERVAL_SEC": "60",
+        "COBIEN_PIZARRA_NOTIFY_URL": f"{base_url}/pizarra/api/notify/",
+        "COBIEN_PIZARRA_API_URL": f"{base_url}/pizarra/api/messages/",
+        "COBIEN_PIZARRA_DELETE_URL_TEMPLATE": f"{base_url}/pizarra/api/messages/{{post_id}}/delete/",
+        "COBIEN_CONTACTS_API_URL": f"{base_url}/pizarra/api/contacts/",
+        "COBIEN_ICSO_TELEMETRY_URL": f"{base_url}/pizarra/api/icso/telemetry/",
+        "COBIEN_ICSO_EVENTS_URL": f"{base_url}/pizarra/api/icso/events/",
+        "COBIEN_DEVICE_VIDEOCALL_SESSION_URL": f"{base_url}/api/device-videocall-session/",
+        "COBIEN_PORTAL_VIDEOCALL_URL": f"{base_url}/videocall/",
+        "COBIEN_PORTAL_VIDEOCALL_DEVICE_URL": f"{base_url}/videocall/device/",
+        "COBIEN_PORTAL_CALL_ANSWERED_URL": f"{base_url}/api/call-answered/",
+        "COBIEN_MQTT_LOCAL_BROKER": "localhost",
+        "COBIEN_MQTT_LOCAL_PORT": "1883",
+        "COBIEN_HTTP_TIMEOUT": "8",
+        "OWM_API_KEY": os.getenv("OWM_API_KEY", ""),
+        "NEWS_API_KEY": os.getenv("NEWS_API_KEY", ""),
+        "MONGO_URI": os.getenv("MONGO_URI", ""),
+        "COBIEN_TTS_ENGINE": "piper",
+        "COBIEN_TTS_RATE": "155",
+        "COBIEN_TTS_VOLUME": "0.85",
+        "COBIEN_TTS_PIPER_BIN": "",
+        "COBIEN_TTS_PIPER_MODEL_ES": "",
+        "COBIEN_TTS_PIPER_MODEL_FR": "",
+        "COBIEN_TTS_PIPER_MODEL_ES_MALE": "es_ES-davefx-medium",
+        "COBIEN_TTS_PIPER_MODEL_ES_FEMALE": "es_ES-mls_10246-low",
+        "COBIEN_TTS_PIPER_MODEL_FR_MALE": "fr_FR-mls_1840-low",
+        "COBIEN_TTS_PIPER_MODEL_FR_FEMALE": "fr_FR-siwis-medium",
+        "COBIEN_TTS_PIPER_MODEL_ES_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
+        "COBIEN_TTS_PIPER_MODEL_FR_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/mls_1840/low/fr_FR-mls_1840-low.onnx",
+        "COBIEN_TTS_PIPER_MODEL_ES_MALE_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
+        "COBIEN_TTS_PIPER_MODEL_ES_FEMALE_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx",
+        "COBIEN_TTS_PIPER_MODEL_FR_MALE_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/mls_1840/low/fr_FR-mls_1840-low.onnx",
+        "COBIEN_TTS_PIPER_MODEL_FR_FEMALE_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx",
+        "COBIEN_TTS_PIPER_VOICE_ES": "male",
+        "COBIEN_TTS_PIPER_VOICE_FR": "male",
+        "COBIEN_DISABLE_SYSTEM_SLEEP": "0",
+        "COBIEN_OPENWEATHER_CURRENT_URL": "https://api.openweathermap.org/data/2.5/weather",
+        "COBIEN_OPENWEATHER_FORECAST_URL": "https://api.openweathermap.org/data/2.5/forecast",
+        "COBIEN_NEWS_API_URL": "https://newsapi.org/v2/top-headlines",
+        "COBIEN_OPEN_METEO_URL": "https://api.open-meteo.com/v1/forecast",
+        "COBIEN_NOMINATIM_SEARCH_URL": "https://nominatim.openstreetmap.org/search",
+        "COBIEN_BOOTSTRAP_PYTHON_VERSION": "3.13",
+    }
+
+    for key, value in deployment_profile.items():
+        env_key = str(key or "").strip()
+        if not env_key:
+            continue
+        env_map[env_key] = value
+
+    return env_map
+
+
+def _serialize_cobien_env(env_map):
+    lines = []
+    for key, value in env_map.items():
+        if isinstance(value, (dict, list)):
+            serialized = _json_env_value(value)
+        else:
+            serialized = _shell_quote_env_scalar(value)
+        lines.append(f"{key}={serialized}")
+    return "\n".join(lines) + "\n"
 
 
 def _serialize_doc(doc):
@@ -1254,6 +1471,7 @@ def devices_admin(request):
                 cleaned = form.cleaned_data
                 device_doc = get_or_create_device(selected_device) or {}
                 contacts = []
+                deployment_profile = _parse_deployment_profile_json(cleaned.get("deployment_profile_json", ""))
                 if action in {"save", "save_and_sync"}:
                     contacts = _parse_contact_rows(request, selected_device, device_doc.get("contacts", []))
                     display_name = cleaned.get("display_name") or selected_device
@@ -1268,6 +1486,7 @@ def devices_admin(request):
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
                         event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
                         event_regions=cleaned.get("event_regions", ""),
+                        deployment_profile=deployment_profile,
                     )
                     replace_device_assignments(selected_device, assigned_users, default_username=default_username)
                     if action == "save":
@@ -1310,6 +1529,7 @@ def devices_admin(request):
                 if not form.is_valid():
                     raise ValueError(" ".join([str(err) for errors in form.errors.values() for err in errors]))
                 cleaned = form.cleaned_data
+                deployment_profile = _parse_deployment_profile_json(cleaned.get("deployment_profile_json", ""))
                 if action == "create":
                     create_device(
                         cleaned["device_id"],
@@ -1319,6 +1539,7 @@ def devices_admin(request):
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
                         event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
                         event_regions=cleaned.get("event_regions", ""),
+                        deployment_profile=deployment_profile,
                     )
                     selected_device = cleaned["device_id"]
                     messages.success(request, "Dispositivo creado.")
@@ -1331,6 +1552,7 @@ def devices_admin(request):
                         hidden_in_admin=cleaned.get("hidden_in_admin", False),
                         event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
                         event_regions=cleaned.get("event_regions", ""),
+                        deployment_profile=deployment_profile,
                     )
                     selected_device = cleaned["device_id"]
                     messages.success(request, "Dispositivo actualizado.")
@@ -1346,6 +1568,52 @@ def devices_admin(request):
     show_hidden = request.GET.get("show_hidden", "0") in ("1", "true", "True")
     selected_device = (request.GET.get("device_id") or "").strip()
     return render(request, "pizarra/devices_admin.html", _build_device_management_context(selected_device, show_hidden=show_hidden))
+
+
+def api_admin_devices_list(request):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+
+    user = _authenticate_staff_from_request(request)
+    if not user:
+        return _admin_api_auth_failed_response()
+
+    devices = []
+    for item in list_known_devices():
+        devices.append(
+            {
+                "device_id": str(item.get("device_id") or "").strip(),
+                "display_name": str(item.get("display_name") or item.get("device_id") or "").strip(),
+                "videocall_room": str(item.get("videocall_room") or item.get("device_id") or "").strip(),
+                "enabled": bool(item.get("enabled", True)),
+                "hidden_in_admin": bool(item.get("hidden_in_admin", False)),
+                "status": device_online_status(item),
+            }
+        )
+    devices.sort(key=lambda item: (not item["enabled"], item["hidden_in_admin"], item["display_name"].casefold()))
+    return JsonResponse({"ok": True, "devices": devices})
+
+
+def api_admin_device_env(request, device_id):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+
+    user = _authenticate_staff_from_request(request)
+    if not user:
+        return _admin_api_auth_failed_response()
+
+    selected_device = str(device_id or "").strip()
+    if not selected_device:
+        return HttpResponse("Missing device_id.", status=400, content_type="text/plain; charset=utf-8")
+
+    device_doc = get_or_create_device(selected_device)
+    if not device_doc:
+        return HttpResponse("Device not found.", status=404, content_type="text/plain; charset=utf-8")
+
+    content = _serialize_cobien_env(_build_cobien_env_map(device_doc, request=request))
+    response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="cobien.env.{selected_device}"'
+    return response
 
 
 @login_required

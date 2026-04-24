@@ -25,6 +25,7 @@ class DeviceAdminForm(forms.Form):
     hidden_in_admin = forms.BooleanField(required=False)
     event_visibility_scope = forms.ChoiceField(required=False, choices=(("all", "all"), ("region", "region")))
     event_regions = forms.CharField(widget=forms.Textarea, required=False)
+    deployment_profile_json = forms.CharField(widget=forms.Textarea, required=False)
 
     def clean_device_id(self):
         value = str(self.cleaned_data.get("device_id") or "").strip()
@@ -45,6 +46,9 @@ class DeviceAdminForm(forms.Form):
     def clean_event_regions(self):
         return str(self.cleaned_data.get("event_regions") or "").strip()
 
+    def clean_deployment_profile_json(self):
+        return str(self.cleaned_data.get("deployment_profile_json") or "").strip()
+
 
 class DeviceContactsAdminForm(forms.Form):
     device_id = forms.CharField(max_length=150)
@@ -54,6 +58,7 @@ class DeviceContactsAdminForm(forms.Form):
     hidden_in_admin = forms.BooleanField(required=False)
     event_visibility_scope = forms.ChoiceField(required=False, choices=(("all", "all"), ("region", "region")))
     event_regions = forms.CharField(widget=forms.Textarea, required=False)
+    deployment_profile_json = forms.CharField(widget=forms.Textarea, required=False)
     contacts = forms.CharField(widget=forms.Textarea, required=False)
     assigned_users = forms.CharField(widget=forms.Textarea, required=False)
     default_username = forms.CharField(max_length=150, required=False)
@@ -76,6 +81,9 @@ class DeviceContactsAdminForm(forms.Form):
 
     def clean_event_regions(self):
         return str(self.cleaned_data.get("event_regions") or "").strip()
+
+    def clean_deployment_profile_json(self):
+        return str(self.cleaned_data.get("deployment_profile_json") or "").strip()
 
     def clean_default_username(self):
         return str(self.cleaned_data.get("default_username") or "").strip()
