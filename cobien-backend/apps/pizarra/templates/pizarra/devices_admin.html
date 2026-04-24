@@ -678,6 +678,36 @@
               </div>
             </div>
 
+            <div style="margin-bottom:24px;">
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px;">
+                <div>
+                  <p class="dm-section-label" style="margin-bottom:6px;">{% trans "Deployment profile" %}</p>
+                  <p style="margin:0; font-size:.82rem; color:#6B7280;">
+                    {% trans "Define only the furniture-specific overrides that should shape the generated cobien.env. Global defaults and secrets are resolved on the server when exporting the file." %}
+                  </p>
+                </div>
+                {% if device_env_download_url %}
+                  <a class="dm-btn dm-btn-outline dm-btn-sm" href="{{ device_env_download_url }}">
+                    {% trans "Download cobien.env" %}
+                  </a>
+                {% endif %}
+              </div>
+              <div class="dm-field">
+                <label for="deployment_profile_json">{% trans "Deployment profile JSON" %}</label>
+                <textarea
+                  id="deployment_profile_json"
+                  name="deployment_profile_json"
+                  rows="12"
+                  spellcheck="false"
+                  style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;"
+                  placeholder='{"COBIEN_DEVICE_LOCATION":"Logroño","COBIEN_DISPLAY_ROTATION":"right"}'
+                >{{ deployment_profile_json }}</textarea>
+                <p style="margin:8px 0 0; font-size:.78rem; color:#9CA3AF;">
+                  {% trans "Typical overrides: location, display settings, pins, weather cities, RFID actions, audio devices or any env key that differs from the shared deployment baseline." %}
+                </p>
+              </div>
+            </div>
+
             <!-- ── Tabs: Contactos / Acceso ── -->
             <div class="dm-tabs-nav" role="tablist">
               <button class="dm-tab-btn is-active" type="button" role="tab" data-tab="contacts" aria-selected="true">
