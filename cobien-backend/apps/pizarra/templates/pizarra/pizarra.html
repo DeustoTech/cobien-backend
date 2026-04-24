@@ -294,6 +294,77 @@
   .pz-lightbox.open { display: flex; }
   .pz-lightbox img { max-width: 92vw; max-height: 90vh; border-radius: 8px; }
 
+  /* ── Pestañas historial ── */
+  .pz-tab-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border, #E5E7EB);
+    margin: 4px 0 14px;
+  }
+  .pz-tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    font-size: .84rem;
+    font-weight: 600;
+    color: #6B7280;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .12s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pz-tab-btn:hover { color: #374151; }
+  .pz-tab-btn.is-active { color: #4F46E5; border-bottom-color: #6366F1; }
+  .pz-tab-pane { display: none; }
+  .pz-tab-pane.is-active { display: block; }
+
+  /* ── Tarjetas de notificación ── */
+  .pz-notif-list { display: flex; flex-direction: column; gap: 8px; }
+  .pz-notif-card {
+    border: 1px solid var(--border, #E5E7EB);
+    border-radius: 10px;
+    padding: 11px 14px;
+    background: #FAFAFA;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    animation: pz-fadein .2s ease;
+  }
+  .pz-notif-card--unread { background: #F5F3FF; border-color: #C7D2FE; }
+  .pz-notif-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pz-notif-kind {
+    font-size: .74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #4F46E5;
+  }
+  .pz-notif-card:not(.pz-notif-card--unread) .pz-notif-kind { color: #9CA3AF; }
+  .pz-notif-msg { font-size: .88rem; color: var(--text, #111827); line-height: 1.4; }
+  .pz-notif-time { font-size: .74rem; color: #9CA3AF; }
+  .pz-notif-read-btn {
+    background: none; border: 1px solid #C7D2FE; border-radius: 6px;
+    color: #6366F1; font-size: .74rem; font-weight: 700; cursor: pointer; padding: 1px 7px;
+    flex-shrink: 0;
+  }
+  .pz-notif-read-btn:hover { background: #EEF2FF; }
+  .pz-notif-call-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 8px;
+    background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46;
+    font-size: .78rem; font-weight: 600; text-decoration: none;
+    margin-top: 2px; width: fit-content;
+  }
+  .pz-notif-call-btn:hover { background: #D1FAE5; }
+  .pz-notif-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    background: #6366F1; color: #fff;
+    font-size: .68rem; font-weight: 700; padding: 0 4px;
+  }
+
   /* ── Responsive ── */
   @media (max-width: 760px) {
     .pz-shell { flex-direction: column; padding: 12px 14px; }
@@ -357,30 +428,57 @@
     <div class="pz-panel" style="flex:1;">
 
       <div class="pz-history-header">
-        <h2 class="pz-history-title" style="margin:0;">{% trans "Historial" %}</h2>
+        <h2 class="pz-history-title" style="margin:0;">{% trans "Actividad" %}</h2>
         <span id="recipientBadge" class="pz-recipient-badge" style="display:none;"></span>
       </div>
 
-      <!-- Skeleton -->
-      <div class="pz-skeleton" id="pzSkeleton" style="margin-top:14px;">
-        <div class="pz-sk-item"></div>
-        <div class="pz-sk-item" style="height:48px;"></div>
-        <div class="pz-sk-item"></div>
+      <!-- Tabs -->
+      <div class="pz-tab-nav" role="tablist">
+        <button class="pz-tab-btn is-active" type="button" role="tab" data-tab="messages" aria-selected="true">
+          {% trans "Mensajes" %}
+        </button>
+        <button class="pz-tab-btn" type="button" role="tab" data-tab="notifications" aria-selected="false">
+          {% trans "Notificaciones" %}
+          <span class="pz-notif-badge" id="pzNotifTabBadge" style="display:none;"></span>
+        </button>
       </div>
 
-      <!-- Feed de mensajes -->
-      <div class="pz-feed" id="pzFeed" style="margin-top:14px;"></div>
+      <!-- Tab: Mensajes -->
+      <div class="pz-tab-pane is-active" id="tab-messages" role="tabpanel">
+        <!-- Skeleton -->
+        <div class="pz-skeleton" id="pzSkeleton">
+          <div class="pz-sk-item"></div>
+          <div class="pz-sk-item" style="height:48px;"></div>
+          <div class="pz-sk-item"></div>
+        </div>
+        <!-- Feed -->
+        <div class="pz-feed" id="pzFeed"></div>
+        <!-- Vacío -->
+        <div class="pz-empty" id="pzEmpty">
+          <span class="pz-empty-icon">💬</span>
+          <span class="pz-empty-text">
+            {% if device_cards %}
+              {% trans "Selecciona un dispositivo para ver el historial." %}
+            {% else %}
+              {% trans "No tienes dispositivos asignados." %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
 
-      <!-- Estado vacío / inicial -->
-      <div class="pz-empty" id="pzEmpty">
-        <span class="pz-empty-icon">💬</span>
-        <span class="pz-empty-text">
-          {% if device_cards %}
-            {% trans "Selecciona un dispositivo para ver el historial." %}
-          {% else %}
-            {% trans "No tienes dispositivos asignados." %}
-          {% endif %}
-        </span>
+      <!-- Tab: Notificaciones -->
+      <div class="pz-tab-pane" id="tab-notifications" role="tabpanel">
+        <div class="pz-notif-list" id="pzNotifList"></div>
+        <div class="pz-skeleton" id="pzNotifSkeleton">
+          <div class="pz-sk-item" style="height:56px;"></div>
+          <div class="pz-sk-item" style="height:56px;"></div>
+        </div>
+        <div class="pz-empty" id="pzNotifEmpty">
+          <span class="pz-empty-icon">🔔</span>
+          <span class="pz-empty-text">
+            {% trans "Selecciona un dispositivo para ver sus notificaciones." %}
+          </span>
+        </div>
       </div>
 
     </div>
@@ -412,6 +510,7 @@
   const activeIds = new Set();   // selected device_ids
   let currentSingle = null;      // device shown in history panel (null if multi)
   let isFetching = false;
+  let activeTab = 'messages';
 
   // ── DOM refs ───────────────────────────────────────────────────
   const chipRow      = document.getElementById('deviceChips');
@@ -462,6 +561,7 @@
       const chip = document.querySelector(`.pz-chip[data-device="${did}"]`);
       const name = chip ? chip.dataset.name : did;
       loadHistory(did, name, chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280');
+      if (activeTab === 'notifications') loadNotifications(did);
     } else if (n === 0) {
       currentSingle = null;
       showEmpty('{% trans "Selecciona un dispositivo para ver el historial." %}');
@@ -684,6 +784,75 @@
       sendBtn.textContent = '{% trans "Enviar" %}';
     });
   });
+
+  // ── Tabs ───────────────────────────────────────────────────────
+  document.querySelectorAll('.pz-tab-btn[data-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.pz-tab-btn[data-tab]').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      document.querySelectorAll('.pz-tab-pane').forEach(function (p) { p.classList.remove('is-active'); });
+      document.getElementById('tab-' + activeTab).classList.add('is-active');
+      if (activeTab === 'notifications' && currentSingle) loadNotifications(currentSingle);
+    });
+  });
+
+  // ── Notifications ──────────────────────────────────────────────
+  const notifList    = document.getElementById('pzNotifList');
+  const notifSkel    = document.getElementById('pzNotifSkeleton');
+  const notifEmpty   = document.getElementById('pzNotifEmpty');
+  const notifBadge   = document.getElementById('pzNotifTabBadge');
+
+  const KIND_LABELS = {
+    call_ready:  '{% trans "Solicitud de llamada" %}',
+    missed_call: '{% trans "Llamada perdida" %}',
+    new_message: '{% trans "Nuevo mensaje" %}',
+    new_event:   '{% trans "Nuevo evento" %}',
+    videocall:   '{% trans "Videollamada" %}',
+  };
+  const CALL_KINDS = new Set(['call_ready', 'videocall', 'missed_call']);
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString('{{ LANGUAGE_CODE }}', { day:'numeric', month:'short', year:'numeric' })
+      + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  function loadNotifications(did) {
+    notifList.innerHTML = '';
+    notifEmpty.style.display = 'none';
+    notifSkel.classList.add('visible');
+    fetch('/pizarra/api/notifications/?only_unread=0&from_device=' + encodeURIComponent(did), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      notifSkel.classList.remove('visible');
+      const items = data.notifications || [];
+      const unread = items.filter(function (n) { return !n.read; }).length;
+      notifBadge.textContent = unread > 9 ? '9+' : String(unread);
+      notifBadge.style.display = unread > 0 ? 'inline-flex' : 'none';
+      if (!items.length) { notifEmpty.style.display = ''; notifEmpty.querySelector('.pz-empty-text').textContent = '{% trans "Sin notificaciones para este dispositivo." %}'; return; }
+      notifList.innerHTML = items.map(function (n) {
+        const label = KIND_LABELS[n.kind] || n.kind;
+        const isCall = CALL_KINDS.has(n.kind) && n.from_device;
+        return `<div class="pz-notif-card${n.read ? '' : ' pz-notif-card--unread'}">
+          <div class="pz-notif-header">
+            <span class="pz-notif-kind">${escHtml(label)}</span>
+            ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="${CSRF}"><button type="submit" class="pz-notif-read-btn">✓ {% trans "Leído" %}</button></form>` : '<span style="font-size:.72rem;color:#9CA3AF;">{% trans "Leído" %}</span>'}
+          </div>
+          ${n.message ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
+          <div class="pz-notif-time">${fmtDate(n.created_at)}</div>
+          ${isCall ? `<a class="pz-notif-call-btn" href="/videocall/?to=${encodeURIComponent(n.from_device)}&autostart=1">📞 {% trans "Llamar" %}</a>` : ''}
+        </div>`;
+      }).join('');
+    })
+    .catch(function () { notifSkel.classList.remove('visible'); notifEmpty.style.display = ''; });
+  }
 
   // ── Lightbox ───────────────────────────────────────────────────
   feed.addEventListener('click', function (e) {

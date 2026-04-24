@@ -1836,11 +1836,14 @@ def api_device_delivery_diagnostic(request):
 @login_required
 def api_notifications(request):
     only_unread = request.GET.get("only_unread", "1") not in ("0", "false", "False")
+    from_device = request.GET.get("from_device", "").strip()
     filt = {}
     if not _staff_required(request.user):
         filt["to_user"] = request.user.username
     if only_unread:
         filt["read"] = False
+    if from_device:
+        filt["from_device"] = from_device
 
     cursor = col_notifications.find(filt).sort("created_at", DESCENDING).limit(100)
     items = []
