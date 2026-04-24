@@ -606,7 +606,7 @@ def _build_cobien_env_map(device_doc, request=None):
         "COBIEN_TTS_PIPER_MODEL_FR_FEMALE_URL": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx",
         "COBIEN_TTS_PIPER_VOICE_ES": "male",
         "COBIEN_TTS_PIPER_VOICE_FR": "male",
-        "COBIEN_DISABLE_SYSTEM_SLEEP": "0",
+        "COBIEN_DISABLE_SYSTEM_SLEEP": "1",
         "COBIEN_OPENWEATHER_CURRENT_URL": "https://api.openweathermap.org/data/2.5/weather",
         "COBIEN_OPENWEATHER_FORECAST_URL": "https://api.openweathermap.org/data/2.5/forecast",
         "COBIEN_NEWS_API_URL": "https://newsapi.org/v2/top-headlines",
