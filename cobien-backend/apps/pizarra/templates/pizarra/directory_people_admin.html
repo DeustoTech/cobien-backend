@@ -3,181 +3,819 @@
 {% load cobien_filters %}
 
 {% block title %}CoBien · {% trans "Usuarios" %}{% endblock %}
-{% block page_class %}pizarra{% endblock %}
+{% block page_class %}ua-page{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<style>
+/* ── Layout ── */
+.ua-wrap { display:flex; flex-direction:column; gap:0; height:calc(100vh - 70px); overflow:hidden; }
+
+.ua-topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 24px;
+  border-bottom:1px solid var(--border,#E5E7EB);
+  background:var(--card-bg,#fff);
+  flex-shrink:0; gap:12px;
+}
+.ua-topbar-left h1 { margin:0; font-size:1.15rem; font-weight:700; }
+.ua-topbar-left p  { margin:2px 0 0; font-size:.82rem; color:var(--text-muted,#6B7280); }
+.ua-topbar-right   { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+
+.ua-body { display:flex; flex:1; overflow:hidden; }
+
+/* ── Sidebar ── */
+.ua-sidebar {
+  width:260px; flex-shrink:0;
+  display:flex; flex-direction:column;
+  border-right:1px solid var(--border,#E5E7EB);
+  background:var(--surface-muted,#F9FAFB);
+  overflow:hidden;
+}
+.ua-sidebar-head { padding:12px 14px; border-bottom:1px solid var(--border,#E5E7EB); flex-shrink:0; }
+.ua-sidebar-search {
+  width:100%; padding:7px 10px;
+  border:1px solid var(--border,#D1D5DB); border-radius:8px;
+  font-size:.82rem; background:#fff; color:var(--text,#111827); box-sizing:border-box;
+}
+.ua-sidebar-search:focus { outline:none; border-color:#6366F1; }
+.ua-user-list { flex:1; overflow-y:auto; padding:6px; }
+
+.ua-user-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px; border-radius:10px;
+  cursor:pointer; transition:background .12s;
+}
+.ua-user-item:hover  { background:#E5E7EB; }
+.ua-user-item.is-active { background:#EEF2FF; }
+
+.ua-user-avatar {
+  width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  background:#E5E7EB; color:#6B7280;
+  font-size:.88rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  text-transform:uppercase; overflow:hidden;
+}
+.ua-user-avatar img { width:36px; height:36px; border-radius:50%; object-fit:cover; }
+.ua-user-item-info { flex:1; min-width:0; }
+.ua-user-item-name {
+  font-size:.88rem; font-weight:600; color:var(--text,#111827);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ua-user-item.is-active .ua-user-item-name { color:#4F46E5; }
+.ua-user-item-sub {
+  font-size:.74rem; color:var(--text-muted,#9CA3AF);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ua-badge {
+  font-size:.68rem; font-weight:600; padding:2px 6px; border-radius:8px;
+  background:#E5E7EB; color:#6B7280; flex-shrink:0;
+}
+.ua-badge--admin { background:#C7D2FE; color:#4338CA; }
+.ua-badge--inactive { background:#F3F4F6; color:#9CA3AF; }
+
+/* ── Main panel ── */
+.ua-main {
+  flex:1; overflow-y:auto;
+  padding:20px 24px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.ua-empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; gap:10px; color:var(--text-muted,#9CA3AF);
+}
+.ua-empty-state svg { width:48px; height:48px; opacity:.3; }
+.ua-empty-state p { font-size:.9rem; margin:0; }
+
+/* ── Cards ── */
+.ua-card {
+  background:var(--card-bg,#fff);
+  border:1px solid var(--border,#E5E7EB);
+  border-radius:14px; padding:20px 22px;
+}
+.ua-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; gap:12px;
+}
+.ua-card-head h2 {
+  margin:0; font-size:.88rem; font-weight:700;
+  color:var(--text-muted,#6B7280); text-transform:uppercase; letter-spacing:.05em;
+}
+
+/* ── Profile header ── */
+.ua-profile-header {
+  display:flex; align-items:center; gap:20px;
+  padding-bottom:20px; border-bottom:1px solid var(--border,#E5E7EB); margin-bottom:20px;
+}
+.ua-profile-avatar-wrap { position:relative; flex-shrink:0; cursor:pointer; }
+.ua-profile-avatar {
+  width:80px; height:80px; border-radius:50%;
+  background:#EEF2FF; color:#4F46E5;
+  font-size:1.8rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  text-transform:uppercase; overflow:hidden;
+  border:3px solid #E5E7EB; transition:border-color .15s;
+}
+.ua-profile-avatar img { width:80px; height:80px; border-radius:50%; object-fit:cover; }
+.ua-profile-avatar-wrap:hover .ua-profile-avatar { border-color:#6366F1; }
+.ua-avatar-overlay {
+  position:absolute; inset:0; border-radius:50%;
+  background:rgba(99,102,241,.6);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s; color:#fff; font-size:.7rem; font-weight:700;
+  text-align:center; line-height:1.3;
+}
+.ua-profile-avatar-wrap:hover .ua-avatar-overlay { opacity:1; }
+.ua-profile-info { flex:1; min-width:0; }
+.ua-profile-fullname { font-size:1.15rem; font-weight:700; margin:0 0 2px; }
+.ua-profile-username { font-size:.85rem; color:#6B7280; margin:0 0 6px; }
+.ua-profile-badges { display:flex; gap:6px; flex-wrap:wrap; }
+
+/* ── Tabs ── */
+.ua-tabs-nav { display:flex; gap:0; border-bottom:1px solid var(--border,#E5E7EB); margin-bottom:20px; }
+.ua-tab-btn {
+  padding:10px 20px; border:none; background:none;
+  font-size:.88rem; font-weight:600; color:#6B7280;
+  cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s;
+}
+.ua-tab-btn:hover { color:#374151; }
+.ua-tab-btn.is-active { color:#4F46E5; border-bottom-color:#6366F1; }
+.ua-tab-pane { display:none; }
+.ua-tab-pane.is-active { display:block; }
+
+/* ── Form fields ── */
+.ua-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.ua-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.ua-field label { display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:4px; }
+.ua-field input[type="text"],
+.ua-field input[type="email"],
+.ua-field input[type="password"] {
+  width:100%; padding:8px 10px; border:1px solid var(--border,#D1D5DB);
+  border-radius:8px; font-size:.88rem; color:var(--text,#111827); box-sizing:border-box;
+  background:#fff; transition:border-color .15s;
+}
+.ua-field input:focus { outline:none; border-color:#6366F1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+.ua-toggle {
+  display:flex; align-items:center; gap:8px; padding:10px 12px;
+  border:1px solid var(--border,#E5E7EB); border-radius:8px;
+  cursor:pointer; font-size:.88rem; font-weight:500; user-select:none;
+}
+.ua-toggle input { width:16px; height:16px; cursor:pointer; accent-color:#6366F1; }
+
+/* ── Dropzone ── */
+.ua-dropzone {
+  border:2px dashed var(--border,#D1D5DB); border-radius:10px;
+  padding:20px; text-align:center; cursor:pointer;
+  font-size:.84rem; color:#9CA3AF;
+  transition:border-color .15s, background .15s;
+}
+.ua-dropzone:hover, .ua-dropzone.dragover { border-color:#6366F1; background:#F5F3FF; color:#4F46E5; }
+.ua-dropzone input[type="file"] { display:none; }
+.ua-dropzone-label { pointer-events:none; }
+
+/* ── Save / action buttons ── */
+.ua-actions { display:flex; align-items:center; gap:10px; margin-top:18px; }
+.ua-btn-primary {
+  padding:9px 20px; border:none; border-radius:8px;
+  background:#6366F1; color:#fff; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s;
+}
+.ua-btn-primary:hover { background:#4F46E5; }
+.ua-btn-primary:disabled { background:#C7D2FE; cursor:not-allowed; }
+.ua-btn-secondary {
+  padding:9px 16px; border:1px solid var(--border,#D1D5DB); border-radius:8px;
+  background:#fff; color:#374151; font-size:.88rem; font-weight:500;
+  cursor:pointer; transition:background .15s;
+}
+.ua-btn-secondary:hover { background:#F9FAFB; }
+.ua-btn-danger {
+  padding:9px 16px; border:1px solid #FECACA; border-radius:8px;
+  background:#FFF5F5; color:#DC2626; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s;
+}
+.ua-btn-danger:hover { background:#FEE2E2; }
+
+/* ── Danger zone ── */
+.ua-danger-zone {
+  border:1px solid #FECACA; border-radius:12px; padding:18px 20px;
+  background:#FFFBFB;
+}
+.ua-danger-zone h3 { margin:0 0 6px; font-size:.88rem; font-weight:700; color:#DC2626; }
+.ua-danger-zone p { font-size:.82rem; color:#6B7280; margin:0 0 14px; }
+
+/* ── Modal ── */
+.ua-modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(17,24,39,.45); z-index:1000;
+  align-items:center; justify-content:center;
+}
+.ua-modal-overlay.open { display:flex; }
+.ua-modal {
+  background:#fff; border-radius:16px;
+  padding:28px 28px 24px; width:520px; max-width:95vw; max-height:90vh;
+  overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.18);
+  display:flex; flex-direction:column; gap:18px;
+}
+.ua-modal-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.ua-modal-head h2 { margin:0; font-size:1rem; font-weight:700; }
+.ua-modal-close {
+  border:none; background:none; font-size:1.2rem; cursor:pointer;
+  color:#9CA3AF; padding:4px; border-radius:6px; line-height:1;
+}
+.ua-modal-close:hover { background:#F3F4F6; color:#374151; }
+.ua-modal-section { display:flex; flex-direction:column; gap:12px; }
+.ua-modal-sep { border:none; border-top:1px solid var(--border,#E5E7EB); margin:0; }
+.ua-modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+
+/* ── Password options ── */
+.ua-pw-toggle-row { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:.85rem; }
+.ua-pw-toggle-row input { accent-color:#6366F1; }
+.ua-pw-manual { display:flex; flex-direction:column; gap:10px; }
+.ua-pw-info-box {
+  padding:10px 12px; background:#F0FDF4; border:1px solid #BBF7D0;
+  border-radius:8px; font-size:.82rem; color:#166534;
+}
+
+/* ── Delete confirm modal ── */
+.ua-delete-confirm-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(17,24,39,.5); z-index:1100;
+  align-items:center; justify-content:center;
+}
+.ua-delete-confirm-overlay.open { display:flex; }
+.ua-delete-modal {
+  background:#fff; border-radius:14px; padding:24px 24px 20px;
+  width:400px; max-width:94vw;
+  box-shadow:0 20px 50px rgba(0,0,0,.2);
+}
+.ua-delete-modal h2 { margin:0 0 10px; font-size:.98rem; font-weight:700; color:#DC2626; }
+.ua-delete-modal p  { font-size:.85rem; color:#374151; margin:0 0 14px; line-height:1.5; }
+.ua-delete-modal .ua-field label { color:#374151; }
+.ua-delete-modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+</style>
+{% endblock %}
 
 {% block content %}
-  <div class="pz-wrap">
-    <section class="pz-card">
-      <div class="section-heading">
-        <div>
-          <h1 class="pz-h2">{% trans "Gestión de usuarios" %}</h1>
-          <p class="lead-text">{% trans "Crea cuentas, gestiona perfiles, avatares y permisos de administrador." %}</p>
+<div class="ua-wrap">
+
+  <!-- Topbar -->
+  <div class="ua-topbar">
+    <div class="ua-topbar-left">
+      <h1>{% trans "Gestión de usuarios" %}</h1>
+      <p>{% trans "Crea cuentas, gestiona perfiles, avatares y permisos." %}</p>
+    </div>
+    <div class="ua-topbar-right">
+      <button class="ua-btn-primary" id="uaNewUserBtn">+ {% trans "Nuevo usuario" %}</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="ua-body">
+
+    <!-- Sidebar -->
+    <div class="ua-sidebar">
+      <div class="ua-sidebar-head">
+        <input type="text" class="ua-sidebar-search" id="uaSearch" placeholder="{% trans 'Buscar usuario…' %}">
+      </div>
+      <div class="ua-user-list" id="uaUserList">
+        {% for person in people %}
+        <div class="ua-user-item" data-username="{{ person.username }}"
+             data-first="{{ person.first_name }}" data-last="{{ person.last_name }}"
+             data-email="{{ person.email }}"
+             data-staff="{% if person.is_staff %}1{% else %}0{% endif %}"
+             data-active="{% if person.is_active %}1{% else %}0{% endif %}"
+             data-image="{% if person.image_url %}{{ person.image_url }}{% endif %}">
+          <div class="ua-user-avatar">
+            {% if person.image_url %}
+              <img src="{{ person.image_url }}" alt="{{ person.username }}">
+            {% else %}
+              {{ person.username|slice:":1"|upper }}
+            {% endif %}
+          </div>
+          <div class="ua-user-item-info">
+            <div class="ua-user-item-name">
+              {% if person.first_name or person.last_name %}{{ person.first_name }} {{ person.last_name }}{% else %}{{ person.username }}{% endif %}
+            </div>
+            <div class="ua-user-item-sub">@{{ person.username }}</div>
+          </div>
+          {% if person.is_staff %}<span class="ua-badge ua-badge--admin">Admin</span>{% endif %}
+          {% if not person.is_active %}<span class="ua-badge ua-badge--inactive">{% trans "Inact." %}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="ua-main" id="uaMain">
+      <!-- Empty state -->
+      <div class="ua-empty-state" id="uaEmptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <p>{% trans "Selecciona un usuario para ver y editar su perfil." %}</p>
+      </div>
+
+      <!-- User detail (shown when a user is selected) -->
+      <div id="uaDetail" style="display:none; display:flex; flex-direction:column; gap:16px;">
+
+        <!-- Profile header card -->
+        <div class="ua-card">
+          <div class="ua-profile-header">
+            <div class="ua-profile-avatar-wrap" id="uaAvatarWrap" title="{% trans 'Cambiar avatar' %}">
+              <div class="ua-profile-avatar" id="uaProfileAvatar">
+                <span id="uaProfileAvatarInitial"></span>
+                <img id="uaProfileAvatarImg" src="" alt="" style="display:none;">
+              </div>
+              <div class="ua-avatar-overlay">{% trans "Cambiar" %}<br>foto</div>
+            </div>
+            <div class="ua-profile-info">
+              <p class="ua-profile-fullname" id="uaProfileFullname">—</p>
+              <p class="ua-profile-username" id="uaProfileUsername"></p>
+              <div class="ua-profile-badges" id="uaProfileBadges"></div>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="ua-tabs-nav" role="tablist">
+            <button class="ua-tab-btn is-active" data-tab="profile" role="tab" aria-selected="true">{% trans "Perfil" %}</button>
+            <button class="ua-tab-btn" data-tab="security" role="tab" aria-selected="false">{% trans "Seguridad" %}</button>
+          </div>
+
+          <!-- Tab: Perfil -->
+          <div class="ua-tab-pane is-active" id="uaTabProfile">
+            <form method="post" enctype="multipart/form-data" id="uaUpdateForm">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="update_user">
+              <input type="hidden" name="username" id="uaFormUsername">
+              <input type="hidden" name="is_active" id="uaFormIsActive" value="1">
+              <!-- Hidden avatar input -->
+              <input type="file" name="image" id="uaAvatarInput" accept="image/*" style="display:none;">
+              <input type="hidden" name="remove_image" id="uaFormRemoveImage" value="0">
+
+              <div class="ua-grid-3" style="margin-bottom:14px;">
+                <div class="ua-field">
+                  <label>{% trans "Nombre" %}</label>
+                  <input type="text" name="first_name" id="uaFieldFirstName">
+                </div>
+                <div class="ua-field">
+                  <label>{% trans "Apellidos" %}</label>
+                  <input type="text" name="last_name" id="uaFieldLastName">
+                </div>
+                <div class="ua-field">
+                  <label>{% trans "Email" %}</label>
+                  <input type="email" name="email" id="uaFieldEmail">
+                </div>
+              </div>
+
+              <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:4px;">
+                <label class="ua-toggle">
+                  <input type="checkbox" name="is_staff" value="1" id="uaFieldIsStaff">
+                  {% trans "Administrador" %}
+                </label>
+                <label class="ua-toggle" id="uaActiveToggleLabel">
+                  <input type="checkbox" id="uaFieldIsActive" checked>
+                  {% trans "Cuenta activa" %}
+                </label>
+              </div>
+
+              <!-- Dropzone avatar -->
+              <div style="margin-top:14px;">
+                <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:6px;">{% trans "Avatar" %}</label>
+                <div class="ua-dropzone" id="uaDropzone">
+                  <input type="file" id="uaDropInput" accept="image/*">
+                  <span class="ua-dropzone-label" id="uaDropLabel">
+                    <strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}
+                  </span>
+                </div>
+                <div style="margin-top:8px; display:none;" id="uaRemoveRow">
+                  <label class="ua-toggle" style="display:inline-flex;">
+                    <input type="checkbox" id="uaRemoveCheck" onchange="document.getElementById('uaFormRemoveImage').value=this.checked?'1':'0'">
+                    {% trans "Quitar foto actual" %}
+                  </label>
+                </div>
+              </div>
+
+              <div class="ua-actions">
+                <button class="ua-btn-primary" type="submit">{% trans "Guardar cambios" %}</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tab: Seguridad -->
+          <div class="ua-tab-pane" id="uaTabSecurity">
+
+            <!-- Change password -->
+            <div style="margin-bottom:20px;">
+              <h3 style="font-size:.9rem; font-weight:700; margin:0 0 12px;">{% trans "Cambiar contraseña" %}</h3>
+              <form method="post" id="uaSetPwForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_password">
+                <input type="hidden" name="username" id="uaPwUsername">
+                <div class="ua-grid-2" style="margin-bottom:12px;">
+                  <div class="ua-field">
+                    <label>{% trans "Nueva contraseña" %}</label>
+                    <input type="password" name="new_password" id="uaPwField" placeholder="{% trans 'Mín. 6 caracteres' %}" autocomplete="new-password">
+                  </div>
+                  <div class="ua-field">
+                    <label>{% trans "Confirmar contraseña" %}</label>
+                    <input type="password" id="uaPwConfirm" placeholder="{% trans 'Repite la contraseña' %}" autocomplete="new-password">
+                  </div>
+                </div>
+                <button class="ua-btn-primary" type="submit">{% trans "Cambiar contraseña" %}</button>
+              </form>
+            </div>
+
+            <!-- Danger zone -->
+            <div class="ua-danger-zone">
+              <h3>{% trans "Zona de peligro" %}</h3>
+              <p>{% trans "Eliminar el usuario es una acción permanente e irreversible." %}</p>
+              <button class="ua-btn-danger" id="uaDeleteBtn" type="button">{% trans "Eliminar usuario" %}</button>
+            </div>
+          </div>
+
         </div>
       </div>
-    </section>
-
-    <!-- Create user -->
-    <section class="pz-card">
-      <h2>{% trans "Nuevo usuario" %}</h2>
-      <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 16px;">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create_user">
-        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
-          <div>
-            <label class="form-label" for="new_username">{% trans "Username" %}</label>
-            <input type="text" id="new_username" name="username" placeholder="maria" required autocomplete="off">
-          </div>
-          <div>
-            <label class="form-label" for="new_email">{% trans "Email" %}</label>
-            <input type="email" id="new_email" name="email" placeholder="maria@ejemplo.com" autocomplete="off">
-          </div>
-          <div>
-            <label class="form-label" for="new_password">{% trans "Contraseña" %}</label>
-            <input type="password" id="new_password" name="password" placeholder="Mín. 6 caracteres" required autocomplete="new-password">
-          </div>
-        </div>
-        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
-          <div>
-            <label class="form-label" for="new_first_name">{% trans "Nombre" %}</label>
-            <input type="text" id="new_first_name" name="first_name" placeholder="María">
-          </div>
-          <div>
-            <label class="form-label" for="new_last_name">{% trans "Apellidos" %}</label>
-            <input type="text" id="new_last_name" name="last_name" placeholder="García">
-          </div>
-          <div>
-            <label class="form-label" for="new_image">{% trans "Avatar (opcional)" %}</label>
-            <input type="file" id="new_image" name="image" accept="image/*">
-          </div>
-          <div style="display:flex; flex-direction:column; justify-content:flex-end;">
-            <label class="legend-badge" style="cursor:pointer; user-select:none;">
-              <input type="checkbox" name="is_staff" value="1">
-              {% trans "Administrador" %}
-            </label>
-          </div>
-        </div>
-        <div class="newpost-cta">
-          <button class="btn-main" type="submit">{% trans "Crear usuario" %}</button>
-        </div>
-      </form>
-    </section>
-
-    <!-- User list -->
-    <section class="pz-card">
-      <h2>{% trans "Usuarios registrados" %} <span class="legend-badge" style="font-size:0.85rem;">{{ people|length }}</span></h2>
-
-      {% if people %}
-        <div class="history-list" style="margin-top: 16px;">
-          {% for person in people %}
-            <article class="post-card" style="padding: 20px;">
-              <details>
-                <summary style="cursor:pointer; list-style:none; display:flex; align-items:center; gap:14px;">
-                  {% if person.image_url %}
-                    <img src="{{ person.image_url }}" alt="{{ person.username }}"
-                         style="width:52px; height:52px; object-fit:cover; border-radius:50%; flex-shrink:0;">
-                  {% else %}
-                    <div style="width:52px; height:52px; border-radius:50%; background:var(--surface-2,#e5e7eb);
-                                display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;">
-                      {{ person.username|slice:":1"|upper }}
-                    </div>
-                  {% endif %}
-                  <div style="flex:1; min-width:0;">
-                    <strong>{{ person.username }}</strong>
-                    {% if person.first_name or person.last_name %}
-                      <span class="muted"> · {{ person.first_name }} {{ person.last_name }}</span>
-                    {% endif %}
-                    {% if person.is_staff %}
-                      <span class="legend-badge" style="margin-left:8px; background:var(--accent,#6366f1); color:#fff;">Admin</span>
-                    {% endif %}
-                    {% if not person.is_active %}
-                      <span class="legend-badge" style="margin-left:4px; background:#6b7280; color:#fff;">{% trans "Inactivo" %}</span>
-                    {% endif %}
-                  </div>
-                  <span class="muted" style="font-size:0.8rem;">{{ person.email }}</span>
-                </summary>
-
-                <!-- Edit form -->
-                <form method="post" enctype="multipart/form-data" class="section-stack" style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border,#e5e7eb);">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="update_user">
-                  <input type="hidden" name="username" value="{{ person.username }}">
-                  <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                    <div>
-                      <label class="form-label">{% trans "Nombre" %}</label>
-                      <input type="text" name="first_name" value="{{ person.first_name }}">
-                    </div>
-                    <div>
-                      <label class="form-label">{% trans "Apellidos" %}</label>
-                      <input type="text" name="last_name" value="{{ person.last_name }}">
-                    </div>
-                    <div>
-                      <label class="form-label">{% trans "Email" %}</label>
-                      <input type="email" name="email" value="{{ person.email }}">
-                    </div>
-                  </div>
-                  <div class="grid" style="grid-template-columns: 1fr auto auto auto;">
-                    <div>
-                      <label class="form-label">{% trans "Avatar" %}</label>
-                      <input type="file" name="image" accept="image/*">
-                    </div>
-                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:6px;">
-                      <label class="legend-badge" style="cursor:pointer;">
-                        <input type="checkbox" name="remove_image" value="1">
-                        {% trans "Quitar foto" %}
-                      </label>
-                    </div>
-                    <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:6px;">
-                      <label class="legend-badge" style="cursor:pointer;">
-                        <input type="checkbox" name="is_staff" value="1" {% if person.is_staff %}checked{% endif %}>
-                        {% trans "Administrador" %}
-                      </label>
-                      <input type="hidden" name="is_active" id="ia_{{ person.username }}"
-                             value="{% if person.is_active %}1{% else %}0{% endif %}">
-                      <label class="legend-badge" style="cursor:pointer;">
-                        <input type="checkbox" {% if person.is_active %}checked{% endif %}
-                               onchange="document.getElementById('ia_{{ person.username }}').value = this.checked ? '1' : '0'">
-                        {% trans "Activo" %}
-                      </label>
-                    </div>
-                    <div class="newpost-cta" style="align-items:flex-end;">
-                      <button class="btn-outline" type="submit">{% trans "Guardar" %}</button>
-                    </div>
-                  </div>
-                </form>
-
-                <!-- Set password form -->
-                <form method="post" class="section-stack" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border,#e5e7eb);">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="set_password">
-                  <input type="hidden" name="username" value="{{ person.username }}">
-                  <div class="grid" style="grid-template-columns: 1fr auto;">
-                    <div>
-                      <label class="form-label">{% trans "Nueva contraseña" %}</label>
-                      <input type="password" name="new_password" placeholder="Mín. 6 caracteres" autocomplete="new-password">
-                    </div>
-                    <div class="newpost-cta" style="align-items:flex-end;">
-                      <button class="btn-outline" type="submit">{% trans "Cambiar contraseña" %}</button>
-                    </div>
-                  </div>
-                </form>
-
-                <!-- Delete -->
-                <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border,#e5e7eb);">
-                  <form method="post" onsubmit="return confirm('¿Seguro? Se eliminará el usuario {{ person.username }} permanentemente.')">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="delete_user">
-                    <input type="hidden" name="username" value="{{ person.username }}">
-                    <button class="btn-danger" type="submit">{% trans "Eliminar usuario" %}</button>
-                  </form>
-                </div>
-
-              </details>
-            </article>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted" style="margin-top: 16px;">{% trans "No hay usuarios registrados todavía." %}</p>
-      {% endif %}
-    </section>
+    </div>
   </div>
+</div>
+
+<!-- New user modal -->
+<div class="ua-modal-overlay" id="uaNewModal">
+  <div class="ua-modal" role="dialog" aria-modal="true" aria-labelledby="uaNewModalTitle">
+    <div class="ua-modal-head">
+      <h2 id="uaNewModalTitle">{% trans "Nuevo usuario" %}</h2>
+      <button class="ua-modal-close" id="uaNewModalClose" type="button" aria-label="{% trans 'Cerrar' %}">✕</button>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="uaNewForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_user">
+
+      <div class="ua-modal-section">
+        <div class="ua-grid-2">
+          <div class="ua-field">
+            <label for="nu_username">{% trans "Username" %} *</label>
+            <input type="text" id="nu_username" name="username" placeholder="maria" required autocomplete="off">
+          </div>
+          <div class="ua-field">
+            <label for="nu_email">{% trans "Email" %}</label>
+            <input type="email" id="nu_email" name="email" placeholder="maria@ejemplo.com" autocomplete="off">
+          </div>
+        </div>
+        <div class="ua-grid-2">
+          <div class="ua-field">
+            <label for="nu_first_name">{% trans "Nombre" %}</label>
+            <input type="text" id="nu_first_name" name="first_name" placeholder="María">
+          </div>
+          <div class="ua-field">
+            <label for="nu_last_name">{% trans "Apellidos" %}</label>
+            <input type="text" id="nu_last_name" name="last_name" placeholder="García">
+          </div>
+        </div>
+      </div>
+
+      <hr class="ua-modal-sep">
+
+      <!-- Password options -->
+      <div class="ua-modal-section">
+        <p style="font-size:.82rem; font-weight:600; color:#374151; margin:0;">{% trans "Contraseña" %}</p>
+        <div class="ua-pw-toggle-row">
+          <input type="checkbox" id="nu_gen_pw" name="generate_password" value="1">
+          <label for="nu_gen_pw">{% trans "Generar contraseña automáticamente" %}</label>
+        </div>
+        <div class="ua-pw-manual" id="nuManualPw">
+          <div class="ua-field">
+            <label for="nu_password">{% trans "Contraseña" %} *</label>
+            <input type="password" id="nu_password" name="password" placeholder="{% trans 'Mín. 6 caracteres' %}" autocomplete="new-password">
+          </div>
+        </div>
+        <div id="nuGenPwInfo" style="display:none;">
+          <div class="ua-pw-info-box">
+            {% trans "Se generará una contraseña segura aleatoria. Puedes enviarla por correo al usuario." %}
+          </div>
+          <div class="ua-pw-toggle-row" style="margin-top:8px;">
+            <input type="checkbox" id="nu_send_email" name="send_email" value="1" checked>
+            <label for="nu_send_email">{% trans "Enviar contraseña provisional por correo electrónico" %}</label>
+          </div>
+        </div>
+      </div>
+
+      <hr class="ua-modal-sep">
+
+      <!-- Avatar -->
+      <div class="ua-modal-section">
+        <p style="font-size:.82rem; font-weight:600; color:#374151; margin:0;">{% trans "Avatar (opcional)" %}</p>
+        <div class="ua-dropzone" id="nuDropzone">
+          <input type="file" name="image" id="nuDropInput" accept="image/*">
+          <span class="ua-dropzone-label" id="nuDropLabel">
+            <strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}
+          </span>
+        </div>
+        <img id="nuPreview" src="" alt="" style="display:none; max-height:80px; border-radius:8px; margin-top:4px;">
+      </div>
+
+      <hr class="ua-modal-sep">
+
+      <!-- Admin -->
+      <div class="ua-modal-section">
+        <label class="ua-toggle">
+          <input type="checkbox" name="is_staff" value="1" id="nu_is_staff">
+          {% trans "Administrador" %}
+        </label>
+      </div>
+
+      <div class="ua-modal-footer">
+        <button class="ua-btn-secondary" type="button" id="uaNewModalCancel">{% trans "Cancelar" %}</button>
+        <button class="ua-btn-primary" type="submit">{% trans "Crear usuario" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="ua-delete-confirm-overlay" id="uaDeleteModal">
+  <div class="ua-delete-modal">
+    <h2>{% trans "Eliminar usuario" %}</h2>
+    <p>{% trans "Esta acción es permanente. Escribe" %} <strong id="uaDeleteTarget"></strong> {% trans "para confirmar." %}</p>
+    <div class="ua-field">
+      <label>{% trans "Nombre de usuario" %}</label>
+      <input type="text" id="uaDeleteInput" autocomplete="off" placeholder="">
+    </div>
+    <div class="ua-delete-modal-footer">
+      <button class="ua-btn-secondary" id="uaDeleteCancel" type="button">{% trans "Cancelar" %}</button>
+      <form method="post" id="uaDeleteForm" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_user">
+        <input type="hidden" name="username" id="uaDeleteUsername">
+        <button class="ua-btn-danger" id="uaDeleteConfirmBtn" type="submit" disabled>{% trans "Sí, eliminar" %}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  // ── Sidebar search ─────────────────────────────────────────────
+  document.getElementById('uaSearch').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.ua-user-item').forEach(function (item) {
+      const name = item.dataset.username + ' ' + item.dataset.first + ' ' + item.dataset.last;
+      item.style.display = name.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  // ── User selection ─────────────────────────────────────────────
+  let selectedUsername = null;
+
+  document.getElementById('uaUserList').addEventListener('click', function (e) {
+    const item = e.target.closest('.ua-user-item');
+    if (!item) return;
+    selectUser(item);
+  });
+
+  function selectUser(item) {
+    document.querySelectorAll('.ua-user-item').forEach(function (i) { i.classList.remove('is-active'); });
+    item.classList.add('is-active');
+    selectedUsername = item.dataset.username;
+    populateDetail(item);
+  }
+
+  function populateDetail(item) {
+    const username  = item.dataset.username;
+    const firstName = item.dataset.first;
+    const lastName  = item.dataset.last;
+    const email     = item.dataset.email;
+    const isStaff   = item.dataset.staff === '1';
+    const isActive  = item.dataset.active === '1';
+    const imageUrl  = item.dataset.image;
+
+    // Profile header
+    const fullname = (firstName || lastName) ? ((firstName + ' ' + lastName).trim()) : username;
+    document.getElementById('uaProfileFullname').textContent = fullname;
+    document.getElementById('uaProfileUsername').textContent = '@' + username;
+
+    // Avatar
+    const avatarImg     = document.getElementById('uaProfileAvatarImg');
+    const avatarInitial = document.getElementById('uaProfileAvatarInitial');
+    if (imageUrl) {
+      avatarImg.src = imageUrl;
+      avatarImg.style.display = '';
+      avatarInitial.style.display = 'none';
+    } else {
+      avatarImg.src = '';
+      avatarImg.style.display = 'none';
+      avatarInitial.style.display = '';
+      avatarInitial.textContent = username.charAt(0).toUpperCase();
+    }
+
+    // Badges
+    const badges = document.getElementById('uaProfileBadges');
+    badges.innerHTML = '';
+    if (isStaff)  badges.innerHTML += '<span class="ua-badge ua-badge--admin">Admin</span>';
+    if (!isActive) badges.innerHTML += '<span class="ua-badge ua-badge--inactive">{% trans "Inactivo" %}</span>';
+
+    // Form fields
+    document.getElementById('uaFormUsername').value = username;
+    document.getElementById('uaFieldFirstName').value = firstName;
+    document.getElementById('uaFieldLastName').value  = lastName;
+    document.getElementById('uaFieldEmail').value     = email;
+    document.getElementById('uaFieldIsStaff').checked = isStaff;
+    document.getElementById('uaFieldIsActive').checked = isActive;
+    document.getElementById('uaFormIsActive').value    = isActive ? '1' : '0';
+    document.getElementById('uaFormRemoveImage').value = '0';
+
+    // Remove image row
+    document.getElementById('uaRemoveRow').style.display = imageUrl ? '' : 'none';
+    document.getElementById('uaRemoveCheck').checked = false;
+
+    // Reset dropzone
+    document.getElementById('uaDropLabel').innerHTML = '<strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}';
+    document.getElementById('uaAvatarInput').value = '';
+
+    // Password form
+    document.getElementById('uaPwUsername').value = username;
+    document.getElementById('uaPwField').value     = '';
+    document.getElementById('uaPwConfirm').value   = '';
+
+    // Reset tab to profile
+    activateTab('profile');
+
+    // Show detail
+    document.getElementById('uaEmptyState').style.display = 'none';
+    const det = document.getElementById('uaDetail');
+    det.style.display = 'flex';
+
+    // Update delete btn
+    document.getElementById('uaDeleteUsername').value = username;
+    document.getElementById('uaDeleteTarget').textContent = username;
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────────
+  function activateTab(tab) {
+    document.querySelectorAll('.ua-tab-btn').forEach(function (b) {
+      b.classList.toggle('is-active', b.dataset.tab === tab);
+      b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false');
+    });
+    document.querySelectorAll('.ua-tab-pane').forEach(function (p) { p.classList.remove('is-active'); });
+    document.getElementById('uaTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('is-active');
+  }
+  document.querySelectorAll('.ua-tab-btn[data-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () { activateTab(btn.dataset.tab); });
+  });
+
+  // ── is_active checkbox sync ────────────────────────────────────
+  document.getElementById('uaFieldIsActive').addEventListener('change', function () {
+    document.getElementById('uaFormIsActive').value = this.checked ? '1' : '0';
+  });
+
+  // ── Avatar click / dropzone ────────────────────────────────────
+  const avatarWrap  = document.getElementById('uaAvatarWrap');
+  const avatarInput = document.getElementById('uaAvatarInput');
+  const dropzone    = document.getElementById('uaDropzone');
+  const dropInput   = document.getElementById('uaDropInput');
+  const dropLabel   = document.getElementById('uaDropLabel');
+
+  avatarWrap.addEventListener('click', function () { avatarInput.click(); });
+  avatarInput.addEventListener('change', function () {
+    if (avatarInput.files[0]) previewAvatarFile(avatarInput.files[0]);
+  });
+
+  dropzone.addEventListener('click',  function () { dropInput.click(); });
+  dropInput.addEventListener('change', function () {
+    if (dropInput.files[0]) applyDropFile(dropInput.files[0]);
+  });
+  dropzone.addEventListener('dragover',  function (e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', function ()  { dropzone.classList.remove('dragover'); });
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) applyDropFile(file);
+  });
+
+  function applyDropFile(file) {
+    // Put file into the actual form input
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    avatarInput.files = dt.files;
+    dropLabel.textContent = file.name;
+    previewAvatarFile(file);
+  }
+
+  function previewAvatarFile(file) {
+    const url = URL.createObjectURL(file);
+    const avatarImg = document.getElementById('uaProfileAvatarImg');
+    const avatarInitial = document.getElementById('uaProfileAvatarInitial');
+    avatarImg.src = url;
+    avatarImg.style.display = '';
+    avatarInitial.style.display = 'none';
+  }
+
+  // ── Password confirm check ─────────────────────────────────────
+  document.getElementById('uaSetPwForm').addEventListener('submit', function (e) {
+    const pw  = document.getElementById('uaPwField').value;
+    const pw2 = document.getElementById('uaPwConfirm').value;
+    if (pw !== pw2) {
+      e.preventDefault();
+      alert('{% trans "Las contraseñas no coinciden." %}');
+    }
+  });
+
+  // ── Delete modal ───────────────────────────────────────────────
+  const deleteModal     = document.getElementById('uaDeleteModal');
+  const deleteInput     = document.getElementById('uaDeleteInput');
+  const deleteConfirmBtn = document.getElementById('uaDeleteConfirmBtn');
+
+  document.getElementById('uaDeleteBtn').addEventListener('click', function () {
+    deleteInput.value = '';
+    deleteConfirmBtn.disabled = true;
+    deleteModal.classList.add('open');
+    setTimeout(function () { deleteInput.focus(); }, 50);
+  });
+  document.getElementById('uaDeleteCancel').addEventListener('click', function () {
+    deleteModal.classList.remove('open');
+  });
+  deleteModal.addEventListener('click', function (e) {
+    if (e.target === deleteModal) deleteModal.classList.remove('open');
+  });
+  deleteInput.addEventListener('input', function () {
+    deleteConfirmBtn.disabled = this.value.trim() !== selectedUsername;
+  });
+
+  // ── New user modal ─────────────────────────────────────────────
+  const newModal    = document.getElementById('uaNewModal');
+  const genPwCheck  = document.getElementById('nu_gen_pw');
+  const manualPwDiv = document.getElementById('nuManualPw');
+  const genPwInfo   = document.getElementById('nuGenPwInfo');
+  const nuPassword  = document.getElementById('nu_password');
+
+  function openNewModal() {
+    document.getElementById('uaNewForm').reset();
+    document.getElementById('nuDropLabel').innerHTML = '<strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}';
+    document.getElementById('nuPreview').style.display = 'none';
+    manualPwDiv.style.display = '';
+    genPwInfo.style.display   = 'none';
+    nuPassword.required = true;
+    newModal.classList.add('open');
+    setTimeout(function () { document.getElementById('nu_username').focus(); }, 50);
+  }
+
+  document.getElementById('uaNewUserBtn').addEventListener('click', openNewModal);
+  document.getElementById('uaNewModalClose').addEventListener('click', function () { newModal.classList.remove('open'); });
+  document.getElementById('uaNewModalCancel').addEventListener('click', function () { newModal.classList.remove('open'); });
+  newModal.addEventListener('click', function (e) { if (e.target === newModal) newModal.classList.remove('open'); });
+
+  genPwCheck.addEventListener('change', function () {
+    if (this.checked) {
+      manualPwDiv.style.display = 'none';
+      genPwInfo.style.display   = '';
+      nuPassword.required = false;
+      nuPassword.value    = '';
+    } else {
+      manualPwDiv.style.display = '';
+      genPwInfo.style.display   = 'none';
+      nuPassword.required = true;
+    }
+  });
+
+  // New user modal avatar dropzone
+  const nuDropzone = document.getElementById('nuDropzone');
+  const nuDropInput = document.getElementById('nuDropInput');
+  const nuDropLabel = document.getElementById('nuDropLabel');
+  const nuPreview   = document.getElementById('nuPreview');
+
+  nuDropzone.addEventListener('click',  function () { nuDropInput.click(); });
+  nuDropInput.addEventListener('change', function () {
+    if (nuDropInput.files[0]) applyNuFile(nuDropInput.files[0]);
+  });
+  nuDropzone.addEventListener('dragover',  function (e) { e.preventDefault(); nuDropzone.classList.add('dragover'); });
+  nuDropzone.addEventListener('dragleave', function ()  { nuDropzone.classList.remove('dragover'); });
+  nuDropzone.addEventListener('drop', function (e) {
+    e.preventDefault(); nuDropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) applyNuFile(file);
+  });
+
+  function applyNuFile(file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    nuDropInput.files = dt.files;
+    nuDropLabel.textContent = file.name;
+    nuPreview.src = URL.createObjectURL(file);
+    nuPreview.style.display = '';
+  }
+
+  // Keyboard close
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      newModal.classList.remove('open');
+      deleteModal.classList.remove('open');
+    }
+  });
+
+})();
+</script>
 {% endblock %}

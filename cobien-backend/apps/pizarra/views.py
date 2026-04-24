@@ -5,6 +5,8 @@ import gridfs
 import json
 import pprint
 import re
+import secrets
+import string
 import uuid
 from bson import ObjectId
 from datetime import datetime, timezone, timedelta
@@ -19,6 +21,8 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from .forms import DeviceAdminForm, DeviceContactsAdminForm, PizarraPostForm
 from .device_registry import (
     col_devices,
@@ -624,6 +628,20 @@ def _list_directory_people():
     return items
 
 
+def _send_provisional_password_email(request, user, password):
+    subject = "Tu contraseña provisional en CoBien"
+    ctx = {
+        "user": user,
+        "password": password,
+        "site_url": request.build_absolute_uri('/'),
+    }
+    html_body = render_to_string("registration/provisional_password_email.html", ctx)
+    txt_body  = render_to_string("registration/provisional_password_email.txt", ctx)
+    msg = EmailMultiAlternatives(subject, txt_body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=True)
+
+
 def _list_users_for_admin():
     """Return all users with admin/active flags and avatar URLs."""
     existing_avatars = {
@@ -1212,26 +1230,37 @@ def directory_people_admin(request):
                 email = str(request.POST.get("email") or "").strip().lower()
                 first_name = str(request.POST.get("first_name") or "").strip()
                 last_name = str(request.POST.get("last_name") or "").strip()
-                password = str(request.POST.get("password") or "").strip()
                 is_staff = request.POST.get("is_staff") == "1"
+                generate_password = request.POST.get("generate_password") == "1"
+                send_email_flag = request.POST.get("send_email") == "1"
                 if not username:
                     raise ValueError("El nombre de usuario es obligatorio.")
-                if not password or len(password) < 6:
-                    raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+                if generate_password:
+                    alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+                    password = ''.join(secrets.choice(alphabet) for _ in range(14))
+                else:
+                    password = str(request.POST.get("password") or "").strip()
+                    if not password or len(password) < 6:
+                        raise ValueError("La contraseña debe tener al menos 6 caracteres.")
                 if db["auth_user"].find_one({"username": username}):
                     raise ValueError(f"El usuario '{username}' ya existe.")
                 user = User(username=username, email=email, first_name=first_name,
                             last_name=last_name, is_active=True, is_staff=is_staff)
                 user.set_password(password)
                 user.save()
+                mongo_update = {"email_verified": True, "preferred_language": "es", "is_admin": is_staff}
+                if generate_password:
+                    mongo_update["must_change_password"] = True
                 db["auth_user"].update_one(
                     {"username": username},
-                    {"$set": {"email_verified": True, "preferred_language": "es", "is_admin": is_staff}},
+                    {"$set": mongo_update},
                     upsert=True,
                 )
                 uploaded_file = request.FILES.get("image")
                 if uploaded_file:
                     _save_user_avatar(username, uploaded_file)
+                if generate_password and send_email_flag and email:
+                    _send_provisional_password_email(request, user, password)
                 messages.success(request, f"Usuario '{username}' creado correctamente.")
 
             elif action == "update_user":

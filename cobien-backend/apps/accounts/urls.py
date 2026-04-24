@@ -1,10 +1,12 @@
 # accounts/urls.py
 from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
-from .forms import MongoFriendlyPasswordResetForm 
+from .forms import MongoFriendlyPasswordResetForm
+from .views import ForceChangePasswordView
 
 
 urlpatterns = [
+    path('change-password/', ForceChangePasswordView.as_view(), name='change_password_forced'),
     path(
         'password-reset/',
         auth_views.PasswordResetView.as_view(

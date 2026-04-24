@@ -1,6 +1,7 @@
 from django.urls import reverse_lazy
 from django.views.generic import CreateView
 from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import SignUpForm, EmailLoginForm
 import os
 from pymongo import MongoClient
@@ -9,9 +10,9 @@ from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.views import View
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
@@ -184,3 +185,30 @@ def enviar_email_activacion(request, user, lang="es"):
     )
     msg.attach_alternative(html_body, "text/html")
     msg.send()
+
+
+class ForceChangePasswordView(LoginRequiredMixin, View):
+    template_name = "registration/change_password_forced.html"
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+    def post(self, request):
+        new_password = request.POST.get("new_password", "").strip()
+        confirm      = request.POST.get("confirm_password", "").strip()
+        if not new_password or len(new_password) < 8:
+            messages.error(request, _("La contraseña debe tener al menos 8 caracteres."))
+            return render(request, self.template_name)
+        if new_password != confirm:
+            messages.error(request, _("Las contraseñas no coinciden."))
+            return render(request, self.template_name)
+        user = request.user
+        user.set_password(new_password)
+        user.save()
+        db["auth_user"].update_one(
+            {"username": user.username},
+            {"$unset": {"must_change_password": 1}},
+        )
+        update_session_auth_hash(request, user)
+        messages.success(request, _("Contraseña actualizada correctamente."))
+        return redirect(settings.LOGIN_REDIRECT_URL or "/")
