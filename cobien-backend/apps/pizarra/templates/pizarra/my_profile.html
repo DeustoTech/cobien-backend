@@ -225,6 +225,22 @@
     </form>
   </div>
 
+  {% if not profile_user.is_staff and not profile_user.is_superuser %}
+  <div class="mp-card" style="border-color:#FECACA;">
+    <p class="mp-card-title" style="color:#B91C1C;">{% trans "Eliminar cuenta" %}</p>
+    <p style="margin:0 0 14px; color:#6B7280; font-size:.9rem;">
+      {% trans "Si eliminas tu cuenta, se borrará tu acceso a la plataforma y ya no podrás iniciar sesión de nuevo con este usuario." %}
+    </p>
+    <form method="post" id="mpDeleteAccountForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete_account">
+      <div class="mp-actions">
+        <button class="mp-btn-primary" type="submit" style="background:#DC2626;">{% trans "Eliminar mi cuenta" %}</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
 
@@ -278,6 +294,15 @@
       alert('{% trans "Las contraseñas no coinciden." %}');
     }
   });
+
+  const deleteForm = document.getElementById('mpDeleteAccountForm');
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', function (e) {
+      if (!confirm('{% trans "¿Seguro que quieres eliminar tu cuenta? Esta acción no se puede deshacer." %}')) {
+        e.preventDefault();
+      }
+    });
+  }
 
 })();
 </script>

@@ -714,10 +714,12 @@ def _user_avatar_url(username, request=None):
 def _build_message_author_meta(username, request=None):
     username = str(username or "").strip()
     profile = _find_user_profile(username=username)
+    author_name = _profile_display_name(profile, fallback=username) or username or "—"
     return {
         "author": username,
-        "author_name": _profile_display_name(profile, fallback=username) or username or "—",
+        "author_name": author_name,
         "author_avatar_url": _user_avatar_url(username, request=request),
+        "author_initial": (author_name[:1] or username[:1] or "U").upper(),
     }
 
 
@@ -1227,16 +1229,17 @@ def pizarra_home(request):
     # Histórico
     posts = []
     if selected_contact:
-        author_meta = _build_message_author_meta(request.user.username, request=request)
-        cursor = col_messages.find(
-            {"author": request.user.username, "recipient_key": selected_contact}
-        ).sort("created_at", DESCENDING)
+        message_filter = {"recipient_key": selected_contact}
+        if not is_admin:
+            message_filter["author"] = request.user.username
+        cursor = col_messages.find(message_filter).sort("created_at", DESCENDING)
         for d in cursor:
             image_url = ""
             if d.get("image_file_id"):
                 image_url = request.build_absolute_uri(
                     reverse("pizarra_image", args=[str(d["image_file_id"])])
                 )
+            author_meta = _build_message_author_meta(d.get("author"), request=request)
             posts.append({
                 "id": str(d["_id"]),
                 "recipient_key": d.get("recipient_key"),
@@ -1650,6 +1653,26 @@ def my_profile(request):
                 user.save()
                 update_session_auth_hash(request, user)
                 messages.success(request, "Password updated.")
+            elif action == "delete_account":
+                if _staff_required(user):
+                    raise ValueError("Administrators cannot delete their own account from this screen.")
+                username = str(user.username or "").strip()
+                email = str(user.email or "").strip()
+                _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", _user_avatar_filename(username))
+                if username:
+                    col_user_device_access.delete_many({"username": username})
+                    col_notifications.delete_many({"to_user": username})
+                    col_messages.delete_many({"author": username})
+                    db["auth_user"].delete_many({"username": username})
+                    db["users"].delete_many({"username": username})
+                    if email:
+                        db["auth_user"].delete_many({"email": email})
+                        db["users"].delete_many({"email": email})
+                from django.contrib.auth import logout
+                user.delete()
+                logout(request)
+                messages.success(request, "Your account has been deleted.")
+                return redirect("/")
         except Exception as exc:
             messages.error(request, str(exc))
         return redirect(reverse("my_profile"))
@@ -1866,9 +1889,10 @@ def pizarra_web_messages(request):
     recipient = request.GET.get("recipient", "").strip()
     if not recipient:
         return JsonResponse({"ok": False, "error": "Missing recipient"}, status=400)
-    cursor = col_messages.find(
-        {"author": request.user.username, "recipient_key": recipient}
-    ).sort("created_at", DESCENDING).limit(50)
+    message_filter = {"recipient_key": recipient}
+    if not _staff_required(request.user):
+        message_filter["author"] = request.user.username
+    cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(50)
     posts = []
     for d in cursor:
         image_url = ""
@@ -1876,11 +1900,13 @@ def pizarra_web_messages(request):
             image_url = request.build_absolute_uri(
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
+        author_meta = _build_message_author_meta(d.get("author"), request=request)
         posts.append({
             "id": str(d["_id"]),
             "content": d.get("content", ""),
             "image_url": image_url,
             "created_at_human": fecha_chat(d.get("created_at")),
+            **author_meta,
         })
     return JsonResponse({"ok": True, "posts": posts})
 
@@ -1939,7 +1965,10 @@ def pizarra_web_delete(request, post_id: str):
         target_id = ObjectId(post_id)
     except Exception:
         return JsonResponse({"ok": False, "error": "post_id inválido"}, status=400)
-    doc = col_messages.find_one({"_id": target_id, "author": request.user.username})
+    delete_filter = {"_id": target_id}
+    if not _staff_required(request.user):
+        delete_filter["author"] = request.user.username
+    doc = col_messages.find_one(delete_filter)
     if not doc:
         return JsonResponse({"ok": False, "error": "Mensaje no encontrado"}, status=404)
     if doc.get("image_file_id"):
