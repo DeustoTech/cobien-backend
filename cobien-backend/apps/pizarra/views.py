@@ -3,7 +3,6 @@ import io
 import os
 import gridfs
 import json
-import pprint
 import re
 import secrets
 import string
@@ -1527,10 +1526,6 @@ def pizarra_create(request):
     }
     col_messages.insert_one(doc)
 
-    print(f"[DEVICE QUEUE] 🚀 Enqueue notification...")
-    print(f"[DEVICE QUEUE]    From: {request.user.username}")
-    print(f"[DEVICE QUEUE]    To: {doc['recipient_key']}")
-
     try:
         image_url = (
             request.build_absolute_uri(reverse("pizarra_image", args=[str(file_id)]))
@@ -1544,17 +1539,9 @@ def pizarra_create(request):
             "image_url": image_url,
             "timestamp": doc["created_at"].isoformat()
         })
-        queue_payload = json.loads(payload)
-        enqueue_notification(doc["recipient_key"], queue_payload)
-        print(f"[DEVICE QUEUE] 📦 Payload: {payload}")
-        print(f"[DEVICE QUEUE] ✅ Notification enqueued avec succès !")
-        
-    except Exception as e:
-        print(f"[DEVICE QUEUE] ❌ ERREUR: {e}")
-        import traceback
-        traceback.print_exc()
-
-    print(f"[DEVICE QUEUE] 🏁 Fin enqueue notification")
+        enqueue_notification(doc["recipient_key"], json.loads(payload))
+    except Exception:
+        pass
 
     messages.success(request, "¡Mensaje guardado!")
     return redirect(f"{reverse('pizarra_home')}?to={doc['recipient_key']}")

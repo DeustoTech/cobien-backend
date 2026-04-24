@@ -505,16 +505,13 @@ def generate_video_token(request, identity, room_name):
         video_grant = VideoGrant(room=room_name)
         token.add_grant(video_grant)
 
-        print(f"Token generado JWT: {token.to_jwt()}")  
-        enqueue_videocall_notification(room_name, identity) 
+        enqueue_videocall_notification(room_name, identity)
 
-        # Devolver el token como JSON
         return JsonResponse({
             'token': str(token.to_jwt()),
             'room_name': room_name
         })
-    except Exception as e:
-        print(f"Error al generar el token: {e}")
+    except Exception:
         return JsonResponse({'error': 'No se pudo generar el token'}, status=500)
 
 @csrf_exempt
@@ -671,19 +668,9 @@ def enqueue_videocall_notification(room_name: str, caller: str) -> None:
             "timestamp": datetime.now().isoformat()
         }
         enqueue_notification(target_device_id or room_name, payload)
-        print(f"[DEVICE QUEUE VIDEOCALL] ✓ Notification enqueued")
-        print(f"[DEVICE QUEUE VIDEOCALL]   From: {caller}")
-        print(f"[DEVICE QUEUE VIDEOCALL]   To room: {room_name}")
-        print(f"[DEVICE QUEUE VIDEOCALL]   Target device: {target_device_id or room_name}")
-        print(f"[DEVICE QUEUE VIDEOCALL]   Type: videocall")
-        print(f"[DEVICE QUEUE VIDEOCALL]   Payload: {json.dumps(payload)}")
-
         call_monitor.add_call(room_name=room_name, caller=caller)
-    
-    except Exception as e:
-        print(f"[DEVICE QUEUE VIDEOCALL] ✗ Erreur queue: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        pass
 
 @csrf_exempt
 def call_answered(request):
@@ -699,18 +686,9 @@ def call_answered(request):
         if not room_name:
             return JsonResponse({'error': 'Missing room'}, status=400)
         
-        print(f"[CALL ANSWERED] 📞 Appel décroché")
-        print(f"[CALL ANSWERED]    Room: {room_name}")
-        print(f"[CALL ANSWERED]    Device: {device}")
-        
         call_monitor.mark_answered(room_name)
-        
         return JsonResponse({'success': True})
-    
     except Exception as e:
-        print(f"[CALL ANSWERED] ❌ Erreur: {e}")
-        import traceback
-        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
 
