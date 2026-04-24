@@ -57,6 +57,7 @@ col_messages = db["pizarra_messages"]
 col_notifications = db["pizarra_notifications"]
 col_icso_snapshots = db["pizarra_icso_snapshots"]
 col_icso_events = db["pizarra_icso_events"]
+col_device_runtime_logs = db["pizarra_device_runtime_logs"]
 col_directory_people = db["pizarra_directory_people"]
 try:
     # Búsqueda rápida por usuario/estado/fecha
@@ -74,6 +75,11 @@ try:
     col_icso_snapshots.create_index([("updated_at", DESCENDING)])
     col_icso_events.create_index([("device_id", ASCENDING), ("logged_at", DESCENDING)])
     col_icso_events.create_index([("created_at", DESCENDING)])
+    col_device_runtime_logs.create_index(
+        [("device_id", ASCENDING), ("log_type", ASCENDING), ("log_date", DESCENDING)],
+        unique=True,
+    )
+    col_device_runtime_logs.create_index([("device_id", ASCENDING), ("updated_at", DESCENDING)])
 except Exception:
     pass
 
@@ -82,6 +88,21 @@ _PALETTE = [
     "#A3E635", "#F472B6", "#F59E0B", "#34D399",
     "#F87171", "#C084FC", "#FB7185", "#FBBF24",
 ]
+
+_DEVICE_RUNTIME_LOG_TYPES = {
+    "app": {
+        "label": "Application",
+        "prefix": "cobien-app",
+    },
+    "can_bus": {
+        "label": "CAN Bus",
+        "prefix": "can-bus",
+    },
+    "mqtt_can_bridge": {
+        "label": "MQTT-CAN Bridge",
+        "prefix": "mqtt-can-bridge",
+    },
+}
 
 
 def _color_for_device(name: str) -> str:
@@ -118,6 +139,113 @@ def _serialize_datetime(value):
     if isinstance(value, datetime):
         return value.isoformat()
     return value
+
+
+def _normalize_device_runtime_log_type(value):
+    normalized = str(value or "").strip().lower().replace("-", "_")
+    return normalized if normalized in _DEVICE_RUNTIME_LOG_TYPES else ""
+
+
+def _normalize_device_runtime_log_date(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return datetime.strptime(raw[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+
+def _build_device_runtime_logs_payload(device_id, days=2):
+    now = datetime.now(timezone.utc)
+    if not device_id:
+        return {
+            "runtime_logs": [],
+            "runtime_logs_by_type": [],
+            "runtime_logs_count": 0,
+            "runtime_logs_available_types": [],
+            "runtime_logs_available_dates": [],
+            "runtime_logs_updated_at": "",
+            "runtime_logs_status": "empty",
+            "runtime_logs_status_label": "Waiting for sync",
+        }
+
+    cursor = (
+        col_device_runtime_logs
+        .find({"device_id": device_id}, {"_id": 0})
+        .sort([("log_date", DESCENDING), ("updated_at", DESCENDING)])
+    )
+
+    docs = []
+    seen_dates = set()
+    available_dates = []
+    available_types = set()
+    updated_at = ""
+    for doc in cursor:
+        log_date = _normalize_device_runtime_log_date(doc.get("log_date"))
+        log_type = _normalize_device_runtime_log_type(doc.get("log_type"))
+        if not log_date or not log_type:
+            continue
+        if log_date not in seen_dates:
+            seen_dates.add(log_date)
+            available_dates.append(log_date)
+        if len(seen_dates) > max(int(days or 2), 1):
+            continue
+        meta = _DEVICE_RUNTIME_LOG_TYPES.get(log_type, {})
+        updated_value = _serialize_datetime(doc.get("updated_at"))
+        docs.append(
+            {
+                "log_type": log_type,
+                "log_type_label": meta.get("label") or log_type,
+                "log_date": log_date,
+                "filename": str(doc.get("filename") or "").strip(),
+                "content": str(doc.get("content") or ""),
+                "line_count": int(doc.get("line_count") or 0),
+                "byte_count": int(doc.get("byte_count") or 0),
+                "truncated": bool(doc.get("truncated")),
+                "updated_at": updated_value,
+                "empty": not bool(str(doc.get("content") or "").strip()),
+            }
+        )
+        available_types.add(log_type)
+        if updated_value and (not updated_at or str(updated_value) > str(updated_at)):
+            updated_at = updated_value
+
+    grouped = []
+    for log_type, meta in _DEVICE_RUNTIME_LOG_TYPES.items():
+        items = [item for item in docs if item["log_type"] == log_type]
+        if not items:
+            continue
+        grouped.append(
+            {
+                "log_type": log_type,
+                "log_type_label": meta["label"],
+                "entries": items,
+            }
+        )
+
+    return {
+        "runtime_logs": docs,
+        "runtime_logs_by_type": grouped,
+        "runtime_logs_count": len(docs),
+        "runtime_logs_available_types": list(available_types),
+        "runtime_logs_available_dates": available_dates[: max(int(days or 2), 1)],
+        "runtime_logs_updated_at": updated_at,
+        "runtime_logs_status": (
+            "fresh"
+            if updated_at and (now - (_parse_datetime_value(updated_at, fallback=now) or now)).total_seconds() < 3600
+            else "stale"
+            if updated_at
+            else "empty"
+        ),
+        "runtime_logs_status_label": (
+            "Fresh"
+            if updated_at and (now - (_parse_datetime_value(updated_at, fallback=now) or now)).total_seconds() < 3600
+            else "Needs refresh"
+            if updated_at
+            else "Waiting for sync"
+        ),
+    }
 
 
 def _device_hardware_sections(device):
@@ -233,6 +361,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
             break
 
     icso_payload = _device_icso_payload(selected_device)
+    runtime_logs_payload = _build_device_runtime_logs_payload(selected_device, days=2)
     people_profiles = _list_directory_people()
 
     all_users = list(
@@ -274,6 +403,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "all_users": all_users,
         "assigned_set": assigned_set,
         **icso_payload,
+        **runtime_logs_payload,
     }
 
 
@@ -1158,6 +1288,7 @@ def devices_admin(request):
                 db["pizarra_device_queue"].delete_many({"device_id": selected_device})
                 col_icso_snapshots.delete_many({"device_id": selected_device})
                 col_icso_events.delete_many({"device_id": selected_device})
+                col_device_runtime_logs.delete_many({"device_id": selected_device})
                 col_user_device_access.delete_many({"device_id": selected_device})
                 col_devices.delete_one({"device_id": selected_device})
                 # Remove device references from user profiles so list_known_devices()
@@ -1861,6 +1992,74 @@ def api_device_delivery_diagnostic(request):
         return JsonResponse({"error": f"Queue enqueue failed: {exc}"}, status=502)
 
     return JsonResponse({"ok": True, "published": queue_payload})
+
+
+@csrf_exempt
+def api_device_logs_ingest(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id", "") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    raw_logs = payload.get("logs", [])
+    if not isinstance(raw_logs, list) or not raw_logs:
+        return JsonResponse({"error": "logs requerido"}, status=400)
+
+    stored = []
+    rejected = []
+    now = datetime.now(timezone.utc)
+    for item in raw_logs:
+        if not isinstance(item, dict):
+            rejected.append({"reason": "invalid_item"})
+            continue
+
+        log_type = _normalize_device_runtime_log_type(item.get("log_type"))
+        log_date = _normalize_device_runtime_log_date(item.get("log_date"))
+        if not log_type or not log_date:
+            rejected.append({"reason": "invalid_type_or_date", "log_type": item.get("log_type"), "log_date": item.get("log_date")})
+            continue
+
+        content = str(item.get("content") or "")
+        filename = str(item.get("filename") or "").strip()
+        line_count = int(item.get("line_count") or 0)
+        byte_count = int(item.get("byte_count") or len(content.encode("utf-8", errors="ignore")))
+        truncated = bool(item.get("truncated"))
+
+        doc = {
+            "device_id": device_id,
+            "log_type": log_type,
+            "log_date": log_date,
+            "filename": filename,
+            "content": content,
+            "line_count": line_count,
+            "byte_count": byte_count,
+            "truncated": truncated,
+            "updated_at": now,
+            "sent_at": _parse_datetime_value(item.get("sent_at"), fallback=now) or now,
+        }
+        col_device_runtime_logs.update_one(
+            {"device_id": device_id, "log_type": log_type, "log_date": log_date},
+            {"$set": doc, "$setOnInsert": {"created_at": now}},
+            upsert=True,
+        )
+        stored.append({"log_type": log_type, "log_date": log_date, "filename": filename})
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "device_id": device_id,
+            "stored": stored,
+            "stored_count": len(stored),
+            "rejected": rejected,
+            "rejected_count": len(rejected),
+        }
+    )
 
 @login_required
 def api_notifications(request):

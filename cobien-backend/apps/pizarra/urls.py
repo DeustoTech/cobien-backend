@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/contacts/sync/', views.api_trigger_contacts_sync, name='pizarra_api_contacts_sync'),
     path('api/device/poll/', views.api_device_poll, name='pizarra_api_device_poll'),
     path('api/device/diagnostic/', views.api_device_delivery_diagnostic, name='pizarra_api_device_diagnostic'),
+    path('api/device/logs/ingest/', views.api_device_logs_ingest, name='pizarra_api_device_logs_ingest'),
     path('api/devices/heartbeat/', views.api_device_heartbeat, name='pizarra_api_device_heartbeat'),
     path('api/icso/telemetry/', views.api_icso_telemetry, name='pizarra_api_icso_telemetry'),
     path('api/icso/events/', views.api_icso_events, name='pizarra_api_icso_events'),

@@ -182,6 +182,178 @@
 .dm-tab-pane { display: none; }
 .dm-tab-pane.is-active { display: block; }
 
+/* ── Support logs ── */
+.dm-log-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.dm-log-header-meta {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.dm-log-status-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:.76rem;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.dm-log-status-badge--fresh {
+  background:#ECFDF5;
+  color:#047857;
+}
+.dm-log-status-badge--stale {
+  background:#FFF7ED;
+  color:#C2410C;
+}
+.dm-log-status-badge--empty {
+  background:#F3F4F6;
+  color:#6B7280;
+}
+.dm-log-search {
+  width:280px;
+  max-width:100%;
+  padding:8px 11px;
+  border:1px solid var(--border,#D1D5DB);
+  border-radius:10px;
+  background:#fff;
+  color:#111827;
+  font-size:.82rem;
+  box-sizing:border-box;
+}
+.dm-log-search:focus {
+  outline:none;
+  border-color:#6366F1;
+  box-shadow:0 0 0 3px rgba(99,102,241,.08);
+}
+.dm-log-pill-group {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.dm-log-pill {
+  appearance:none;
+  border:1px solid var(--border,#D1D5DB);
+  background:#fff;
+  color:#6B7280;
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:.8rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:all .15s ease;
+}
+.dm-log-pill:hover { border-color:#A5B4FC; color:#4338CA; }
+.dm-log-pill.is-active {
+  background:#EEF2FF;
+  border-color:#C7D2FE;
+  color:#4338CA;
+}
+.dm-log-panels { display:flex; flex-direction:column; gap:12px; }
+.dm-log-panel { display:none; }
+.dm-log-panel.is-active { display:block; }
+.dm-log-meta {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.dm-log-meta-main {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  color:#374151;
+}
+.dm-log-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:.76rem;
+  font-weight:700;
+  padding:3px 9px;
+  border-radius:999px;
+  background:#F3F4F6;
+  color:#4B5563;
+}
+.dm-log-note {
+  font-size:.78rem;
+  color:#9CA3AF;
+}
+.dm-log-viewer {
+  border:1px solid var(--border,#E5E7EB);
+  border-radius:12px;
+  background:linear-gradient(180deg, #FCFCFD 0%, #F8FAFC 100%);
+  overflow:hidden;
+}
+.dm-log-viewer-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 14px;
+  border-bottom:1px solid var(--border,#E5E7EB);
+  background:#fff;
+}
+.dm-log-viewer-head strong {
+  font-size:.84rem;
+  color:#111827;
+}
+.dm-log-viewer-head span {
+  font-size:.76rem;
+  color:#9CA3AF;
+}
+.dm-log-viewer pre {
+  margin:0;
+  padding:14px 16px;
+  max-height:380px;
+  overflow:auto;
+  font-size:.76rem;
+  line-height:1.5;
+  color:#1F2937;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.dm-log-viewer.is-filtered {
+  border-color:#C7D2FE;
+  box-shadow:0 0 0 3px rgba(99,102,241,.06);
+}
+.dm-log-empty {
+  padding:28px 20px;
+  text-align:center;
+  color:#9CA3AF;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.dm-log-empty strong {
+  color:#6B7280;
+  font-size:.88rem;
+}
+.dm-log-no-match {
+  display:none;
+  padding:18px 16px;
+  border:1px dashed #D1D5DB;
+  border-radius:10px;
+  color:#9CA3AF;
+  font-size:.8rem;
+  text-align:center;
+  background:#FCFCFD;
+}
+.dm-log-no-match.is-active { display:block; }
+
 /* ── Contact rows (simplified, no image upload) ── */
 .dm-contact-row {
   display: grid;
@@ -622,6 +794,105 @@
           </form>
         </div>
 
+        <!-- ── Support logs ── -->
+        <div class="dm-card">
+          <div class="dm-card-head">
+            <h2>{% trans "Logs de soporte" %}</h2>
+            <div class="dm-log-header-meta">
+              <span class="dm-log-status-badge dm-log-status-badge--{{ runtime_logs_status }}">
+                {{ runtime_logs_status_label }}
+              </span>
+              <span class="dm-log-note">
+              {% if runtime_logs_updated_at %}
+                {% trans "Última sincronización" %}: {{ runtime_logs_updated_at|fecha_legible }}
+              {% else %}
+                {% trans "Se mostrarán aquí los últimos 2 días cuando el mueble sincronice sus logs." %}
+              {% endif %}
+              </span>
+            </div>
+          </div>
+
+          {% if runtime_logs_by_type %}
+            <div class="dm-log-toolbar">
+              <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Tipos de log' %}">
+                {% for group in runtime_logs_by_type %}
+                  <button
+                    type="button"
+                    class="dm-log-pill dm-log-type-btn {% if forloop.first %}is-active{% endif %}"
+                    data-log-type="{{ group.log_type }}"
+                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                  >
+                    {{ group.log_type_label }}
+                  </button>
+                {% endfor %}
+              </div>
+
+              {% if runtime_logs_available_dates %}
+                <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Días disponibles' %}">
+                  {% for log_date in runtime_logs_available_dates %}
+                    <button
+                      type="button"
+                      class="dm-log-pill dm-log-date-btn {% if forloop.first %}is-active{% endif %}"
+                      data-log-date="{{ log_date }}"
+                      aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                    >
+                      {{ log_date }}
+                    </button>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <input
+                type="search"
+                class="dm-log-search"
+                id="supportLogSearch"
+                placeholder="{% trans 'Buscar dentro del log visible…' %}"
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="dm-log-panels">
+              {% for group in runtime_logs_by_type %}
+                {% for entry in group.entries %}
+                  <div
+                    class="dm-log-panel {% if forloop.parentloop.first and forloop.first %}is-active{% endif %}"
+                    data-log-type="{{ group.log_type }}"
+                    data-log-date="{{ entry.log_date }}"
+                  >
+                    <div class="dm-log-meta">
+                      <div class="dm-log-meta-main">
+                        <span class="dm-log-chip">{{ group.log_type_label }}</span>
+                        <span class="dm-log-chip">{{ entry.log_date }}</span>
+                        {% if entry.line_count %}
+                          <span class="dm-log-note">{{ entry.line_count }} {% trans "líneas" %}</span>
+                        {% endif %}
+                        {% if entry.truncated %}
+                          <span class="dm-log-note">{% trans "Mostrando una vista recortada para soporte web." %}</span>
+                        {% endif %}
+                      </div>
+                      <div class="dm-log-note">
+                        {{ entry.updated_at|fecha_legible }}
+                      </div>
+                    </div>
+                    <div class="dm-log-viewer">
+                      <div class="dm-log-viewer-head">
+                        <strong>{{ entry.filename|default:"runtime.log" }}</strong>
+                        <span>{{ entry.byte_count }} bytes</span>
+                      </div>
+                      <pre>{{ entry.content|default:"" }}</pre>
+                    </div>
+                    <div class="dm-log-no-match">{% trans "No hay coincidencias en este log para la búsqueda actual." %}</div>
+                  </div>
+                {% endfor %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="dm-log-empty">
+              <strong>{% trans "Todavía no hay logs sincronizados" %}</strong>
+              <span>{% trans "Cuando el mueble publique sus logs de aplicación, CAN Bus y MQTT-CAN Bridge, aparecerán aquí con foco en soporte técnico." %}</span>
+            </div>
+          {% endif %}
+        </div>
+
         <!-- ── Datos ICSO ── -->
         {% if snapshot or events %}
         <div class="dm-card">
@@ -824,6 +1095,89 @@
         if (pane) pane.classList.add('is-active');
       });
     });
+  })();
+
+  // ── Support logs filters ───────────────────────────────────────
+  (function () {
+    const typeBtns = Array.from(document.querySelectorAll('.dm-log-type-btn'));
+    const dateBtns = Array.from(document.querySelectorAll('.dm-log-date-btn'));
+    const panels = Array.from(document.querySelectorAll('.dm-log-panel'));
+    const searchInput = document.getElementById('supportLogSearch');
+    if (!typeBtns.length || !panels.length) return;
+
+    function activeValue(buttons, key) {
+      const active = buttons.find((btn) => btn.classList.contains('is-active'));
+      return active ? active.dataset[key] : '';
+    }
+
+    function setActive(buttons, key, value) {
+      buttons.forEach(function (btn) {
+        const isActive = btn.dataset[key] === value;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+    }
+
+    function refreshPanels() {
+      const currentType = activeValue(typeBtns, 'logType');
+      const currentDate = dateBtns.length ? activeValue(dateBtns, 'logDate') : '';
+      let firstVisible = null;
+
+      panels.forEach(function (panel) {
+        const typeOk = !currentType || panel.dataset.logType === currentType;
+        const dateOk = !currentDate || panel.dataset.logDate === currentDate;
+        const visible = typeOk && dateOk;
+        panel.classList.toggle('is-active', visible);
+        if (visible && !firstVisible) firstVisible = panel;
+      });
+
+      if (!firstVisible && dateBtns.length) {
+        const fallbackDate = panels
+          .filter((panel) => !currentType || panel.dataset.logType === currentType)
+          .map((panel) => panel.dataset.logDate)[0];
+        if (fallbackDate) {
+          setActive(dateBtns, 'logDate', fallbackDate);
+          refreshPanels();
+        }
+      }
+
+      applySearch();
+    }
+
+    function applySearch() {
+      const query = (searchInput?.value || '').trim().toLowerCase();
+      panels.forEach(function (panel) {
+        if (!panel.classList.contains('is-active')) return;
+        const viewer = panel.querySelector('.dm-log-viewer');
+        const pre = panel.querySelector('pre');
+        const noMatch = panel.querySelector('.dm-log-no-match');
+        const text = (pre?.textContent || '').toLowerCase();
+        const matches = !query || text.includes(query);
+        if (viewer) viewer.classList.toggle('is-filtered', Boolean(query));
+        if (viewer) viewer.style.display = matches ? '' : 'none';
+        if (noMatch) noMatch.classList.toggle('is-active', !matches);
+      });
+    }
+
+    typeBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setActive(typeBtns, 'logType', btn.dataset.logType);
+        refreshPanels();
+      });
+    });
+
+    dateBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setActive(dateBtns, 'logDate', btn.dataset.logDate);
+        refreshPanels();
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', applySearch);
+    }
+
+    refreshPanels();
   })();
 
   // ── Modal: nuevo mueble ─────────────────────────────────────────
