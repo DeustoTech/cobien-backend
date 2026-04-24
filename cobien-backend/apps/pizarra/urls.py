@@ -10,6 +10,7 @@ urlpatterns = [
     path('devices/', views.devices_admin, name='pizarra_devices_admin'),
     path('devices/delete/', views.device_delete, name='pizarra_device_delete'),
     path('devices/contacts/', views.device_contacts_admin, name='pizarra_device_contacts_admin'),
+    path('profile/', views.my_profile, name='my_profile'),
     path('people/', views.directory_people_admin, name='pizarra_directory_people_admin'),
     path('contact-images/<str:filename>/', views.contact_image, name='pizarra_contact_image'),
     path('person-images/<str:filename>/', views.directory_person_image, name='pizarra_directory_person_image'),

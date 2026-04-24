@@ -1349,6 +1349,52 @@ def devices_admin(request):
 
 
 @login_required
+def my_profile(request):
+    User = get_user_model()
+    user = request.user
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "update_profile":
+                first_name = str(request.POST.get("first_name") or "").strip()
+                last_name  = str(request.POST.get("last_name") or "").strip()
+                email      = str(request.POST.get("email") or "").strip().lower()
+                remove_image = request.POST.get("remove_image") == "1"
+                uploaded_file = request.FILES.get("image")
+                user.first_name = first_name
+                user.last_name  = last_name
+                user.email      = email
+                user.save()
+                if remove_image:
+                    _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", _user_avatar_filename(user.username))
+                if uploaded_file:
+                    _save_user_avatar(user.username, uploaded_file)
+                messages.success(request, "Profile updated.")
+            elif action == "change_password":
+                new_password = str(request.POST.get("new_password") or "").strip()
+                confirm      = str(request.POST.get("confirm_password") or "").strip()
+                if not new_password or len(new_password) < 6:
+                    raise ValueError("Password must be at least 6 characters.")
+                if new_password != confirm:
+                    raise ValueError("Passwords do not match.")
+                from django.contrib.auth import update_session_auth_hash
+                user.set_password(new_password)
+                user.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password updated.")
+        except Exception as exc:
+            messages.error(request, str(exc))
+        return redirect(reverse("my_profile"))
+
+    image_url = _user_avatar_url(user.username)
+    context = {
+        "profile_user": user,
+        "image_url": image_url,
+    }
+    return render(request, "pizarra/my_profile.html", context)
+
+
+@login_required
 @user_passes_test(_staff_required)
 def directory_people_admin(request):
     User = get_user_model()
@@ -2054,7 +2100,10 @@ def api_notifications(request):
     from_device = request.GET.get("from_device", "").strip()
     filt = {}
     if not _staff_required(request.user):
+        accessible = get_accessible_device_ids(username=request.user.username)
         filt["to_user"] = request.user.username
+        if accessible:
+            filt["from_device"] = {"$in": accessible}
     if only_unread:
         filt["read"] = False
     if from_device:

@@ -31,6 +31,8 @@
             {% if user.is_staff or user.is_superuser %}
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_devices_admin' %} is-active{% endif %}" href="{% url 'pizarra_devices_admin' %}">{% trans "Muebles" %}</a>
               <a class="site-nav-link{% if request.resolver_match.url_name == 'pizarra_directory_people_admin' %} is-active{% endif %}" href="{% url 'pizarra_directory_people_admin' %}">{% trans "Usuarios" %}</a>
+            {% elif user.is_authenticated %}
+              <a class="site-nav-link{% if request.resolver_match.url_name == 'my_profile' %} is-active{% endif %}" href="{% url 'my_profile' %}">{% trans "Mi perfil" %}</a>
             {% endif %}
           </nav>
 
@@ -73,6 +75,7 @@
                 </summary>
                 <div class="user-menu-panel">
                   <div class="user-menu-name">{{ user.username }}</div>
+                  <a href="{% url 'my_profile' %}" class="user-menu-link">{% trans "Mi perfil" %}</a>
                   <a href="{% url 'logout' %}" class="user-menu-link">{% trans "Salir" %}</a>
                 </div>
               </details>
