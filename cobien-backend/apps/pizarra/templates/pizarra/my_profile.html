@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load cobien_filters %}
+
+{% block title %}CoBien · {% trans "Mi perfil" %}{% endblock %}
+{% block page_class %}mp-page{% endblock %}
+
+{% block extra_head %}
+<style>
+.mp-wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mp-page-header { margin-bottom: 8px; }
+.mp-page-header p { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9CA3AF; margin:0 0 6px; }
+.mp-page-header h1 { margin:0; font-size:1.5rem; font-weight:800; }
+
+.mp-card {
+  background:#fff;
+  border:1px solid var(--border,#E5E7EB);
+  border-radius:16px;
+  padding:24px 28px;
+}
+.mp-card-title {
+  font-size:.78rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.06em; color:#9CA3AF; margin:0 0 18px;
+}
+
+/* Avatar */
+.mp-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border,#E5E7EB);
+}
+.mp-avatar-wrap { position:relative; flex-shrink:0; cursor:pointer; }
+.mp-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: #EEF2FF; color: #4F46E5;
+  font-size: 1.8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  text-transform: uppercase; overflow: hidden;
+  border: 3px solid #E5E7EB; transition: border-color .15s;
+}
+.mp-avatar img { width:80px; height:80px; border-radius:50%; object-fit:cover; }
+.mp-avatar-wrap:hover .mp-avatar { border-color:#6366F1; }
+.mp-avatar-overlay {
+  position:absolute; inset:0; border-radius:50%;
+  background: rgba(99,102,241,.6);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s;
+  color:#fff; font-size:.7rem; font-weight:700; text-align:center; line-height:1.3;
+}
+.mp-avatar-wrap:hover .mp-avatar-overlay { opacity:1; }
+.mp-avatar-info { flex:1; min-width:0; }
+.mp-avatar-name { font-size:1.1rem; font-weight:700; margin:0 0 2px; }
+.mp-avatar-username { font-size:.85rem; color:#6B7280; margin:0; }
+
+/* Fields */
+.mp-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.mp-field { display:flex; flex-direction:column; gap:4px; }
+.mp-field label { font-size:.8rem; font-weight:600; color:#374151; }
+.mp-field input {
+  padding:9px 11px;
+  border:1px solid var(--border,#D1D5DB);
+  border-radius:8px;
+  font-size:.88rem;
+  color:var(--text,#111827);
+  background:#fff;
+  transition:border-color .15s;
+}
+.mp-field input:focus { outline:none; border-color:#6366F1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+
+/* Dropzone */
+.mp-dropzone {
+  border:2px dashed #D1D5DB; border-radius:10px;
+  padding:18px; text-align:center; cursor:pointer;
+  font-size:.84rem; color:#9CA3AF;
+  transition:border-color .15s, background .15s;
+  margin-top:14px;
+}
+.mp-dropzone:hover, .mp-dropzone.dragover { border-color:#6366F1; background:#F5F3FF; color:#4F46E5; }
+.mp-dropzone-label { pointer-events:none; }
+
+/* Buttons */
+.mp-actions { display:flex; align-items:center; gap:10px; margin-top:18px; }
+.mp-btn-primary {
+  padding:9px 20px; border:none; border-radius:8px;
+  background:#6366F1; color:#fff; font-size:.88rem; font-weight:600;
+  cursor:pointer; transition:background .15s;
+}
+.mp-btn-primary:hover { background:#4F46E5; }
+.mp-btn-secondary {
+  padding:9px 14px; border:1px solid #D1D5DB; border-radius:8px;
+  background:#fff; color:#374151; font-size:.88rem; cursor:pointer;
+  transition:background .15s;
+}
+.mp-btn-secondary:hover { background:#F9FAFB; }
+
+/* Alerts */
+.mp-messages { display:flex; flex-direction:column; gap:8px; }
+.mp-alert {
+  padding:10px 14px; border-radius:10px;
+  font-size:.85rem; font-weight:500;
+}
+.mp-alert.success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
+.mp-alert.error   { background:#FFF5F5; border:1px solid #FECACA; color:#DC2626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mp-wrap">
+
+  <div class="mp-page-header">
+    <p>{% trans "Cuenta" %}</p>
+    <h1>{% trans "Mi perfil" %}</h1>
+  </div>
+
+  {% if messages %}
+  <div class="mp-messages">
+    {% for m in messages %}
+    <div class="mp-alert {{ m.tags }}">{{ m }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Profile & avatar -->
+  <div class="mp-card">
+    <p class="mp-card-title">{% trans "Información personal" %}</p>
+
+    <div class="mp-avatar-row">
+      <div class="mp-avatar-wrap" id="mpAvatarWrap" title="{% trans 'Cambiar foto' %}">
+        <div class="mp-avatar">
+          {% if image_url %}
+            <img id="mpAvatarImg" src="{{ image_url }}" alt="{{ profile_user.username }}">
+          {% else %}
+            <span id="mpAvatarInitial">{{ profile_user.username|slice:":1"|upper }}</span>
+            <img id="mpAvatarImg" src="" alt="" style="display:none;">
+          {% endif %}
+        </div>
+        <div class="mp-avatar-overlay">{% trans "Cambiar" %}<br>{% trans "foto" %}</div>
+      </div>
+      <div class="mp-avatar-info">
+        <p class="mp-avatar-name">
+          {% if profile_user.first_name or profile_user.last_name %}
+            {{ profile_user.first_name }} {{ profile_user.last_name }}
+          {% else %}
+            {{ profile_user.username }}
+          {% endif %}
+        </p>
+        <p class="mp-avatar-username">@{{ profile_user.username }}</p>
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="mpProfileForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_profile">
+      <input type="hidden" name="remove_image" id="mpRemoveImage" value="0">
+      <input type="file" name="image" id="mpAvatarInput" accept="image/*" style="display:none;">
+
+      <div class="mp-grid-2" style="margin-bottom:14px;">
+        <div class="mp-field">
+          <label for="mpFirstName">{% trans "Nombre" %}</label>
+          <input type="text" id="mpFirstName" name="first_name" value="{{ profile_user.first_name }}">
+        </div>
+        <div class="mp-field">
+          <label for="mpLastName">{% trans "Apellidos" %}</label>
+          <input type="text" id="mpLastName" name="last_name" value="{{ profile_user.last_name }}">
+        </div>
+      </div>
+      <div class="mp-field" style="margin-bottom:14px;">
+        <label for="mpEmail">{% trans "Correo electrónico" %}</label>
+        <input type="email" id="mpEmail" name="email" value="{{ profile_user.email }}">
+      </div>
+
+      <!-- Avatar dropzone -->
+      <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:4px;">{% trans "Foto de perfil" %}</label>
+      <div class="mp-dropzone" id="mpDropzone">
+        <input type="file" id="mpDropInput" accept="image/*" style="display:none;">
+        <span class="mp-dropzone-label" id="mpDropLabel">
+          <strong>{% trans "Haz clic" %}</strong> {% trans "o arrastra una imagen aquí" %}
+        </span>
+      </div>
+      {% if image_url %}
+      <div style="margin-top:8px;">
+        <label style="display:inline-flex; align-items:center; gap:6px; font-size:.83rem; color:#6B7280; cursor:pointer;">
+          <input type="checkbox" id="mpRemoveCheck" style="accent-color:#6366F1;" onchange="document.getElementById('mpRemoveImage').value=this.checked?'1':'0'">
+          {% trans "Quitar foto actual" %}
+        </label>
+      </div>
+      {% endif %}
+
+      <div class="mp-actions">
+        <button class="mp-btn-primary" type="submit">{% trans "Guardar cambios" %}</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Password change -->
+  <div class="mp-card">
+    <p class="mp-card-title">{% trans "Contraseña" %}</p>
+    <form method="post" id="mpPwForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="change_password">
+      <div class="mp-grid-2" style="margin-bottom:14px;">
+        <div class="mp-field">
+          <label for="mpPw1">{% trans "Nueva contraseña" %}</label>
+          <input type="password" id="mpPw1" name="new_password" placeholder="{% trans 'Mínimo 6 caracteres' %}" autocomplete="new-password">
+        </div>
+        <div class="mp-field">
+          <label for="mpPw2">{% trans "Confirmar contraseña" %}</label>
+          <input type="password" id="mpPw2" name="confirm_password" placeholder="{% trans 'Repite la contraseña' %}" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="mp-actions">
+        <button class="mp-btn-primary" type="submit">{% trans "Cambiar contraseña" %}</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  const avatarWrap  = document.getElementById('mpAvatarWrap');
+  const avatarInput = document.getElementById('mpAvatarInput');
+  const avatarImg   = document.getElementById('mpAvatarImg');
+  const avatarInit  = document.getElementById('mpAvatarInitial');
+  const dropzone    = document.getElementById('mpDropzone');
+  const dropInput   = document.getElementById('mpDropInput');
+  const dropLabel   = document.getElementById('mpDropLabel');
+
+  function applyFile(file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    avatarInput.files = dt.files;
+    dropLabel.textContent = file.name;
+    const url = URL.createObjectURL(file);
+    avatarImg.src = url;
+    avatarImg.style.display = '';
+    if (avatarInit) avatarInit.style.display = 'none';
+  }
+
+  avatarWrap.addEventListener('click', function () { avatarInput.click(); });
+  avatarInput.addEventListener('change', function () {
+    if (avatarInput.files[0]) applyFile(avatarInput.files[0]);
+  });
+
+  dropzone.addEventListener('click',  function () { dropInput.click(); });
+  dropInput.addEventListener('change', function () {
+    if (dropInput.files[0]) applyFile(dropInput.files[0]);
+  });
+  dropzone.addEventListener('dragover',  function (e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', function ()  { dropzone.classList.remove('dragover'); });
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) applyFile(file);
+  });
+
+  document.getElementById('mpPwForm').addEventListener('submit', function (e) {
+    const p1 = document.getElementById('mpPw1').value;
+    const p2 = document.getElementById('mpPw2').value;
+    if (p1 !== p2) {
+      e.preventDefault();
+      alert('{% trans "Las contraseñas no coinciden." %}');
+    }
+  });
+
+})();
+</script>
+{% endblock %}
