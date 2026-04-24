@@ -261,9 +261,17 @@ def lista_eventos(request):
             "location": evento.get("location", "")
         }
         if evento.get("audience") == "device":
-            item["color"] = color_for_device(evento.get("target_device", ""))
-            item["target_device"] = evento.get("target_device", "")
-            item["created_by"] = evento.get("created_by", "")
+            single = str(evento.get("target_device") or "").strip()
+            multi  = [str(d).strip() for d in (evento.get("target_devices") or []) if str(d).strip()]
+            all_targets = multi if multi else ([single] if single else [])
+            names = []
+            for did in all_targets:
+                dev = _all_known.get(did)
+                names.append(str((dev or {}).get("display_name") or did).strip() or did)
+            item["color"] = color_for_device(all_targets[0] if all_targets else "")
+            item["target_device"] = single
+            item["target_devices_label"] = ", ".join(names) if names else ""
+            item["created_by"] = str(evento.get("created_by") or "").strip()
 
         eventos.append(item)
 

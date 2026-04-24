@@ -361,6 +361,10 @@
         <span class="ev-detail-row-label">{% trans "Descripción" %}</span>
         <span class="ev-detail-row-val" id="detailDesc"></span>
       </div>
+      <div class="ev-detail-row" id="detailDevicesRow" style="display:none;">
+        <span class="ev-detail-row-label">{% trans "Dirigido a" %}</span>
+        <span class="ev-detail-row-val" id="detailDevices" style="display:flex; flex-wrap:wrap; gap:5px;"></span>
+      </div>
       <div class="ev-detail-row" id="detailCreatedRow" style="display:none;">
         <span class="ev-detail-row-label">{% trans "Añadido por" %}</span>
         <span class="ev-detail-row-val" id="detailCreated"></span>
@@ -559,7 +563,8 @@
             description: "{{ evento.description|escapejs }}",
             location:    "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
             color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
-            target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.created_by %},
+            target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.target_devices_label %},
+            target_devices_label: "{{ evento.target_devices_label|escapejs }}"{% endif %}{% if evento.created_by %},
             created_by:  "{{ evento.created_by|escapejs }}"{% endif %}
           },
         {% endfor %}
@@ -583,6 +588,20 @@
         document.getElementById('detailDesc').textContent = desc;
         document.getElementById('detailDescRow').style.display = desc ? '' : 'none';
 
+        // Devices row
+        const devicesEl  = document.getElementById('detailDevices');
+        const devicesRow = document.getElementById('detailDevicesRow');
+        const devLabel   = props.target_devices_label || '';
+        if (devLabel && devicesEl) {
+          devicesEl.innerHTML = devLabel.split(', ').map(function (name) {
+            return `<span style="display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;background:#EEF2FF;color:#4F46E5;font-size:.78rem;font-weight:600;">${name}</span>`;
+          }).join('');
+          devicesRow.style.display = '';
+        } else {
+          devicesRow.style.display = 'none';
+        }
+
+        // Created by row
         const createdRow = document.getElementById('detailCreatedRow');
         if (props.target_device && props.created_by) {
           document.getElementById('detailCreated').textContent = props.created_by;
