@@ -211,6 +211,66 @@
   }
   @keyframes pz-fadein { from { opacity: 0; transform: translateY(6px); } }
 
+  .pz-bubble-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .pz-bubble-author {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+
+  .pz-bubble-avatar {
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    overflow:hidden;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#E0E7FF;
+    color:#4338CA;
+    font-size:.88rem;
+    font-weight:800;
+    border:1px solid #C7D2FE;
+  }
+
+  .pz-bubble-avatar img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+
+  .pz-bubble-author-meta {
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+
+  .pz-bubble-author-name {
+    font-size:.88rem;
+    font-weight:700;
+    color:var(--text, #111827);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .pz-bubble-author-user {
+    font-size:.76rem;
+    color:var(--text-muted, #6B7280);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
   .pz-bubble-meta {
     display: flex;
     align-items: center;
@@ -623,10 +683,22 @@
       const art = document.createElement('article');
       art.className = 'pz-bubble';
       art.dataset.id = post.id;
+      const avatarHtml = post.author_avatar_url
+        ? `<div class="pz-bubble-avatar"><img loading="lazy" src="${post.author_avatar_url}" alt="${escHtml(post.author_name || post.author || '')}"></div>`
+        : `<div class="pz-bubble-avatar">${escHtml(post.author_initial || (post.author_name || post.author || 'U').charAt(0).toUpperCase())}</div>`;
       art.innerHTML = `
+        <div class="pz-bubble-head">
+          <div class="pz-bubble-author">
+            ${avatarHtml}
+            <div class="pz-bubble-author-meta">
+              <span class="pz-bubble-author-name">${escHtml(post.author_name || post.author || '')}</span>
+              <span class="pz-bubble-author-user">@${escHtml(post.author || '')}</span>
+            </div>
+          </div>
+          <button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>
+        </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
-          <button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
