@@ -175,6 +175,14 @@ def _serialize_datetime(value):
     return value
 
 
+def _ensure_aware_utc(value):
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _normalize_device_runtime_log_type(value):
     normalized = str(value or "").strip().lower().replace("-", "_")
     return normalized if normalized in _DEVICE_RUNTIME_LOG_TYPES else ""
@@ -245,6 +253,9 @@ def _build_device_runtime_logs_payload(device_id, days=2):
         if updated_value and (not updated_at or str(updated_value) > str(updated_at)):
             updated_at = updated_value
 
+    parsed_updated_at = _parse_datetime_value(updated_at, fallback=None)
+    is_fresh = bool(parsed_updated_at and (now - parsed_updated_at).total_seconds() < 3600)
+
     grouped = []
     for log_type, meta in _DEVICE_RUNTIME_LOG_TYPES.items():
         items = [item for item in docs if item["log_type"] == log_type]
@@ -267,14 +278,14 @@ def _build_device_runtime_logs_payload(device_id, days=2):
         "runtime_logs_updated_at": updated_at,
         "runtime_logs_status": (
             "fresh"
-            if updated_at and (now - (_parse_datetime_value(updated_at, fallback=now) or now)).total_seconds() < 3600
+            if is_fresh
             else "stale"
             if updated_at
             else "empty"
         ),
         "runtime_logs_status_label": (
             "Fresh"
-            if updated_at and (now - (_parse_datetime_value(updated_at, fallback=now) or now)).total_seconds() < 3600
+            if is_fresh
             else "Needs refresh"
             if updated_at
             else "Waiting for sync"
@@ -446,12 +457,12 @@ def _build_device_management_context(selected_device, show_hidden=False):
 
 def _parse_datetime_value(value, fallback=None):
     if isinstance(value, datetime):
-        return value
+        return _ensure_aware_utc(value)
     if not value:
         return fallback
     try:
         normalized = str(value).replace("Z", "+00:00")
-        return datetime.fromisoformat(normalized)
+        return _ensure_aware_utc(datetime.fromisoformat(normalized))
     except Exception:
         return fallback
 
