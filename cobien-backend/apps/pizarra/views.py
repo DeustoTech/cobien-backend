@@ -541,7 +541,6 @@ def _build_cobien_env_map(device_doc, request=None):
         "COBIEN_CACHE_DIR": "$HOME/.cache/cobien",
         "COBIEN_MODELS_DIR": "$HOME/.local/share/cobien/models/piper",
         "COBIEN_PIPER_RUNTIME_DIR": "$HOME/.local/share/cobien/piper/runtime",
-        "COBIEN_INSTALL_SYSTEMD_USER": "1",
         "COBIEN_ENABLE_WATCH": "0",
         "COBIEN_INSTALL_SYSTEM_DEPS": "1",
         "COBIEN_RECREATE_VENV": "0",
