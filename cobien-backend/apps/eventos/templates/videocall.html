@@ -640,7 +640,10 @@
       return username && username.toLowerCase().includes('cobien');
     }
 
+    let _callEndedFired = false;
     function closeEmbeddedCall(reason = 'ended') {
+      if (_callEndedFired) return;
+      _callEndedFired = true;
       const target = `cobien://call-ended?reason=${encodeURIComponent(reason)}`;
       try {
         window.location.href = target;
@@ -1013,9 +1016,9 @@
         });
 
         document.getElementById('leave-room').onclick = () => {
+          closeEmbeddedCall('manual-leave');
           cleanup();
           room.disconnect();
-          closeEmbeddedCall('manual-leave');
         };
       } catch (error) {
         console.error("❌ Error en la videollamada:", error);
