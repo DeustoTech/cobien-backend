@@ -132,15 +132,21 @@
               <div class="section-heading" style="margin-bottom: 10px;">
                 <div>
                   <label class="form-label" for="contacts-grid">{% trans "Contactos" %}</label>
-                  <small class="muted">{% trans "Edita nombre, usuario e imagen de cada contacto que verá el mueble." %}</small>
+                  <small class="muted">{% trans "Edita nombre y usuario de cada contacto. La imagen se hereda automáticamente del perfil del usuario." %}</small>
                 </div>
                 <button class="btn-outline" type="button" id="add-contact-row">{% trans "Añadir contacto" %}</button>
               </div>
               <div id="contacts-grid" class="section-stack">
                 {% for contact in contact_rows %}
                   <div class="pz-card contact-row" data-row-index="{{ forloop.counter0 }}" style="padding:16px;">
-                    <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
-                    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="grid" style="grid-template-columns: auto 1fr 1fr auto; align-items:center; gap:12px;">
+                      <div>
+                        {% if contact.image_url %}
+                          <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
+                        {% else %}
+                          <div style="width:56px; height:56px; border-radius:50%; background:#ddd; display:flex; align-items:center; justify-content:center; font-size:22px; color:#888;">{{ contact.display_name|first|upper }}</div>
+                        {% endif %}
+                      </div>
                       <div>
                         <label class="form-label">{% trans "Nombre visible" %}</label>
                         <input type="text" name="contact_display_name_{{ forloop.counter0 }}" value="{{ contact.display_name }}" placeholder="María">
@@ -149,23 +155,8 @@
                         <label class="form-label">{% trans "Username web" %}</label>
                         <input type="text" name="contact_user_name_{{ forloop.counter0 }}" value="{{ contact.user_name }}" placeholder="maria">
                       </div>
-                    </div>
-                    <div class="grid" style="grid-template-columns: 1fr auto;">
-                      <div>
-                        <label class="form-label">{% trans "Imagen" %}</label>
-                        <input type="file" name="contact_image_{{ forloop.counter0 }}" accept="image/*">
-                        {% if contact.image_url %}
-                          <div style="margin-top: 8px;">
-                            <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}" style="max-height: 90px; border-radius: 12px;">
-                          </div>
-                        {% endif %}
-                      </div>
-                      <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
-                        <label class="legend-badge">
-                          <input type="checkbox" name="contact_remove_image_{{ forloop.counter0 }}" value="1">
-                          {% trans "Quitar imagen" %}
-                        </label>
-                        <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+                      <div style="display:flex; align-items:flex-end;">
+                        <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar" %}</button>
                       </div>
                     </div>
                   </div>
@@ -228,8 +219,8 @@
         wrapper.setAttribute('data-row-index', String(index));
         wrapper.style.padding = '16px';
         wrapper.innerHTML = `
-          <input type="hidden" name="contact_existing_image_url_${index}" value="">
-          <div class="grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="grid" style="grid-template-columns: auto 1fr 1fr auto; align-items:center; gap:12px;">
+            <div style="width:56px; height:56px; border-radius:50%; background:#ddd; display:flex; align-items:center; justify-content:center; font-size:22px; color:#888;">?</div>
             <div>
               <label class="form-label">{% trans "Nombre visible" %}</label>
               <input type="text" name="contact_display_name_${index}" placeholder="María">
@@ -238,18 +229,8 @@
               <label class="form-label">{% trans "Username web" %}</label>
               <input type="text" name="contact_user_name_${index}" placeholder="maria">
             </div>
-          </div>
-          <div class="grid" style="grid-template-columns: 1fr auto;">
-            <div>
-              <label class="form-label">{% trans "Imagen" %}</label>
-              <input type="file" name="contact_image_${index}" accept="image/*">
-            </div>
-            <div style="display:flex; flex-direction:column; justify-content:end; gap:8px;">
-              <label class="legend-badge">
-                <input type="checkbox" name="contact_remove_image_${index}" value="1">
-                {% trans "Quitar imagen" %}
-              </label>
-              <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar contacto" %}</button>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="btn-outline remove-contact-row" type="button">{% trans "Eliminar" %}</button>
             </div>
           </div>
         `;

@@ -1036,25 +1036,14 @@ def _parse_contact_rows(request, device_id, existing_contacts):
         match = re.match(r"^contact_display_name_(\d+)$", str(key))
         if match:
             indices.add(int(match.group(1)))
-    for key in request.FILES.keys():
-        match = re.match(r"^contact_image_(\d+)$", str(key))
-        if match:
-            indices.add(int(match.group(1)))
 
     contacts = []
-    previous_by_key = {}
-    for item in normalize_contacts_list(existing_contacts):
-        previous_by_key[(item["display_name"], item["user_name"])] = item
-
     seen = set()
     for idx in sorted(indices):
         display_name = str(request.POST.get(f"contact_display_name_{idx}", "") or "").strip()
         user_name = str(request.POST.get(f"contact_user_name_{idx}", "") or "").strip()
-        previous_image_url = str(request.POST.get(f"contact_existing_image_url_{idx}", "") or "").strip()
-        remove_image = request.POST.get(f"contact_remove_image_{idx}") == "1"
-        uploaded_file = request.FILES.get(f"contact_image_{idx}")
 
-        if not display_name and not user_name and not previous_image_url and not uploaded_file:
+        if not display_name and not user_name:
             continue
         if not display_name or not user_name:
             raise ValueError(f"Cada contacto debe tener nombre visible y username (fila {idx + 1}).")
@@ -1064,27 +1053,14 @@ def _parse_contact_rows(request, device_id, existing_contacts):
             raise ValueError(f"Contacto duplicado: {display_name}={user_name}")
         seen.add(key)
 
-        image_url = previous_image_url
-        if remove_image:
-            _delete_managed_contact_image(previous_image_url)
-            image_url = ""
-        if uploaded_file:
-            _delete_managed_contact_image(previous_image_url)
-            image_url = _save_contact_image(device_id, display_name, uploaded_file)
-
+        # Image comes from the user profile; no per-contact image stored here.
         contacts.append(
             {
                 "display_name": display_name,
                 "user_name": user_name,
-                "image_url": image_url,
+                "image_url": "",
             }
         )
-
-    current_keys = {(item["display_name"], item["user_name"]) for item in contacts}
-    for item in normalize_contacts_list(existing_contacts):
-        original_key = (item["display_name"], item["user_name"])
-        if original_key not in current_keys:
-            _delete_managed_contact_image(item.get("image_url", ""))
 
     return contacts
 
@@ -1092,7 +1068,7 @@ def _parse_contact_rows(request, device_id, existing_contacts):
 def _contacts_for_template(raw_contacts):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
-        image_url = _normalize_contact_image_url(item.get("image_url", ""))
+        image_url = _user_avatar_url(item.get("user_name", ""))
         contacts.append(
             {
                 "display_name": item["display_name"],
@@ -1106,12 +1082,7 @@ def _contacts_for_template(raw_contacts):
 def _contacts_for_api(raw_contacts, request=None):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
-        image_url = _normalize_contact_image_url(item.get("image_url", ""))
-        if request is not None and image_url and str(image_url).startswith("/"):
-            try:
-                image_url = request.build_absolute_uri(image_url)
-            except Exception:
-                pass
+        image_url = _user_avatar_url(item.get("user_name", ""), request=request)
         contacts.append(
             {
                 "display_name": item["display_name"],
