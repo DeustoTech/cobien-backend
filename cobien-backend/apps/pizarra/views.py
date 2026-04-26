@@ -447,6 +447,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_sections": _device_hardware_sections(device_doc or {}),
         "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
+        "software_version": str((device_doc or {}).get("software_version") or ""),
         "people_profiles": people_profiles,
         "all_users": all_users,
         "assigned_set": assigned_set,
@@ -1482,6 +1483,18 @@ def devices_admin(request):
                         messages.success(request, f"Sincronización enviada a {selected_device}.")
                     elif action == "save_and_sync":
                         messages.success(request, f"Configuración y sincronización enviadas a {selected_device}.")
+            elif action in {"restart", "force_update"}:
+                if not selected_device:
+                    raise ValueError("Selecciona un dispositivo.")
+                command_payload = {
+                    "type": action,
+                    "to": selected_device,
+                    "from": "cobien-admin",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                enqueue_notification(selected_device, command_payload)
+                label = "reinicio" if action == "restart" else "actualización forzada"
+                messages.success(request, f"Comando de {label} enviado a {selected_device}.")
             elif action == "delete":
                 if not selected_device:
                     raise ValueError("Selecciona un dispositivo para eliminar.")

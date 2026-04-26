@@ -381,6 +381,9 @@ def touch_device_heartbeat(device_id, payload=None):
     if isinstance(hardware_inventory, dict) and hardware_inventory:
         update_fields["hardware_inventory"] = hardware_inventory
         update_fields["hardware_reported_at"] = datetime.now(timezone.utc)
+    software_version = str(payload.get("software_version") or "").strip()
+    if software_version:
+        update_fields["software_version"] = software_version
 
     col_devices.update_one(
         {"device_id": device_id},
