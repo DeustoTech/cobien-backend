@@ -1041,6 +1041,11 @@ def _parse_contact_rows(request, device_id, existing_contacts):
         if match:
             indices.add(int(match.group(1)))
 
+    # When the contacts form is in read-only mode (no editable rows submitted),
+    # preserve the existing contacts unchanged.
+    if not indices:
+        return list(existing_contacts or [])
+
     contacts = []
     seen = set()
     for idx in sorted(indices):
