@@ -609,7 +609,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script id="ua-all-devices" type="application/json">{{ all_devices_json }}</script>
+{{ all_devices_data|json_script:"ua-all-devices" }}
 <script>
 (function () {
   'use strict';

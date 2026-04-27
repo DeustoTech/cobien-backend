@@ -1860,14 +1860,14 @@ def directory_people_admin(request):
     selected_username = (request.GET.get("user") or "").strip()
     users = _list_users_for_admin()
     all_devices = [d for d in list_known_devices() if not d.get("hidden_in_admin")]
-    all_devices_json = json.dumps([
+    all_devices_data = [
         {"id": d["device_id"], "label": d.get("display_name") or d["device_id"]}
         for d in all_devices
-    ])
+    ]
     return render(request, "pizarra/directory_people_admin.html", {
         "people": users,
         "all_devices": all_devices,
-        "all_devices_json": all_devices_json,
+        "all_devices_data": all_devices_data,
         "selected_username": selected_username,
     })
 
