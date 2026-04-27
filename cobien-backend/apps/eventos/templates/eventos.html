@@ -464,6 +464,22 @@
           </div>
         </div>
 
+        <div class="ev-field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="eventAllDay" checked style="width:18px;height:18px;cursor:pointer;">
+          <label for="eventAllDay" style="margin:0;cursor:pointer;">{% trans "Todo el día" %}</label>
+        </div>
+
+        <div class="ev-grid-2" id="eventTimeFields" style="display:none;">
+          <div class="ev-field">
+            <label for="eventStartTime">{% trans "Hora inicio" %}</label>
+            <input type="time" id="eventStartTime">
+          </div>
+          <div class="ev-field">
+            <label for="eventEndTime">{% trans "Hora fin" %}</label>
+            <input type="time" id="eventEndTime">
+          </div>
+        </div>
+
         <div class="ev-field">
           <label for="eventLocationSelect">{% trans "Localización" %}</label>
           <select id="eventLocationSelect">
@@ -556,6 +572,17 @@
   {% if user.is_authenticated %}
     document.getElementById('openAddEventBtn').addEventListener('click', function () { openModal('addEventModal'); });
   {% endif %}
+
+  // ── All-day toggle ──────────────────────────────────────────────
+  (function () {
+    const chk = document.getElementById('eventAllDay');
+    const timeFields = document.getElementById('eventTimeFields');
+    if (chk && timeFields) {
+      chk.addEventListener('change', function () {
+        timeFields.style.display = this.checked ? 'none' : '';
+      });
+    }
+  })();
 
   // ── Region title + active chip ──────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
@@ -882,6 +909,9 @@
     if (!eventLocation) { window.showToast(I18N_EVENTS.chooseLocation, 'warning'); return; }
 
     const audience = targetDevices.length > 0 ? 'device' : 'all';
+    const allDay = document.getElementById('eventAllDay').checked;
+    const startTime = allDay ? '' : (document.getElementById('eventStartTime').value || '');
+    const endTime   = allDay ? '' : (document.getElementById('eventEndTime').value || '');
 
     fetch('/api/guardar_evento/', {
       method: 'POST',
@@ -889,7 +919,7 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ title, date, description, location: eventLocation, audience, target_devices: targetDevices })
+      body: JSON.stringify({ title, date, description, location: eventLocation, audience, target_devices: targetDevices, all_day: allDay, start_time: startTime, end_time: endTime })
     })
       .then(r => r.json())
       .then(data => {
