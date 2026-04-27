@@ -857,11 +857,11 @@
           ? `<div class="pz-bubble-reply-opts">${replyOptions.map(r => `<span class="pz-bubble-reply-badge${selectedReply && selectedReply === r ? ' pz-bubble-reply-badge--selected' : ''}">${escHtml(r)}</span>`).join('')}</div>`
           : ''}
       `;
-      // Checkbox toggle (stop propagation so bubble click works separately)
       const cb = art.querySelector('.pz-bubble-cb');
       if (cb) {
-        cb.addEventListener('change', function (e) {
-          e.stopPropagation();
+        // Stop click from bubbling to the art handler so it doesn't reverse the checked state
+        cb.addEventListener('click', function (e) { e.stopPropagation(); });
+        cb.addEventListener('change', function () {
           toggleBubbleSelect(art, cb.checked);
         });
       }
