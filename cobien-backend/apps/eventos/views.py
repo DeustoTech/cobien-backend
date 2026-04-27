@@ -9,7 +9,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-import openai
+from openai import OpenAI as _OpenAI
 from django.core.files.storage import default_storage
 import os
 import base64
@@ -304,6 +304,9 @@ def guardar_evento(request):
             date_string = data.get('date')
             description = data.get('description', '')
             location    = data.get('location', '')
+            start_time  = (data.get('start_time') or '').strip()
+            end_time    = (data.get('end_time') or '').strip()
+            all_day     = bool(data.get('all_day', True))
 
             # Accept both single target_device and list target_devices
             raw_targets = data.get('target_devices') or []
@@ -340,6 +343,9 @@ def guardar_evento(request):
                 "location"   : location,
                 "created_by" : request.user.username,
                 "audience"   : "device" if audience == "device" else "all",
+                "all_day"    : all_day,
+                "start_time" : start_time if not all_day else "",
+                "end_time"   : end_time if not all_day else "",
             }
             if audience == 'device':
                 doc["target_devices"] = target_devices
@@ -406,7 +412,8 @@ def extraer_evento(request):
                 base64_image = base64.b64encode(img_file.read()).decode('utf-8')
 
             # Enviar la imagen a GPT-4o
-            response = openai.ChatCompletion.create(
+            _openai_client = _OpenAI()
+            response = _openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "Extrae el título, fecha, lugar y una breve descripción de la imagen."},
@@ -418,7 +425,7 @@ def extraer_evento(request):
             )
 
             # Procesar la respuesta
-            response_content = response['choices'][0]['message']['content']
+            response_content = response.choices[0].message.content
             event_data = parse_response(response_content)
 
             # Eliminar la imagen temporal
