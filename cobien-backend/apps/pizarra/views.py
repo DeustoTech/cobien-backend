@@ -1914,11 +1914,23 @@ def pizarra_web_messages(request):
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
         author_meta = _build_message_author_meta(d.get("author"), request=request)
+        read_by = [
+            {
+                "device_id": entry.get("device_id", ""),
+                "read_at": _serialize_datetime(entry.get("read_at")) or "",
+            }
+            for entry in (d.get("read_by") or [])
+            if isinstance(entry, dict)
+        ]
         posts.append({
             "id": str(d["_id"]),
             "content": d.get("content", ""),
             "image_url": image_url,
             "created_at_human": fecha_chat(d.get("created_at")),
+            "recipient_key": d.get("recipient_key", ""),
+            "read_by": read_by,
+            "quick_replies": list(d.get("quick_replies") or []),
+            "quick_reply_selected": d.get("quick_reply_selected") or None,
             **author_meta,
         })
     return JsonResponse({"ok": True, "posts": posts})

@@ -283,6 +283,7 @@
   .pz-bubble-unread { color: #9CA3AF; font-size: .72rem; font-style: italic; }
   .pz-bubble-reply-opts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .pz-bubble-reply-badge { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:20px; padding:2px 10px; font-size:.78rem; }
+  .pz-bubble-reply-badge--selected { background:#DCFCE7; color:#166534; border-color:#86EFAC; font-weight:700; }
   .pz-bubble-reply-selected { margin-top:8px; font-size:.82rem; color:#16A34A; font-weight:600; }
 
   .pz-bubble-del {
@@ -408,6 +409,7 @@
   }
   .pz-notif-card:not(.pz-notif-card--unread) .pz-notif-kind { color: #9CA3AF; }
   .pz-notif-msg { font-size: .88rem; color: var(--text, #111827); line-height: 1.4; }
+  .pz-notif-target { font-size: .78rem; color: #6B7280; }
   .pz-notif-time { font-size: .74rem; color: #9CA3AF; }
   .pz-notif-read-btn {
     background: none; border: 1px solid #C7D2FE; border-radius: 6px;
@@ -697,6 +699,10 @@
     }
     empty.style.display = 'none';
     posts.forEach(post => {
+      const selectedReply = post.quick_reply_selected && typeof post.quick_reply_selected === 'object'
+        ? (post.quick_reply_selected.text || '')
+        : (post.quick_reply_selected || '');
+      const replyOptions = Array.isArray(post.quick_replies) ? post.quick_replies : [];
       const art = document.createElement('article');
       art.className = 'pz-bubble';
       art.dataset.id = post.id;
@@ -722,11 +728,12 @@
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
-        ${post.quick_reply_selected
-          ? `<div class="pz-bubble-reply-selected">✓ ${escHtml(post.quick_reply_selected.text || post.quick_reply_selected)}</div>`
-          : (post.quick_replies && post.quick_replies.length
-            ? `<div class="pz-bubble-reply-opts">${post.quick_replies.map(r => `<span class="pz-bubble-reply-badge">${escHtml(r)}</span>`).join('')}</div>`
-            : '')}
+        ${selectedReply
+          ? `<div class="pz-bubble-reply-selected">✓ ${escHtml(selectedReply)}</div>`
+          : ''}
+        ${replyOptions.length
+          ? `<div class="pz-bubble-reply-opts">${replyOptions.map(r => `<span class="pz-bubble-reply-badge${selectedReply && selectedReply === r ? ' pz-bubble-reply-badge--selected' : ''}">${escHtml(r)}</span>`).join('')}</div>`
+          : ''}
       `;
       feed.appendChild(art);
     });
@@ -942,12 +949,16 @@
       notifList.innerHTML = items.map(function (n) {
         const label = KIND_LABELS[n.kind] || n.kind;
         const isCall = CALL_KINDS.has(n.kind) && n.from_device;
+        const targetLine = n.from_device
+          ? `<div class="pz-notif-target">{% trans "Mueble" %}: ${escHtml(n.from_device)}</div>`
+          : '';
         return `<div class="pz-notif-card${n.read ? '' : ' pz-notif-card--unread'}">
           <div class="pz-notif-header">
             <span class="pz-notif-kind">${escHtml(label)}</span>
             ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="${CSRF}"><button type="submit" class="pz-notif-read-btn">✓ {% trans "Leído" %}</button></form>` : '<span style="font-size:.72rem;color:#9CA3AF;">{% trans "Leído" %}</span>'}
           </div>
           ${n.message ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
+          ${targetLine}
           <div class="pz-notif-time">${fmtDate(n.created_at)}</div>
           ${isCall ? `<a class="pz-notif-call-btn" href="/videocall/?to=${encodeURIComponent(n.from_device)}&autostart=1">📞 {% trans "Llamar" %}</a>` : ''}
         </div>`;
