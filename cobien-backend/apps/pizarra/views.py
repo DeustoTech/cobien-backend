@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import os
 import gridfs
 import json
@@ -104,6 +105,8 @@ _DEVICE_RUNTIME_LOG_TYPES = {
         "prefix": "mqtt-can-bridge",
     },
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _color_for_device(name: str) -> str:
@@ -2294,12 +2297,30 @@ def api_device_heartbeat(request):
     payload = _read_api_payload(request)
     device_id = str(payload.get("device_id", "") or "").strip()
     if not device_id:
+        logger.warning(
+            "Rejected heartbeat without device_id from ip=%s",
+            request.META.get("REMOTE_ADDR", ""),
+        )
         return JsonResponse({"error": "device_id requerido"}, status=400)
 
     try:
         device = touch_device_heartbeat(device_id, payload=payload)
     except Exception as exc:
+        logger.exception(
+            "Failed to persist heartbeat for device_id=%s from ip=%s",
+            device_id,
+            request.META.get("REMOTE_ADDR", ""),
+        )
         return JsonResponse({"error": str(exc)}, status=400)
+
+    logger.info(
+        "Accepted heartbeat device_id=%s status=%s screen=%s software_version=%s ip=%s",
+        device_id,
+        device_online_status(device),
+        str(payload.get("screen", "") or "").strip(),
+        str(payload.get("software_version", "") or "").strip(),
+        request.META.get("REMOTE_ADDR", ""),
+    )
 
     return JsonResponse(
         {
