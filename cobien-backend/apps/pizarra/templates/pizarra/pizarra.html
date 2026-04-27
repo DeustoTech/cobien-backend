@@ -223,6 +223,7 @@
     align-items:center;
     gap:10px;
     min-width:0;
+    flex:1;
   }
 
   .pz-bubble-avatar {
@@ -312,6 +313,53 @@
     object-fit: contain;
     cursor: zoom-in;
   }
+
+  /* ── Multi-select ── */
+  .pz-select-btn {
+    padding:5px 12px; border:1px solid var(--border,#D1D5DB); border-radius:8px;
+    background:#fff; color:#374151; font-size:.78rem; font-weight:600; cursor:pointer;
+    transition:background .12s;
+  }
+  .pz-select-btn:hover { background:#F3F4F6; }
+  .pz-select-btn.is-active { background:#EEF2FF; color:#4F46E5; border-color:#C7D2FE; }
+  .pz-bubble.is-selectable { cursor:pointer; }
+  .pz-bubble.is-selectable:hover { border-color:#C7D2FE; }
+  .pz-bubble.is-selected { border-color:#6366F1; background:#F5F3FF; }
+  .pz-bubble-cb {
+    width:16px; height:16px; accent-color:#6366F1; cursor:pointer;
+    flex-shrink:0; display:none;
+  }
+  .pz-selectable-mode .pz-bubble-cb { display:block; }
+  .pz-expiry-badge {
+    display:inline-block; font-size:.68rem; font-weight:600;
+    padding:2px 7px; border-radius:10px;
+    background:#FEF9C3; color:#854D0E; border:1px solid #FDE68A;
+  }
+  .pz-expiry-badge.is-expired {
+    background:#FEE2E2; color:#991B1B; border-color:#FECACA;
+  }
+  .pz-select-bar {
+    position:fixed; bottom:0; left:0; right:0; z-index:200;
+    background:#1F2937; color:#fff;
+    display:none; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 20px;
+    box-shadow:0 -4px 20px rgba(0,0,0,.2);
+  }
+  .pz-select-bar.is-visible { display:flex; }
+  .pz-select-bar-count { font-size:.88rem; font-weight:600; flex:1; }
+  .pz-select-bar label { font-size:.82rem; color:#D1D5DB; }
+  .pz-select-bar input[type="date"] {
+    padding:6px 10px; border-radius:8px; border:none;
+    font-size:.85rem; color:#111827; background:#fff;
+  }
+  .pz-select-bar-btn {
+    padding:7px 16px; border:none; border-radius:8px;
+    font-size:.85rem; font-weight:600; cursor:pointer; transition:background .12s;
+  }
+  .pz-select-bar-btn--save { background:#6366F1; color:#fff; }
+  .pz-select-bar-btn--save:hover { background:#4F46E5; }
+  .pz-select-bar-btn--clear { background:#374151; color:#D1D5DB; }
+  .pz-select-bar-btn--clear:hover { background:#4B5563; }
 
   /* ── Estados vacío / no seleccionado ── */
   .pz-empty {
@@ -509,6 +557,9 @@
       <div class="pz-history-header">
         <h2 class="pz-history-title" style="margin:0;">{% trans "Actividad" %}</h2>
         <span id="recipientBadge" class="pz-recipient-badge" style="display:none;"></span>
+        {% if is_admin %}
+        <button type="button" class="pz-select-btn" id="pzSelectToggle" style="display:none;">{% trans "Seleccionar" %}</button>
+        {% endif %}
       </div>
 
       <!-- Tabs -->
@@ -572,6 +623,17 @@
 
 <!-- Toast -->
 <div class="pz-toast" id="pzToast"></div>
+
+{% if is_admin %}
+<!-- Multi-select action bar -->
+<div class="pz-select-bar" id="pzSelectBar" role="toolbar" aria-live="polite">
+  <span class="pz-select-bar-count" id="pzSelectCount"></span>
+  <label for="pzExpiryDate">{% trans "Ocultar desde el" %}:</label>
+  <input type="date" id="pzExpiryDate">
+  <button class="pz-select-bar-btn pz-select-bar-btn--save" id="pzSetExpiryBtn" type="button">{% trans "Establecer caducidad" %}</button>
+  <button class="pz-select-bar-btn pz-select-bar-btn--clear" id="pzClearSelectBtn" type="button">{% trans "Cancelar" %}</button>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -580,10 +642,16 @@
   'use strict';
 
   // ── URLs desde Django ──────────────────────────────────────────
-  const URL_SEND    = "{% url 'pizarra_send_multi' %}";
-  const URL_MSGS    = "{% url 'pizarra_web_messages' %}";
-  const URL_DEL_TPL = "{% url 'pizarra_web_delete' '00000000000000000000dead' %}".replace('00000000000000000000dead', '__ID__');
-  const CSRF        = "{{ csrf_token }}";
+  const URL_SEND       = "{% url 'pizarra_send_multi' %}";
+  const URL_MSGS       = "{% url 'pizarra_web_messages' %}";
+  const URL_DEL_TPL    = "{% url 'pizarra_web_delete' '00000000000000000000dead' %}".replace('00000000000000000000dead', '__ID__');
+  const CSRF           = "{{ csrf_token }}";
+  {% if is_admin %}
+  const URL_BULK_EXPIRY = "{% url 'pizarra_api_bulk_set_expiry' %}";
+  const IS_ADMIN = true;
+  {% else %}
+  const IS_ADMIN = false;
+  {% endif %}
 
   // ── State ──────────────────────────────────────────────────────
   const activeIds = new Set();   // selected device_ids
@@ -607,6 +675,15 @@
   const lightbox     = document.getElementById('pzLightbox');
   const lightboxImg  = document.getElementById('pzLightboxImg');
   const toast        = document.getElementById('pzToast');
+  const selectToggle = document.getElementById('pzSelectToggle');
+  const selectBar    = document.getElementById('pzSelectBar');
+  const selectCount  = document.getElementById('pzSelectCount');
+  const expiryDate   = document.getElementById('pzExpiryDate');
+  const setExpiryBtn = document.getElementById('pzSetExpiryBtn');
+  const clearSelectBtn = document.getElementById('pzClearSelectBtn');
+
+  let selectMode = false;
+  let selectedMsgIds = new Set();
 
   // ── Toast ──────────────────────────────────────────────────────
   let _toastTimer;
@@ -691,26 +768,36 @@
   function renderPosts(posts, deviceName, color) {
     skeleton.classList.remove('visible');
     feed.innerHTML = '';
+    exitSelectMode();
     if (!posts.length) {
       empty.querySelector('.pz-empty-text').textContent =
         `{% trans "Aún no hay mensajes para" %} ${deviceName}.`;
       empty.style.display = '';
+      if (selectToggle) selectToggle.style.display = 'none';
       return;
     }
     empty.style.display = 'none';
+    if (selectToggle) selectToggle.style.display = '';
+    const today = new Date().toISOString().slice(0, 10);
     posts.forEach(post => {
       const selectedReply = post.quick_reply_selected && typeof post.quick_reply_selected === 'object'
         ? (post.quick_reply_selected.text || '')
         : (post.quick_reply_selected || '');
       const replyOptions = Array.isArray(post.quick_replies) ? post.quick_replies : [];
+      const syncUntil = post.sync_until || null;
+      const isExpired = syncUntil && syncUntil < today;
       const art = document.createElement('article');
       art.className = 'pz-bubble';
       art.dataset.id = post.id;
       const avatarHtml = post.author_avatar_url
         ? `<div class="pz-bubble-avatar"><img loading="lazy" src="${post.author_avatar_url}" alt="${escHtml(post.author_name || post.author || '')}"></div>`
         : `<div class="pz-bubble-avatar">${escHtml(post.author_initial || (post.author_name || post.author || 'U').charAt(0).toUpperCase())}</div>`;
+      const expiryHtml = syncUntil
+        ? `<span class="pz-expiry-badge${isExpired ? ' is-expired' : ''}" title="${isExpired ? '{% trans "Caducado" %}' : '{% trans "Caduca" %}'}">⏱ ${syncUntil}</span>`
+        : '';
       art.innerHTML = `
         <div class="pz-bubble-head">
+          <input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">
           <div class="pz-bubble-author">
             ${avatarHtml}
             <div class="pz-bubble-author-meta">
@@ -722,9 +809,12 @@
         </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
-          ${post.read_by && post.read_by.length
-            ? `<span class="pz-bubble-read" title="{% trans 'Leído por el mueble' %}">✓ ${escHtml(post.read_by.map(r => r.device_id).join(', '))}</span>`
-            : `<span class="pz-bubble-unread">{% trans "No leído" %}</span>`}
+          <span style="display:flex;gap:6px;align-items:center;">
+            ${expiryHtml}
+            ${post.read_by && post.read_by.length
+              ? `<span class="pz-bubble-read" title="{% trans 'Leído por el mueble' %}">✓ ${escHtml(post.read_by.map(r => r.device_id).join(', '))}</span>`
+              : `<span class="pz-bubble-unread">{% trans "No leído" %}</span>`}
+          </span>
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
@@ -735,7 +825,109 @@
           ? `<div class="pz-bubble-reply-opts">${replyOptions.map(r => `<span class="pz-bubble-reply-badge${selectedReply && selectedReply === r ? ' pz-bubble-reply-badge--selected' : ''}">${escHtml(r)}</span>`).join('')}</div>`
           : ''}
       `;
+      // Checkbox toggle (stop propagation so bubble click works separately)
+      const cb = art.querySelector('.pz-bubble-cb');
+      cb.addEventListener('change', function (e) {
+        e.stopPropagation();
+        toggleBubbleSelect(art, cb.checked);
+      });
+      // Clicking bubble in select mode selects it
+      art.addEventListener('click', function (e) {
+        if (!selectMode) return;
+        if (e.target.closest('[data-del]') || e.target.tagName === 'IMG') return;
+        cb.checked = !cb.checked;
+        toggleBubbleSelect(art, cb.checked);
+      });
       feed.appendChild(art);
+    });
+  }
+
+  // ── Select-mode helpers ────────────────────────────────────────
+  function toggleBubbleSelect(art, selected) {
+    art.classList.toggle('is-selected', selected);
+    const id = art.dataset.id;
+    if (selected) selectedMsgIds.add(id); else selectedMsgIds.delete(id);
+    updateSelectBar();
+  }
+
+  function updateSelectBar() {
+    const n = selectedMsgIds.size;
+    if (!selectBar) return;
+    if (n > 0) {
+      selectBar.classList.add('is-visible');
+      selectCount.textContent = n === 1 ? '{% trans "1 mensaje seleccionado" %}' : `${n} {% trans "mensajes seleccionados" %}`;
+    } else {
+      selectBar.classList.remove('is-visible');
+    }
+  }
+
+  function enterSelectMode() {
+    selectMode = true;
+    feed.classList.add('pz-selectable-mode');
+    feed.querySelectorAll('.pz-bubble').forEach(b => b.classList.add('is-selectable'));
+    if (selectToggle) { selectToggle.classList.add('is-active'); selectToggle.textContent = '{% trans "Cancelar selección" %}'; }
+  }
+
+  function exitSelectMode() {
+    selectMode = false;
+    selectedMsgIds.clear();
+    feed.classList.remove('pz-selectable-mode');
+    feed.querySelectorAll('.pz-bubble').forEach(function (b) {
+      b.classList.remove('is-selectable', 'is-selected');
+      const cb = b.querySelector('.pz-bubble-cb');
+      if (cb) cb.checked = false;
+    });
+    if (selectBar) selectBar.classList.remove('is-visible');
+    if (selectToggle) { selectToggle.classList.remove('is-active'); selectToggle.textContent = '{% trans "Seleccionar" %}'; }
+    if (expiryDate) expiryDate.value = '';
+  }
+
+  if (selectToggle) {
+    selectToggle.addEventListener('click', function () {
+      if (selectMode) exitSelectMode(); else enterSelectMode();
+    });
+  }
+
+  if (clearSelectBtn) {
+    clearSelectBtn.addEventListener('click', exitSelectMode);
+  }
+
+  if (setExpiryBtn) {
+    setExpiryBtn.addEventListener('click', function () {
+      const ids = Array.from(selectedMsgIds);
+      if (!ids.length) return;
+      const date = expiryDate ? expiryDate.value : '';
+      if (!date) { showToast('{% trans "Elige una fecha de caducidad." %}', true); return; }
+      setExpiryBtn.disabled = true;
+      fetch(URL_BULK_EXPIRY, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ message_ids: ids, sync_until: date }),
+      })
+      .then(r => r.json())
+      .then(function (data) {
+        setExpiryBtn.disabled = false;
+        if (data.ok) {
+          showToast(`{% trans "Caducidad establecida para" %} ${data.updated} {% trans "mensajes." %}`);
+          exitSelectMode();
+          if (currentSingle) {
+            const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
+            const name = chip ? chip.dataset.name : currentSingle;
+            const color = chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280';
+            loadHistory(currentSingle, name, color);
+          }
+        } else {
+          showToast(data.error || '{% trans "Error al guardar." %}', true);
+        }
+      })
+      .catch(function () {
+        setExpiryBtn.disabled = false;
+        showToast('{% trans "Error de red." %}', true);
+      });
     });
   }
 
@@ -957,7 +1149,7 @@
             <span class="pz-notif-kind">${escHtml(label)}</span>
             ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="${CSRF}"><button type="submit" class="pz-notif-read-btn">✓ {% trans "Leído" %}</button></form>` : '<span style="font-size:.72rem;color:#9CA3AF;">{% trans "Leído" %}</span>'}
           </div>
-          ${n.message ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
+          ${n.message && !CALL_KINDS.has(n.kind) ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
           ${targetLine}
           <div class="pz-notif-time">${fmtDate(n.created_at)}</div>
           ${isCall ? `<a class="pz-notif-call-btn" href="/videocall/?to=${encodeURIComponent(n.from_device)}&autostart=1">📞 {% trans "Llamar" %}</a>` : ''}

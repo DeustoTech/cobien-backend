@@ -464,6 +464,20 @@
 .dm-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:60px 20px; color:var(--text-muted,#9CA3AF); text-align:center; }
 .dm-empty-icon { font-size:2.5rem; }
 
+/* ── Weather city chips ── */
+.wc-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px 5px 13px; border-radius:20px; background:#EFF6FF; border:1.5px solid #BFDBFE; font-size:.82rem; color:#1D4ED8; cursor:default; }
+.wc-chip--primary { background:#DCFCE7; border-color:#86EFAC; color:#166534; font-weight:700; }
+.wc-chip-name { cursor:pointer; }
+.wc-chip-name:hover { text-decoration:underline; }
+.wc-chip-badge { font-size:.72rem; opacity:.7; margin-left:1px; }
+.wc-chip-remove { background:none; border:none; cursor:pointer; color:inherit; font-size:.85rem; padding:0 2px; opacity:.6; line-height:1; }
+.wc-chip-remove:hover { opacity:1; }
+.wc-search-result-item { display:block; width:100%; text-align:left; padding:9px 14px; font-size:.83rem; background:none; border:none; border-bottom:1px solid #F3F4F6; cursor:pointer; color:#374151; }
+.wc-search-result-item:last-child { border-bottom:none; }
+.wc-search-result-item:hover { background:#F3F4F6; }
+.wc-search-result-item .wc-result-name { font-weight:600; display:block; }
+.wc-search-result-item .wc-result-sub { font-size:.76rem; color:#9CA3AF; }
+
 /* ── Buttons ── */
 .dm-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:none; transition:background .15s, opacity .15s; white-space:nowrap; }
 .dm-btn-primary { background:#6366F1; color:#fff; }
@@ -682,6 +696,19 @@
               </div>
             </div>
 
+            <!-- ── Weather cities ── -->
+            <div style="margin-bottom:24px;" id="wc-section">
+              <p class="dm-section-label" style="margin-bottom:8px;">{% trans "Ciudades del tiempo" %}</p>
+              <p style="margin:0 0 10px; font-size:.82rem; color:#6B7280;">{% trans "Ciudades que el mueble mostrará en la pantalla del tiempo. Se actualizan en el próximo cobien.env." %}</p>
+              <div id="wc-chips" style="display:flex; flex-wrap:wrap; gap:8px; min-height:36px; margin-bottom:10px;"></div>
+              <div style="position:relative; max-width:380px;">
+                <input id="wc-search-input" type="text" autocomplete="off"
+                       placeholder="{% trans 'Buscar ciudad para añadir…' %}"
+                       style="width:100%; padding:8px 12px; font-size:.85rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
+                <div id="wc-search-results" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #E5E7EB; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:200; overflow:hidden;"></div>
+              </div>
+            </div>
+
             <div style="margin-bottom:24px;">
               <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px;">
                 <div>
@@ -726,52 +753,34 @@
 
             <!-- Tab: Contactos -->
             <div class="dm-tab-pane is-active" id="tab-contacts" role="tabpanel">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px;">
-                <p style="font-size:.82rem; color:#6B7280; margin:0;">{% trans "Las imágenes de los contactos se obtienen automáticamente del perfil del usuario web vinculado." %}</p>
-                <div style="display:flex; gap:8px; flex-shrink:0;">
-                  {% if people_profiles %}
-                    <select id="people-profile-select" style="font-size:.82rem; padding:5px 8px; border:1px solid var(--border,#D1D5DB); border-radius:8px;">
-                      <option value="">{% trans "Añadir desde libreta…" %}</option>
-                      {% for person in people_profiles %}
-                        <option value="{{ person.person_id }}" data-display-name="{{ person.display_name }}" data-user-name="{{ person.user_name }}" data-image-url="{{ person.image_url }}">
-                          {{ person.display_name }}{% if person.user_name %} · {{ person.user_name }}{% endif %}
-                        </option>
-                      {% endfor %}
-                    </select>
-                    <button class="dm-btn dm-btn-ghost dm-btn-sm" type="button" id="add-person-profile">{% trans "Añadir" %}</button>
-                  {% endif %}
-                  <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Nuevo contacto" %}</button>
+              <p style="font-size:.82rem; color:#6B7280; margin:0 0 12px;">
+                {% trans "Los contactos se gestionan desde la" %}
+                <a href="{% url 'pizarra_directory_people_admin' %}" style="color:#6366F1;">{% trans "libreta de direcciones" %}</a>
+                {% trans "y se sincronizan al mueble con el botón «Guardar y sincronizar»." %}
+              </p>
+              {% if contact_rows %}
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  {% for contact in contact_rows %}
+                    <div style="display:flex; align-items:center; gap:12px; padding:8px 12px; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
+                      <div class="dm-contact-avatar">
+                        {% if contact.image_url %}
+                          <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
+                        {% else %}
+                          {{ contact.display_name|first|upper }}
+                        {% endif %}
+                      </div>
+                      <div>
+                        <div style="font-weight:600; font-size:.88rem; color:#111827;">{{ contact.display_name }}</div>
+                        {% if contact.user_name %}
+                          <div style="font-size:.78rem; color:#9CA3AF;">@{{ contact.user_name }}</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endfor %}
                 </div>
-              </div>
-
-              <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
-                {% for contact in contact_rows %}
-                  <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
-                    <div class="dm-contact-avatar" id="avatar-{{ forloop.counter0 }}">
-                      {% if contact.image_url %}
-                        <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
-                      {% else %}
-                        {{ contact.display_name|first|upper }}
-                      {% endif %}
-                    </div>
-                    <div class="dm-field" style="margin:0;">
-                      <label>{% trans "Nombre" %}</label>
-                      <input type="text" name="contact_display_name_{{ forloop.counter0 }}"
-                             value="{{ contact.display_name }}" placeholder="María"
-                             data-avatar-for="{{ forloop.counter0 }}">
-                      <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
-                    </div>
-                    <div class="dm-field" style="margin:0;">
-                      <label>{% trans "Usuario web vinculado" %}</label>
-                      <input type="text" name="contact_user_name_{{ forloop.counter0 }}"
-                             value="{{ contact.user_name }}" placeholder="maria">
-                    </div>
-                    <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
-                            style="color:#EF4444; padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>
-                  </div>
-                {% endfor %}
-              </div>
-              <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
+              {% else %}
+                <p style="font-size:.82rem; color:#9CA3AF; padding:12px 0;">{% trans "Sin contactos asignados." %}</p>
+              {% endif %}
             </div>
 
             <!-- Tab: Acceso de usuarios -->
@@ -821,9 +830,7 @@
 
             <!-- Acciones form -->
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
-              <button class="dm-btn dm-btn-outline" type="submit" name="action" value="sync">{% trans "Sincronizar" %}</button>
-              <button class="dm-btn dm-btn-outline" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
-              <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save">{% trans "Guardar cambios" %}</button>
+              <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
             </div>
           </form>
 
@@ -1371,6 +1378,142 @@
         peopleSelect.value = '';
       });
     }
+  })();
+
+  // ── Weather cities manager ──────────────────────────────────────
+  (function () {
+    const profileTA  = document.getElementById('deployment_profile_json');
+    const chipsDiv   = document.getElementById('wc-chips');
+    const searchIn   = document.getElementById('wc-search-input');
+    const resultsDiv = document.getElementById('wc-search-results');
+    if (!profileTA || !chipsDiv || !searchIn) return;
+
+    let cities = [];
+    let primaryCity = '';
+
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function getProfile() {
+      try { return JSON.parse(profileTA.value || '{}'); } catch { return {}; }
+    }
+
+    function writeProfile(cities, primary) {
+      const prof = getProfile();
+      if (cities.length > 0) {
+        prof['COBIEN_WEATHER_CITIES_JSON']         = cities;
+        prof['COBIEN_WEATHER_CITY_CATALOG_JSON']   = cities;
+        prof['COBIEN_WEATHER_PRIMARY_CITY']        = primary || cities[0] || '';
+      } else {
+        delete prof['COBIEN_WEATHER_CITIES_JSON'];
+        delete prof['COBIEN_WEATHER_CITY_CATALOG_JSON'];
+        delete prof['COBIEN_WEATHER_PRIMARY_CITY'];
+      }
+      profileTA.value = JSON.stringify(prof, null, 2);
+    }
+
+    function loadFromProfile() {
+      const prof = getProfile();
+      const raw  = prof['COBIEN_WEATHER_CITIES_JSON'];
+      cities      = Array.isArray(raw) ? raw.map(c => typeof c === 'string' ? c : (c.name || '')).filter(Boolean) : [];
+      primaryCity = String(prof['COBIEN_WEATHER_PRIMARY_CITY'] || cities[0] || '');
+    }
+
+    function renderChips() {
+      chipsDiv.innerHTML = '';
+      if (!cities.length) {
+        chipsDiv.innerHTML = '<span style="font-size:.8rem;color:#9CA3AF;align-self:center;">{% trans "Sin ciudades configuradas — se usarán las predeterminadas del servidor" %}</span>';
+        return;
+      }
+      cities.forEach(function (city, idx) {
+        const isPrimary = city === primaryCity;
+        const chip = document.createElement('div');
+        chip.className = 'wc-chip' + (isPrimary ? ' wc-chip--primary' : '');
+        chip.innerHTML =
+          '<span class="wc-chip-name" title="{% trans "Hacer ciudad principal" %}">' + esc(city) + '</span>' +
+          (isPrimary ? ' <span class="wc-chip-badge">★</span>' : '') +
+          ' <button type="button" class="wc-chip-remove" title="{% trans "Quitar" %}">✕</button>';
+        chip.querySelector('.wc-chip-name').addEventListener('click', function () {
+          primaryCity = city;
+          writeProfile(cities, primaryCity);
+          renderChips();
+        });
+        chip.querySelector('.wc-chip-remove').addEventListener('click', function (e) {
+          e.stopPropagation();
+          cities.splice(idx, 1);
+          if (primaryCity === city) primaryCity = cities[0] || '';
+          writeProfile(cities, primaryCity);
+          renderChips();
+        });
+        chipsDiv.appendChild(chip);
+      });
+    }
+
+    function addCity(name) {
+      name = name.trim();
+      if (!name || cities.includes(name)) return;
+      cities.push(name);
+      if (!primaryCity) primaryCity = name;
+      writeProfile(cities, primaryCity);
+      renderChips();
+    }
+
+    // Nominatim search
+    let searchTimer = null;
+    searchIn.addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      const q = this.value.trim();
+      if (q.length < 2) { resultsDiv.style.display = 'none'; resultsDiv.innerHTML = ''; return; }
+      searchTimer = setTimeout(function () {
+        fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
+              '&format=json&addressdetails=1&limit=6&featuretype=city', {
+          headers: { 'Accept-Language': 'es,en;q=0.8' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          resultsDiv.innerHTML = '';
+          if (!data.length) { resultsDiv.style.display = 'none'; return; }
+          data.forEach(function (place) {
+            const addr     = place.address || {};
+            const city     = addr.city || addr.town || addr.village || addr.municipality || place.name || '';
+            const country  = addr.country || '';
+            const state    = addr.state || '';
+            const sub      = [state, country].filter(Boolean).join(', ');
+            if (!city) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'wc-search-result-item';
+            btn.innerHTML = '<span class="wc-result-name">' + esc(city) + '</span>' +
+                            (sub ? '<span class="wc-result-sub">' + esc(sub) + '</span>' : '');
+            btn.addEventListener('click', function () {
+              addCity(city);
+              searchIn.value = '';
+              resultsDiv.style.display = 'none';
+              resultsDiv.innerHTML = '';
+            });
+            resultsDiv.appendChild(btn);
+          });
+          resultsDiv.style.display = 'block';
+        })
+        .catch(function () { resultsDiv.style.display = 'none'; });
+      }, 400);
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!resultsDiv.contains(e.target) && e.target !== searchIn) {
+        resultsDiv.style.display = 'none';
+      }
+    });
+
+    // Hide weather section when no device is selected
+    const wcSection = document.getElementById('wc-section');
+    if (wcSection) {
+      {% if not selected_device %}wcSection.style.display = 'none';{% endif %}
+    }
+
+    loadFromProfile();
+    renderChips();
   })();
 </script>
 {% endblock %}

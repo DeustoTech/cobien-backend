@@ -35,11 +35,13 @@ from .device_registry import (
     get_default_device_id,
     get_device_contacts,
     get_or_create_device,
+    get_user_device_assignments,
     list_device_assignments,
     list_known_devices,
     normalize_contacts_list,
     normalize_username_list,
     replace_device_assignments,
+    set_user_device_assignments,
     touch_device_heartbeat,
     update_device_metadata,
     update_device_contacts,
@@ -779,6 +781,47 @@ def _staff_required(user):
     return bool(getattr(user, "is_authenticated", False) and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)))
 
 
+def _parse_date_field(raw: str):
+    """Parse a YYYY-MM-DD string into a UTC-aware datetime, or return None."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _apply_device_assignments_from_post(post_data, username, force_apply=False):
+    """Parse assign_device_N / assign_from_N / assign_until_N fields and write assignments.
+
+    force_apply=True: always write (even empty list clears all assignments).
+    force_apply=False: skip write when list is empty (creation with no devices).
+    """
+    assignments = []
+    default_device = str(post_data.get("default_device") or "").strip()
+    i = 0
+    while True:
+        did = str(post_data.get(f"assign_device_{i}") or "").strip()
+        if not did:
+            break
+        vf_raw = str(post_data.get(f"assign_from_{i}") or "").strip()
+        vu_raw = str(post_data.get(f"assign_until_{i}") or "").strip()
+        valid_from = _parse_date_field(vf_raw)
+        valid_until = _parse_date_field(vu_raw)
+        if valid_until:
+            valid_until = valid_until.replace(hour=23, minute=59, second=59)
+        assignments.append({
+            "device_id": did,
+            "is_default": did == default_device,
+            "valid_from": valid_from,
+            "valid_until": valid_until,
+        })
+        i += 1
+    if assignments or force_apply:
+        set_user_device_assignments(username, assignments)
+
+
 def _find_profile_by_device(device_id: str):
     device_id = (device_id or "").strip()
     if not device_id:
@@ -1041,6 +1084,11 @@ def _parse_contact_rows(request, device_id, existing_contacts):
         if match:
             indices.add(int(match.group(1)))
 
+    # When the contacts form is in read-only mode (no editable rows submitted),
+    # preserve the existing contacts unchanged.
+    if not indices:
+        return list(existing_contacts or [])
+
     contacts = []
     seen = set()
     for idx in sorted(indices):
@@ -1165,6 +1213,10 @@ def pizarra_home(request):
         username=getattr(request.user, "username", ""),
         email=getattr(request.user, "email", ""),
     )
+
+    if not is_admin and not accessible_devices:
+        return render(request, "pizarra/no_device.html", {})
+
     linked_device = get_default_device_id(
         username=getattr(request.user, "username", ""),
         email=getattr(request.user, "email", ""),
@@ -1234,6 +1286,7 @@ def pizarra_home(request):
                 if isinstance(entry, dict)
             ]
             qr_selected = d.get("quick_reply_selected")
+            su = d.get("sync_until")
             posts.append({
                 "id": str(d["_id"]),
                 "recipient_key": d.get("recipient_key"),
@@ -1244,6 +1297,7 @@ def pizarra_home(request):
                 "read_by": read_by,
                 "quick_replies": list(d.get("quick_replies") or []),
                 "quick_reply_selected": qr_selected,
+                "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
                 **author_meta,
             })
 
@@ -1278,6 +1332,7 @@ def pizarra_home(request):
         "form": form,
         "notifications": notifications,
         "unread_count": unread_count,
+        "is_admin": is_admin,
     }
     return render(request, "pizarra/pizarra.html", ctx)
 
@@ -1738,6 +1793,8 @@ def directory_people_admin(request):
                 if generate_password and send_email_flag and email:
                     _send_provisional_password_email(request, user, password)
                 messages.success(request, f"Usuario '{username}' creado correctamente.")
+                # Handle optional device assignments at creation time
+                _apply_device_assignments_from_post(request.POST, username)
 
             elif action == "update_user":
                 username = str(request.POST.get("username") or "").strip()
@@ -1789,12 +1846,51 @@ def directory_people_admin(request):
                 _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", _user_avatar_filename(username))
                 messages.success(request, f"Usuario '{username}' eliminado.")
 
+            elif action == "set_user_assignments":
+                username = str(request.POST.get("username") or "").strip()
+                if not username:
+                    raise ValueError("Username requerido.")
+                _apply_device_assignments_from_post(request.POST, username, force_apply=True)
+                messages.success(request, f"Acceso a muebles actualizado para '{username}'.")
+
         except Exception as exc:
             messages.error(request, str(exc))
-        return redirect(reverse("pizarra_directory_people_admin"))
+        return redirect(reverse("pizarra_directory_people_admin") + f"?user={request.POST.get('username', '')}")
 
+    selected_username = (request.GET.get("user") or "").strip()
     users = _list_users_for_admin()
-    return render(request, "pizarra/directory_people_admin.html", {"people": users})
+    all_devices = [d for d in list_known_devices() if not d.get("hidden_in_admin")]
+    all_devices_json = json.dumps([
+        {"id": d["device_id"], "label": d.get("display_name") or d["device_id"]}
+        for d in all_devices
+    ])
+    return render(request, "pizarra/directory_people_admin.html", {
+        "people": users,
+        "all_devices": all_devices,
+        "all_devices_json": all_devices_json,
+        "selected_username": selected_username,
+    })
+
+
+@login_required
+@user_passes_test(_staff_required)
+def api_user_assignments(request):
+    """Return the device assignments for a given username as JSON."""
+    username = (request.GET.get("username") or "").strip()
+    result = {}
+    if username:
+        for a in get_user_device_assignments(username):
+            did = str(a.get("device_id") or "").strip()
+            if not did:
+                continue
+            vf = a.get("valid_from")
+            vu = a.get("valid_until")
+            result[did] = {
+                "is_default": bool(a.get("is_default")),
+                "valid_from": vf.strftime("%Y-%m-%d") if isinstance(vf, datetime) else "",
+                "valid_until": vu.strftime("%Y-%m-%d") if isinstance(vu, datetime) else "",
+            }
+    return JsonResponse(result)
 
 
 @login_required
@@ -1925,6 +2021,7 @@ def pizarra_web_messages(request):
             for entry in (d.get("read_by") or [])
             if isinstance(entry, dict)
         ]
+        su = d.get("sync_until")
         posts.append({
             "id": str(d["_id"]),
             "content": d.get("content", ""),
@@ -1934,6 +2031,7 @@ def pizarra_web_messages(request):
             "read_by": read_by,
             "quick_replies": list(d.get("quick_replies") or []),
             "quick_reply_selected": d.get("quick_reply_selected") or None,
+            "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
             **author_meta,
         })
     return JsonResponse({"ok": True, "posts": posts})
@@ -2066,6 +2164,13 @@ def api_pizarra_messages(request):
             filt["created_at"] = {"$gt": dt}
         except Exception:
             pass
+    # Exclude messages whose sync window has closed
+    now = datetime.now(timezone.utc)
+    filt["$or"] = [
+        {"sync_until": {"$exists": False}},
+        {"sync_until": None},
+        {"sync_until": {"$gt": now}},
+    ]
 
     cursor = col_messages.find(filt).sort("created_at", DESCENDING).limit(100)
     items = []
@@ -2144,6 +2249,39 @@ def api_delete_pizarra_message(request, post_id: str):
     col_messages.delete_one({"_id": target_id})
     _enqueue_board_reload(doc.get("recipient_key", ""), show_last=False)
     return JsonResponse({"ok": True, "id": post_id})
+
+
+@login_required
+@user_passes_test(_staff_required)
+def api_bulk_set_message_expiry(request):
+    """Set sync_until on a batch of messages. POST body: {message_ids: [...], sync_until: 'YYYY-MM-DD'}"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        body = json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    message_ids = body.get("message_ids") or []
+    sync_until_str = str(body.get("sync_until") or "").strip()
+    if not message_ids:
+        return JsonResponse({"error": "message_ids required"}, status=400)
+    sync_until = _parse_date_field(sync_until_str)
+    if sync_until:
+        sync_until = sync_until.replace(hour=23, minute=59, second=59)
+    object_ids = []
+    for mid in message_ids:
+        try:
+            object_ids.append(ObjectId(str(mid)))
+        except Exception:
+            pass
+    if not object_ids:
+        return JsonResponse({"error": "No valid message IDs"}, status=400)
+    update_val = sync_until if sync_until else None
+    col_messages.update_many(
+        {"_id": {"$in": object_ids}},
+        {"$set": {"sync_until": update_val}},
+    )
+    return JsonResponse({"ok": True, "updated": len(object_ids)})
 
 
 @csrf_exempt
