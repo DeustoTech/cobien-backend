@@ -2041,6 +2041,7 @@ def pizarra_web_messages(request):
         message_filter["author"] = request.user.username
     cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(50)
     raw_posts = []
+    now = datetime.now(timezone.utc)
     for d in cursor:
         image_url = ""
         if d.get("image_file_id"):
@@ -2068,6 +2069,7 @@ def pizarra_web_messages(request):
             "quick_replies": list(d.get("quick_replies") or []),
             "quick_reply_selected": d.get("quick_reply_selected") or None,
             "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
+            "hidden_from_devices": bool(isinstance(su, datetime) and su <= now),
             **author_meta,
         })
 
@@ -2340,11 +2342,18 @@ def api_bulk_set_message_expiry(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     message_ids = body.get("message_ids") or []
     sync_until_str = str(body.get("sync_until") or "").strip()
+    hidden = body.get("hidden")
     if not message_ids:
         return JsonResponse({"error": "message_ids required"}, status=400)
-    sync_until = _parse_date_field(sync_until_str)
-    if sync_until:
-        sync_until = sync_until.replace(hour=23, minute=59, second=59)
+    sync_until = None
+    if hidden is True:
+        sync_until = datetime.now(timezone.utc).replace(microsecond=0)
+    elif hidden is False:
+        sync_until = None
+    else:
+        sync_until = _parse_date_field(sync_until_str)
+        if sync_until:
+            sync_until = sync_until.replace(hour=23, minute=59, second=59)
     object_ids = []
     for mid in message_ids:
         try:
