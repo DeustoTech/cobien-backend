@@ -957,7 +957,7 @@
             <span class="pz-notif-kind">${escHtml(label)}</span>
             ${!n.read ? `<form method="post" action="/pizarra/notifications/mark-read/${n.id}/" style="display:inline;"><input type="hidden" name="csrfmiddlewaretoken" value="${CSRF}"><button type="submit" class="pz-notif-read-btn">✓ {% trans "Leído" %}</button></form>` : '<span style="font-size:.72rem;color:#9CA3AF;">{% trans "Leído" %}</span>'}
           </div>
-          ${n.message ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
+          ${n.message && !CALL_KINDS.has(n.kind) ? `<div class="pz-notif-msg">${escHtml(n.message)}</div>` : ''}
           ${targetLine}
           <div class="pz-notif-time">${fmtDate(n.created_at)}</div>
           ${isCall ? `<a class="pz-notif-call-btn" href="/videocall/?to=${encodeURIComponent(n.from_device)}&autostart=1">📞 {% trans "Llamar" %}</a>` : ''}
