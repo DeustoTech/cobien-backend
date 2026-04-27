@@ -236,6 +236,31 @@
   border-radius:8px; font-size:.82rem; color:#166534;
 }
 
+/* ── Device access tab ── */
+.ua-device-row {
+  display:flex; flex-direction:column; gap:8px;
+  padding:12px; border:1px solid var(--border,#E5E7EB);
+  border-radius:10px; background:#FAFAFA;
+}
+.ua-device-check-label {
+  display:flex; align-items:center; gap:10px;
+  font-size:.9rem; font-weight:600; color:var(--text,#111827); cursor:pointer;
+}
+.ua-device-check-label input[type="checkbox"] {
+  width:16px; height:16px; accent-color:#6366F1; cursor:pointer; flex-shrink:0;
+}
+.ua-device-dates {
+  display:flex; gap:12px; padding-left:26px; flex-wrap:wrap;
+}
+.ua-device-dates .ua-field { flex:1; min-width:120px; }
+.ua-device-dates input[type="date"] {
+  width:100%; padding:7px 10px; border:1px solid var(--border,#D1D5DB);
+  border-radius:8px; font-size:.85rem; box-sizing:border-box; background:#fff;
+}
+.ua-device-dates input[type="date"]:focus { outline:none; border-color:#6366F1; }
+.ua-no-devices { font-size:.85rem; color:#9CA3AF; text-align:center; padding:20px 0; }
+.ua-dev-hint { font-size:.76rem; color:#9CA3AF; padding-left:26px; }
+
 /* ── Delete confirm modal ── */
 .ua-delete-confirm-overlay {
   display:none; position:fixed; inset:0;
@@ -339,6 +364,7 @@
           <div class="ua-tabs-nav" role="tablist">
             <button class="ua-tab-btn is-active" data-tab="profile" role="tab" aria-selected="true">{% trans "Perfil" %}</button>
             <button class="ua-tab-btn" data-tab="security" role="tab" aria-selected="false">{% trans "Seguridad" %}</button>
+            <button class="ua-tab-btn" data-tab="devices" role="tab" aria-selected="false">{% trans "Acceso a muebles" %}</button>
           </div>
 
           <!-- Tab: Perfil -->
@@ -433,6 +459,21 @@
             </div>
           </div>
 
+          <!-- Tab: Acceso a muebles -->
+          <div class="ua-tab-pane" id="uaTabDevices">
+            <form method="post" id="uaAssignForm">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="set_user_assignments">
+              <input type="hidden" name="username" id="uaAssignUsername">
+              <div id="uaDeviceRows" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+                <div class="ua-no-devices" id="uaDevicesLoading">{% trans "Cargando…" %}</div>
+              </div>
+              <div class="ua-actions">
+                <button class="ua-btn-primary" type="submit">{% trans "Guardar accesos" %}</button>
+              </div>
+            </form>
+          </div>
+
         </div>
       </div>
     </div>
@@ -524,6 +565,19 @@
         </label>
       </div>
 
+      <hr class="ua-modal-sep">
+
+      <!-- Device assignments -->
+      <div class="ua-modal-section">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <p style="font-size:.82rem; font-weight:600; color:#374151; margin:0;">{% trans "Acceso a muebles (opcional)" %}</p>
+          <button type="button" id="nuToggleDevices" class="ua-btn-secondary" style="padding:5px 12px; font-size:.78rem;">{% trans "Mostrar" %}</button>
+        </div>
+        <div id="nuDeviceSection" style="display:none; flex-direction:column; gap:10px; margin-top:10px;">
+          <div id="nuDeviceRows" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+      </div>
+
       <div class="ua-modal-footer">
         <button class="ua-btn-secondary" type="button" id="uaNewModalCancel">{% trans "Cancelar" %}</button>
         <button class="ua-btn-primary" type="submit">{% trans "Crear usuario" %}</button>
@@ -555,9 +609,17 @@
 {% endblock %}
 
 {% block extra_js %}
+<script id="ua-all-devices" type="application/json">{{ all_devices_json }}</script>
 <script>
 (function () {
   'use strict';
+
+  const ALL_DEVICES = JSON.parse(document.getElementById('ua-all-devices').textContent || '[]');
+  const ASSIGN_API_URL = '{% url "pizarra_api_user_assignments" %}';
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   // ── Sidebar search ─────────────────────────────────────────────
   document.getElementById('uaSearch').addEventListener('input', function () {
@@ -641,6 +703,10 @@
     document.getElementById('uaPwField').value     = '';
     document.getElementById('uaPwConfirm').value   = '';
 
+    // Devices tab
+    document.getElementById('uaAssignUsername').value = username;
+    loadDeviceAssignments(username);
+
     // Reset tab to profile
     activateTab('profile');
 
@@ -653,6 +719,77 @@
     document.getElementById('uaDeleteUsername').value = username;
     document.getElementById('uaDeleteTarget').textContent = username;
   }
+
+  // ── Device assignments ─────────────────────────────────────────
+  function renderDeviceRows(container, assignments) {
+    container.innerHTML = '';
+    if (!ALL_DEVICES.length) {
+      container.innerHTML = '<div class="ua-no-devices">{% trans "No hay muebles registrados." %}</div>';
+      return;
+    }
+    ALL_DEVICES.forEach(function (dev) {
+      const asgn = assignments[dev.id] || null;
+      const isChecked = !!asgn;
+      const vf = asgn ? (asgn.valid_from || '') : '';
+      const vu = asgn ? (asgn.valid_until || '') : '';
+
+      const row = document.createElement('div');
+      row.className = 'ua-device-row';
+      row.dataset.deviceId = dev.id;
+      row.innerHTML =
+        '<label class="ua-device-check-label">' +
+          '<input type="checkbox" class="ua-dev-cb"' + (isChecked ? ' checked' : '') + '>' +
+          escHtml(dev.label) +
+        '</label>' +
+        '<div class="ua-device-dates"' + (isChecked ? '' : ' style="display:none"') + '>' +
+          '<div class="ua-field"><label>{% trans "Desde (opcional)" %}</label>' +
+            '<input type="date" class="ua-dev-from" value="' + escHtml(vf) + '"></div>' +
+          '<div class="ua-field"><label>{% trans "Hasta (opcional)" %}</label>' +
+            '<input type="date" class="ua-dev-until" value="' + escHtml(vu) + '"></div>' +
+        '</div>' +
+        '<span class="ua-dev-hint">{% trans "Sin fechas = acceso permanente" %}</span>';
+
+      const cb = row.querySelector('.ua-dev-cb');
+      const dates = row.querySelector('.ua-device-dates');
+      cb.addEventListener('change', function () {
+        dates.style.display = this.checked ? '' : 'none';
+      });
+      container.appendChild(row);
+    });
+  }
+
+  function loadDeviceAssignments(username) {
+    const container = document.getElementById('uaDeviceRows');
+    container.innerHTML = '<div class="ua-no-devices" id="uaDevicesLoading">{% trans "Cargando…" %}</div>';
+    fetch(ASSIGN_API_URL + '?username=' + encodeURIComponent(username), {
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderDeviceRows(container, data); })
+      .catch(function () {
+        container.innerHTML = '<div class="ua-no-devices">{% trans "Error al cargar accesos." %}</div>';
+      });
+  }
+
+  // Intercept assign form submit: reindex assign_* fields from checked rows
+  document.getElementById('uaAssignForm').addEventListener('submit', function () {
+    var form = this;
+    form.querySelectorAll('[name^="assign_"]').forEach(function (el) { el.remove(); });
+    var i = 0;
+    document.getElementById('uaDeviceRows').querySelectorAll('.ua-device-row').forEach(function (row) {
+      var cb = row.querySelector('.ua-dev-cb');
+      if (!cb || !cb.checked) return;
+      function addH(name, val) {
+        var h = document.createElement('input');
+        h.type = 'hidden'; h.name = name; h.value = val;
+        form.appendChild(h);
+      }
+      addH('assign_device_' + i, row.dataset.deviceId);
+      addH('assign_from_' + i,   row.querySelector('.ua-dev-from').value);
+      addH('assign_until_' + i,  row.querySelector('.ua-dev-until').value);
+      i++;
+    });
+  });
 
   // ── Tabs ───────────────────────────────────────────────────────
   function activateTab(tab) {
@@ -759,6 +896,10 @@
     manualPwDiv.style.display = '';
     genPwInfo.style.display   = 'none';
     nuPassword.required = true;
+    // Reset device section
+    document.getElementById('nuDeviceSection').style.display = 'none';
+    document.getElementById('nuToggleDevices').textContent = '{% trans "Mostrar" %}';
+    renderDeviceRows(document.getElementById('nuDeviceRows'), {});
     newModal.classList.add('open');
     setTimeout(function () { document.getElementById('nu_username').focus(); }, 50);
   }
@@ -766,6 +907,34 @@
   document.getElementById('uaNewUserBtn').addEventListener('click', openNewModal);
   document.getElementById('uaNewModalClose').addEventListener('click', function () { newModal.classList.remove('open'); });
   document.getElementById('uaNewModalCancel').addEventListener('click', function () { newModal.classList.remove('open'); });
+
+  // Toggle device section in new user modal
+  document.getElementById('nuToggleDevices').addEventListener('click', function () {
+    var sec = document.getElementById('nuDeviceSection');
+    var visible = sec.style.display !== 'none';
+    sec.style.display = visible ? 'none' : 'flex';
+    this.textContent = visible ? '{% trans "Mostrar" %}' : '{% trans "Ocultar" %}';
+  });
+
+  // Intercept new user form submit: reindex assign_* fields from checked rows
+  document.getElementById('uaNewForm').addEventListener('submit', function () {
+    var form = this;
+    form.querySelectorAll('[name^="assign_"]').forEach(function (el) { el.remove(); });
+    var i = 0;
+    document.getElementById('nuDeviceRows').querySelectorAll('.ua-device-row').forEach(function (row) {
+      var cb = row.querySelector('.ua-dev-cb');
+      if (!cb || !cb.checked) return;
+      function addH(name, val) {
+        var h = document.createElement('input');
+        h.type = 'hidden'; h.name = name; h.value = val;
+        form.appendChild(h);
+      }
+      addH('assign_device_' + i, row.dataset.deviceId);
+      addH('assign_from_' + i,   row.querySelector('.ua-dev-from').value);
+      addH('assign_until_' + i,  row.querySelector('.ua-dev-until').value);
+      i++;
+    });
+  });
   newModal.addEventListener('click', function (e) { if (e.target === newModal) newModal.classList.remove('open'); });
 
   genPwCheck.addEventListener('change', function () {
@@ -815,6 +984,14 @@
       deleteModal.classList.remove('open');
     }
   });
+
+  // ── Auto-select user from query param ─────────────────────────
+  {% if selected_username %}
+  (function () {
+    var item = document.querySelector('.ua-user-item[data-username="{{ selected_username }}"]');
+    if (item) selectUser(item);
+  })();
+  {% endif %}
 
 })();
 </script>
