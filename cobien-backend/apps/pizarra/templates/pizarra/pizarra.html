@@ -335,6 +335,11 @@
     padding:2px 7px; border-radius:10px;
     background:#FEF9C3; color:#854D0E; border:1px solid #FDE68A;
   }
+  .pz-hidden-badge {
+    display:inline-block; font-size:.68rem; font-weight:700;
+    padding:2px 7px; border-radius:10px;
+    background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;
+  }
   .pz-expiry-badge.is-expired {
     background:#FEE2E2; color:#991B1B; border-color:#FECACA;
   }
@@ -360,6 +365,12 @@
   .pz-select-bar-btn--save:hover { background:#4F46E5; }
   .pz-select-bar-btn--clear { background:#374151; color:#D1D5DB; }
   .pz-select-bar-btn--clear:hover { background:#4B5563; }
+  .pz-select-bar-btn--ghost { background:#111827; color:#F9FAFB; }
+  .pz-select-bar-btn--ghost:hover { background:#1F2937; }
+  .pz-select-bar-btn--warn { background:#DC2626; color:#fff; }
+  .pz-select-bar-btn--warn:hover { background:#B91C1C; }
+  .pz-select-bar-btn--show { background:#059669; color:#fff; }
+  .pz-select-bar-btn--show:hover { background:#047857; }
 
   /* ── Estados vacío / no seleccionado ── */
   .pz-empty {
@@ -628,9 +639,12 @@
 <!-- Multi-select action bar -->
 <div class="pz-select-bar" id="pzSelectBar" role="toolbar" aria-live="polite">
   <span class="pz-select-bar-count" id="pzSelectCount"></span>
-  <label for="pzExpiryDate">{% trans "Ocultar desde el" %}:</label>
+  <button class="pz-select-bar-btn pz-select-bar-btn--ghost" id="pzSelectAllBtn" type="button">{% trans "Seleccionar todos" %}</button>
+  <label for="pzExpiryDate">{% trans "Seleccionar hasta" %}:</label>
   <input type="date" id="pzExpiryDate">
-  <button class="pz-select-bar-btn pz-select-bar-btn--save" id="pzSetExpiryBtn" type="button">{% trans "Establecer caducidad" %}</button>
+  <button class="pz-select-bar-btn pz-select-bar-btn--ghost" id="pzSelectUntilBtn" type="button">{% trans "Marcar hasta fecha" %}</button>
+  <button class="pz-select-bar-btn pz-select-bar-btn--warn" id="pzHideSelectedBtn" type="button">{% trans "Ocultar" %}</button>
+  <button class="pz-select-bar-btn pz-select-bar-btn--show" id="pzShowSelectedBtn" type="button">{% trans "Mostrar" %}</button>
   <button class="pz-select-bar-btn pz-select-bar-btn--clear" id="pzClearSelectBtn" type="button">{% trans "Cancelar" %}</button>
 </div>
 {% endif %}
@@ -679,11 +693,15 @@
   const selectBar    = document.getElementById('pzSelectBar');
   const selectCount  = document.getElementById('pzSelectCount');
   const expiryDate   = document.getElementById('pzExpiryDate');
-  const setExpiryBtn = document.getElementById('pzSetExpiryBtn');
+  const selectAllBtn = document.getElementById('pzSelectAllBtn');
+  const selectUntilBtn = document.getElementById('pzSelectUntilBtn');
+  const hideSelectedBtn = document.getElementById('pzHideSelectedBtn');
+  const showSelectedBtn = document.getElementById('pzShowSelectedBtn');
   const clearSelectBtn = document.getElementById('pzClearSelectBtn');
 
   let selectMode = false;
   let selectedMsgIds = new Set();
+  let currentRenderedPosts = [];
 
   // ── Toast ──────────────────────────────────────────────────────
   let _toastTimer;
@@ -780,6 +798,7 @@
   function renderPosts(posts, deviceName, color, allowMutations) {
     skeleton.classList.remove('visible');
     feed.innerHTML = '';
+    currentRenderedPosts = Array.isArray(posts) ? posts.slice() : [];
     exitSelectMode();
     if (selectToggle) selectToggle.style.display = allowMutations ? '' : 'none';
     if (!posts.length) {
@@ -796,16 +815,18 @@
         : (post.quick_reply_selected || '');
       const replyOptions = Array.isArray(post.quick_replies) ? post.quick_replies : [];
       const syncUntil = post.sync_until || null;
-      const isExpired = syncUntil && syncUntil < today;
+      const isExpired = Boolean(post.hidden_from_devices);
       const art = document.createElement('article');
       art.className = 'pz-bubble';
       art.dataset.id = post.id;
       const avatarHtml = post.author_avatar_url
         ? `<div class="pz-bubble-avatar"><img loading="lazy" src="${post.author_avatar_url}" alt="${escHtml(post.author_name || post.author || '')}"></div>`
         : `<div class="pz-bubble-avatar">${escHtml(post.author_initial || (post.author_name || post.author || 'U').charAt(0).toUpperCase())}</div>`;
-      const expiryHtml = syncUntil
-        ? `<span class="pz-expiry-badge${isExpired ? ' is-expired' : ''}" title="${isExpired ? '{% trans "Caducado" %}' : '{% trans "Caduca" %}'}">⏱ ${syncUntil}</span>`
-        : '';
+      const expiryHtml = isExpired
+        ? `<span class="pz-hidden-badge" title="{% trans "Oculto en tablets" %}">{% trans "Oculto" %}</span>`
+        : (syncUntil
+          ? `<span class="pz-expiry-badge" title="{% trans "Visible hasta" %}">⏱ ${syncUntil}</span>`
+          : '');
       art.innerHTML = `
         <div class="pz-bubble-head">
           ${allowMutations ? `<input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">` : '<span></span>'}
@@ -874,6 +895,97 @@
     }
   }
 
+  function setAllSelections(selected) {
+    feed.querySelectorAll('.pz-bubble').forEach(function (bubble) {
+      const cb = bubble.querySelector('.pz-bubble-cb');
+      if (!cb) return;
+      cb.checked = selected;
+      bubble.classList.toggle('is-selected', selected);
+      if (selected) {
+        selectedMsgIds.add(bubble.dataset.id);
+      } else {
+        selectedMsgIds.delete(bubble.dataset.id);
+      }
+    });
+    updateSelectBar();
+  }
+
+  function selectMessagesUntilDate(dateValue) {
+    if (!dateValue) {
+      showToast('{% trans "Elige una fecha para seleccionar mensajes." %}', true);
+      return;
+    }
+    const cutoff = new Date(`${dateValue}T23:59:59`);
+    if (Number.isNaN(cutoff.getTime())) {
+      showToast('{% trans "Fecha inválida." %}', true);
+      return;
+    }
+    let marked = 0;
+    feed.querySelectorAll('.pz-bubble').forEach(function (bubble) {
+      const post = currentRenderedPosts.find(function (item) { return item.id === bubble.dataset.id; });
+      const cb = bubble.querySelector('.pz-bubble-cb');
+      if (!post || !cb) return;
+      const createdAt = new Date(post.created_at);
+      const shouldSelect = !Number.isNaN(createdAt.getTime()) && createdAt <= cutoff;
+      cb.checked = shouldSelect;
+      bubble.classList.toggle('is-selected', shouldSelect);
+      if (shouldSelect) {
+        selectedMsgIds.add(post.id);
+        marked += 1;
+      } else {
+        selectedMsgIds.delete(post.id);
+      }
+    });
+    updateSelectBar();
+    if (!marked) {
+      showToast('{% trans "No hay mensajes hasta esa fecha." %}', true);
+    }
+  }
+
+  function reloadCurrentHistory() {
+    if (!currentSingle) return;
+    const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
+    const name = chip ? chip.dataset.name : currentSingle;
+    const color = chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280';
+    loadHistory(currentSingle, name, color);
+  }
+
+  function setHiddenStateForSelection(hidden) {
+    const ids = Array.from(selectedMsgIds);
+    if (!ids.length) {
+      showToast('{% trans "Selecciona al menos un mensaje." %}', true);
+      return;
+    }
+    const actionButton = hidden ? hideSelectedBtn : showSelectedBtn;
+    actionButton.disabled = true;
+    fetch(URL_BULK_EXPIRY, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ message_ids: ids, hidden: hidden }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      actionButton.disabled = false;
+      if (data.ok) {
+        showToast(hidden
+          ? `{% trans "Ocultados" %} ${data.updated} {% trans "mensajes." %}`
+          : `{% trans "Mostrados" %} ${data.updated} {% trans "mensajes." %}`);
+        exitSelectMode();
+        reloadCurrentHistory();
+      } else {
+        showToast(data.error || '{% trans "Error al guardar." %}', true);
+      }
+    })
+    .catch(function () {
+      actionButton.disabled = false;
+      showToast('{% trans "Error de red." %}', true);
+    });
+  }
+
   function enterSelectMode() {
     selectMode = true;
     feed.classList.add('pz-selectable-mode');
@@ -905,42 +1017,27 @@
     clearSelectBtn.addEventListener('click', exitSelectMode);
   }
 
-  if (setExpiryBtn) {
-    setExpiryBtn.addEventListener('click', function () {
-      const ids = Array.from(selectedMsgIds);
-      if (!ids.length) return;
-      const date = expiryDate ? expiryDate.value : '';
-      if (!date) { showToast('{% trans "Elige una fecha de caducidad." %}', true); return; }
-      setExpiryBtn.disabled = true;
-      fetch(URL_BULK_EXPIRY, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': CSRF,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({ message_ids: ids, sync_until: date }),
-      })
-      .then(r => r.json())
-      .then(function (data) {
-        setExpiryBtn.disabled = false;
-        if (data.ok) {
-          showToast(`{% trans "Caducidad establecida para" %} ${data.updated} {% trans "mensajes." %}`);
-          exitSelectMode();
-          if (currentSingle) {
-            const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
-            const name = chip ? chip.dataset.name : currentSingle;
-            const color = chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280';
-            loadHistory(currentSingle, name, color);
-          }
-        } else {
-          showToast(data.error || '{% trans "Error al guardar." %}', true);
-        }
-      })
-      .catch(function () {
-        setExpiryBtn.disabled = false;
-        showToast('{% trans "Error de red." %}', true);
-      });
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', function () {
+      setAllSelections(true);
+    });
+  }
+
+  if (selectUntilBtn) {
+    selectUntilBtn.addEventListener('click', function () {
+      selectMessagesUntilDate(expiryDate ? expiryDate.value : '');
+    });
+  }
+
+  if (hideSelectedBtn) {
+    hideSelectedBtn.addEventListener('click', function () {
+      setHiddenStateForSelection(true);
+    });
+  }
+
+  if (showSelectedBtn) {
+    showSelectedBtn.addEventListener('click', function () {
+      setHiddenStateForSelection(false);
     });
   }
 
