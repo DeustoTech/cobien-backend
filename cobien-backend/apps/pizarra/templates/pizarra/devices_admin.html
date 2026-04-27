@@ -753,34 +753,55 @@
 
             <!-- Tab: Contactos -->
             <div class="dm-tab-pane is-active" id="tab-contacts" role="tabpanel">
-              <p style="font-size:.82rem; color:#6B7280; margin:0 0 12px;">
-                {% trans "Los contactos se gestionan desde la" %}
-                <a href="{% url 'pizarra_directory_people_admin' %}" style="color:#6366F1;">{% trans "libreta de direcciones" %}</a>
-                {% trans "y se sincronizan al mueble con el botón «Guardar y sincronizar»." %}
-              </p>
-              {% if contact_rows %}
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  {% for contact in contact_rows %}
-                    <div style="display:flex; align-items:center; gap:12px; padding:8px 12px; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;">
-                      <div class="dm-contact-avatar">
-                        {% if contact.image_url %}
-                          <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
-                        {% else %}
-                          {{ contact.display_name|first|upper }}
-                        {% endif %}
-                      </div>
-                      <div>
-                        <div style="font-weight:600; font-size:.88rem; color:#111827;">{{ contact.display_name }}</div>
-                        {% if contact.user_name %}
-                          <div style="font-size:.78rem; color:#9CA3AF;">@{{ contact.user_name }}</div>
-                        {% endif %}
-                      </div>
-                    </div>
-                  {% endfor %}
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px;">
+                <p style="font-size:.82rem; color:#6B7280; margin:0;">
+                  {% trans "Las imágenes de los contactos se obtienen automáticamente del perfil del usuario web vinculado o se pueden gestionar desde la" %}
+                  <a href="{% url 'pizarra_directory_people_admin' %}" style="color:#6366F1;">{% trans "libreta" %}</a>.
+                </p>
+                <div style="display:flex; gap:8px; flex-shrink:0;">
+                  {% if people_profiles %}
+                    <select id="people-profile-select" style="font-size:.82rem; padding:5px 8px; border:1px solid var(--border,#D1D5DB); border-radius:8px;">
+                      <option value="">{% trans "Añadir desde libreta…" %}</option>
+                      {% for person in people_profiles %}
+                        <option value="{{ person.person_id }}" data-display-name="{{ person.display_name }}" data-user-name="{{ person.user_name }}" data-image-url="{{ person.image_url }}">
+                          {{ person.display_name }}{% if person.user_name %} · {{ person.user_name }}{% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button class="dm-btn dm-btn-ghost dm-btn-sm" type="button" id="add-person-profile">{% trans "Añadir" %}</button>
+                  {% endif %}
+                  <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Nuevo contacto" %}</button>
                 </div>
-              {% else %}
-                <p style="font-size:.82rem; color:#9CA3AF; padding:12px 0;">{% trans "Sin contactos asignados." %}</p>
-              {% endif %}
+              </div>
+
+              <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
+                {% for contact in contact_rows %}
+                  <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
+                    <div class="dm-contact-avatar" id="avatar-{{ forloop.counter0 }}">
+                      {% if contact.image_url %}
+                        <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
+                      {% else %}
+                        {{ contact.display_name|first|upper }}
+                      {% endif %}
+                    </div>
+                    <div class="dm-field" style="margin:0;">
+                      <label>{% trans "Nombre" %}</label>
+                      <input type="text" name="contact_display_name_{{ forloop.counter0 }}"
+                             value="{{ contact.display_name }}" placeholder="María"
+                             data-avatar-for="{{ forloop.counter0 }}">
+                      <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                    </div>
+                    <div class="dm-field" style="margin:0;">
+                      <label>{% trans "Usuario web vinculado" %}</label>
+                      <input type="text" name="contact_user_name_{{ forloop.counter0 }}"
+                             value="{{ contact.user_name }}" placeholder="maria">
+                    </div>
+                    <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
+                            style="color:#EF4444; padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>
+                  </div>
+                {% endfor %}
+              </div>
+              <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
             </div>
 
             <!-- Tab: Acceso de usuarios -->

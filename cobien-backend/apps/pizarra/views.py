@@ -1113,7 +1113,7 @@ def _parse_contact_rows(request, device_id, existing_contacts):
 
     # When the contacts form is in read-only mode (no editable rows submitted),
     # preserve the existing contacts unchanged.
-    if not indices:
+    if not indices and "contact_rows_total" not in request.POST:
         return list(existing_contacts or [])
 
     contacts = []
