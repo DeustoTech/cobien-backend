@@ -9,12 +9,8 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from openai import OpenAI as _OpenAI
-from django.core.files.storage import default_storage
 import os
-import base64
 from django.conf import settings
-import re
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VideoGrant
 from django.contrib.auth.decorators import login_required
@@ -35,13 +31,6 @@ from apps.pizarra.device_registry import (
     list_known_devices,
     resolve_device_id_for_queue_target,
     verify_device_videocall_key,
-)
-
-
-
-openai.api_key = os.getenv(
-    "OPENAI_API_KEY",
-    "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",
 )
 _client = MongoClient(os.getenv("MONGO_URI"))
 db = _client["LabasAppDB"]       
@@ -452,105 +441,6 @@ def delete_evento(request):
         return JsonResponse({'success': False, 'error': 'Could not delete event.'}, status=500)
 
     return JsonResponse({'success': True})
-
-@csrf_exempt
-def extraer_evento(request):
-    """
-    Guarda la imagen en appEventos/media/uploads, la envía a GPT-4o,
-    y devuelve título, fecha, lugar y descripción.
-    """
-    if request.method == 'POST' and request.FILES.get('image'):
-        try:
-            # Guardar la imagen temporalmente
-            image_file = request.FILES['image']
-            temp_path = default_storage.save(f"uploads/{image_file.name}", image_file)
-            image_path = os.path.join(settings.MEDIA_ROOT, temp_path)
-
-            # Codificar la imagen en Base64
-            with open(image_path, "rb") as img_file:
-                base64_image = base64.b64encode(img_file.read()).decode('utf-8')
-
-            # Enviar la imagen a GPT-4o
-            _openai_client = _OpenAI()
-            response = _openai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "Extrae el título, fecha, lugar y una breve descripción de la imagen."},
-                    {"role": "user", "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
-                    ]}
-                ],
-                max_tokens=500
-            )
-
-            # Procesar la respuesta
-            response_content = response.choices[0].message.content
-            event_data = parse_response(response_content)
-
-            # Eliminar la imagen temporal
-            default_storage.delete(temp_path)
-
-            return JsonResponse({'success': True, **event_data})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': False, 'error': 'No se ha subido ninguna imagen.'})
-
-
-def parse_response(response_text):
-    """
-    Parsea la respuesta de OpenAI y extrae título, fecha, lugar y descripción.
-    Convierte la fecha al formato yyyy-mm-dd.
-    """
-    meses = {
-        "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
-        "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
-        "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12"
-    }
-
-    lines = response_text.split("\n")
-    event_data = {'title': '', 'date': '', 'place': '', 'description': ''}
-
-    for line in lines:
-        if "Título:" in line:
-            event_data['title'] = line.split(":", 1)[1].strip()
-        elif "Fecha:" in line:
-            raw_date = line.split(":", 1)[1].strip()
-            print("Fecha recibida de OpenAI:", raw_date)
-
-            try:
-                # Limpieza básica
-                # Limpieza básica
-                clean_date = re.sub(r'[^\w\sáéíóúÁÉÍÓÚ]', '', raw_date)  # Elimina caracteres especiales como *, , etc.
-                clean_date = re.sub(r'^\s*(lunes|martes|miércoles|jueves|viernes|sábado|domingo),?\s*', '', clean_date, flags=re.IGNORECASE)
-                clean_date = re.sub(r',.*$', '', clean_date)  # Elimina todo lo que viene después de la coma
-                print("Fecha limpia:", clean_date)
-
-                # Manejo de formato día de mes (2 de marzo, 2024)
-                match = re.match(r'(\d+)\sde\s([a-zA-ZáéíóúÁÉÍÓÚ]+)(?:\sde\s(\d{4}))?', clean_date)
-                if match:
-                    day = match.group(1).zfill(2)
-                    month_name = match.group(2).lower()
-                    month = meses.get(month_name, "01")
-                    year = match.group(3) if match.group(3) else str(datetime.now().year)
-
-                    # Formato yyyy-mm-dd
-                    formatted_date = f"{year}-{month}-{day}"
-                    print("Fecha formateada (HTML):", formatted_date)
-                    event_data['date'] = formatted_date
-                else:
-                    print("No se pudo parsear la fecha:", raw_date)
-                    event_data['date'] = ''  # Fecha inválida
-            except Exception as e:
-                print("Error al convertir la fecha:", e)
-                event_data['date'] = ''  # Fecha inválida
-
-        elif "Lugar:" in line:
-            event_data['place'] = line.split(":", 1)[1].strip()
-        elif "Descripción:" in line:
-            event_data['description'] = line.split(":", 1)[1].strip()
-
-    return event_data
 
 def generate_video_token(request, identity, room_name):
     try:
