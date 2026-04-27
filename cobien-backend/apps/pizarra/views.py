@@ -739,6 +739,33 @@ def _build_message_author_meta(username, request=None):
     }
 
 
+def _notification_target_meta(username):
+    username = str(username or "").strip()
+    profile = _find_user_profile(username=username)
+    display_name = _profile_display_name(profile, fallback=username) or username
+    return {
+        "to_user": username,
+        "to_user_name": display_name,
+    }
+
+
+def _message_group_key(doc):
+    created_at = doc.get("created_at")
+    created_at_key = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at or "")
+    return json.dumps(
+        {
+            "author": str(doc.get("author") or "").strip(),
+            "created_at": created_at_key,
+            "content": str(doc.get("content") or ""),
+            "image_file_id": str(doc.get("image_file_id") or ""),
+            "quick_replies": list(doc.get("quick_replies") or []),
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+        default=str,
+    )
+
+
 def _enqueue_board_reload(recipient_key, show_last=False):
     target = str(recipient_key or "").strip()
     if not target:
@@ -1998,14 +2025,22 @@ def pizarra_create(request):
 
 @login_required
 def pizarra_web_messages(request):
-    recipient = request.GET.get("recipient", "").strip()
-    if not recipient:
+    recipient_keys = [str(value or "").strip() for value in request.GET.getlist("recipient_keys") if str(value or "").strip()]
+    if not recipient_keys:
+        recipient = request.GET.get("recipient", "").strip()
+        if recipient:
+            recipient_keys = [recipient]
+    if not recipient_keys:
         return JsonResponse({"ok": False, "error": "Missing recipient"}, status=400)
-    message_filter = {"recipient_key": recipient}
+
+    message_filter = {"recipient_key": recipient_keys[0]}
+    multi_recipient = len(recipient_keys) > 1
+    if multi_recipient:
+        message_filter = {"recipient_key": {"$in": recipient_keys}}
     if not _staff_required(request.user):
         message_filter["author"] = request.user.username
     cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(50)
-    posts = []
+    raw_posts = []
     for d in cursor:
         image_url = ""
         if d.get("image_file_id"):
@@ -2022,11 +2057,12 @@ def pizarra_web_messages(request):
             if isinstance(entry, dict)
         ]
         su = d.get("sync_until")
-        posts.append({
+        raw_posts.append({
             "id": str(d["_id"]),
             "content": d.get("content", ""),
             "image_url": image_url,
             "created_at_human": fecha_chat(d.get("created_at")),
+            "created_at": d.get("created_at"),
             "recipient_key": d.get("recipient_key", ""),
             "read_by": read_by,
             "quick_replies": list(d.get("quick_replies") or []),
@@ -2034,6 +2070,47 @@ def pizarra_web_messages(request):
             "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
             **author_meta,
         })
+
+    if not multi_recipient:
+        return JsonResponse({"ok": True, "posts": raw_posts})
+
+    groups = {}
+    required = set(recipient_keys)
+    for post in raw_posts:
+        group_key = _message_group_key(post)
+        group = groups.setdefault(
+            group_key,
+            {
+                "post": post,
+                "recipient_keys": set(),
+                "read_by": [],
+                "quick_reply_selected": [],
+            },
+        )
+        group["recipient_keys"].add(post.get("recipient_key", ""))
+        group["read_by"].extend(post.get("read_by") or [])
+        if post.get("quick_reply_selected"):
+            group["quick_reply_selected"].append(post.get("quick_reply_selected"))
+
+    posts = []
+    for group in groups.values():
+        if group["recipient_keys"] != required:
+            continue
+        post = dict(group["post"])
+        seen_reads = set()
+        merged_reads = []
+        for entry in group["read_by"]:
+            key = (entry.get("device_id", ""), entry.get("read_at", ""))
+            if key in seen_reads:
+                continue
+            seen_reads.add(key)
+            merged_reads.append(entry)
+        replies = group["quick_reply_selected"]
+        post["read_by"] = merged_reads
+        post["quick_reply_selected"] = replies[0] if replies and all(reply == replies[0] for reply in replies) else None
+        post["multi_recipient"] = True
+        posts.append(post)
+
     return JsonResponse({"ok": True, "posts": posts})
 
 
@@ -2690,10 +2767,11 @@ def api_notifications(request):
     cursor = col_notifications.find(filt).sort("created_at", DESCENDING).limit(100)
     items = []
     for d in cursor:
+        target_meta = _notification_target_meta(d.get("to_user"))
         items.append({
             "id": str(d["_id"]),
             "from_device": d.get("from_device"),
-            "to_user": d.get("to_user"),
+            **target_meta,
             "kind": d.get("kind"),
             "message": d.get("message"),
             "created_at": d.get("created_at").isoformat(),
