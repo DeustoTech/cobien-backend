@@ -474,18 +474,6 @@
     <div class="ev-modal-body">
       <form id="addEventForm">
 
-        <!-- Image extraction (click or drag & drop) -->
-        <div class="ev-field">
-          <label>{% trans "Extraer datos de imagen" %}</label>
-          <div class="ev-dropzone" id="eventDropzone">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span>{% trans "Arrastra una imagen aquí o haz clic para seleccionar" %}</span>
-            <span class="ev-dropzone-hint">{% trans "Se extraerán automáticamente título, fecha y descripción" %}</span>
-            <div class="ev-file-name" id="eventImageName"></div>
-          </div>
-          <input type="file" id="eventImage" accept="image/*" style="display:none;">
-        </div>
-
         <div class="ev-grid-2">
           <div class="ev-field">
             <label for="eventTitle">{% trans "Título" %} <span style="color:#EF4444;">*</span></label>
@@ -579,7 +567,6 @@
     regionPrefix:     "{% trans 'Eventos de' %}",
     chooseLocation:   "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
     saveErrorPrefix:  "{% trans 'Error al guardar el evento:' %}",
-    imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
     deleteConfirm:    "{% trans '¿Seguro que quieres eliminar este evento?' %}",
     deleteSuccess:    "{% trans 'Evento eliminado correctamente.' %}",
     deleteError:      "{% trans 'Error al eliminar el evento.' %}",
@@ -935,60 +922,6 @@
     refreshState();
   })();
 
-  // ── Image extraction (shared: click + drag & drop) ──────────────
-  (function () {
-    const dropzone  = document.getElementById('eventDropzone');
-    const fileInput = document.getElementById('eventImage');
-    const nameEl    = document.getElementById('eventImageName');
-    if (!dropzone || !fileInput) return;
-
-    function processFile(file) {
-      if (!file || !file.type.startsWith('image/')) return;
-      if (nameEl) nameEl.textContent = file.name;
-
-      const formData = new FormData();
-      formData.append('image', file);
-
-      fetch('/api/extraer_evento/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-        body: formData
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            if (data.title)       document.getElementById('eventTitle').value       = data.title;
-            if (data.date)        document.getElementById('eventDate').value        = data.date;
-            if (data.description) document.getElementById('eventDescription').value = data.description;
-          } else {
-            window.showToast(`${I18N_EVENTS.imageErrorPrefix} ${data.error}`, 'error');
-          }
-        })
-        .catch(err => console.error(err));
-    }
-
-    // Click on dropzone → open file picker
-    dropzone.addEventListener('click', function () { fileInput.click(); });
-    fileInput.addEventListener('change', function () {
-      if (this.files[0]) processFile(this.files[0]);
-    });
-
-    // Drag & drop
-    dropzone.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      dropzone.classList.add('ev-dropzone--active');
-    });
-    dropzone.addEventListener('dragleave', function (e) {
-      if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('ev-dropzone--active');
-    });
-    dropzone.addEventListener('drop', function (e) {
-      e.preventDefault();
-      dropzone.classList.remove('ev-dropzone--active');
-      const file = e.dataTransfer.files[0];
-      if (file) processFile(file);
-    });
-  })();
-
   // ── Submit add event ────────────────────────────────────────────
   document.getElementById('addEventForm').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -1035,8 +968,6 @@
           }
           const hint = document.getElementById('eventDeviceHint');
           if (hint) hint.textContent = '{% trans "Sin selección → evento global visible para todos." %}';
-          const nameEl2 = document.getElementById('eventImageName');
-          if (nameEl2) nameEl2.textContent = '';
           closeModal('addEventModal');
           window.showToast('{% trans "Evento guardado correctamente." %}', 'success');
         } else {
