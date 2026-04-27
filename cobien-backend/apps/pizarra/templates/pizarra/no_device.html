@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}CoBien · {% trans "Sin acceso" %}{% endblock %}
+{% block content %}
+<style>
+  .nd-wrap {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 60vh; padding: 40px 20px; text-align: center;
+  }
+  .nd-icon { font-size: 4rem; margin-bottom: 20px; }
+  .nd-title { font-size: 1.6rem; font-weight: 700; color: #111827; margin: 0 0 12px; }
+  .nd-subtitle { font-size: 1rem; color: #6B7280; max-width: 420px; line-height: 1.6; }
+  .nd-logout { margin-top: 32px; display: inline-block; padding: 10px 24px; border-radius: 8px;
+    background: #F3F4F6; color: #374151; font-size: .9rem; font-weight: 600; text-decoration: none;
+    border: 1px solid #E5E7EB; }
+  .nd-logout:hover { background: #E5E7EB; }
+</style>
+<div class="nd-wrap">
+  <div class="nd-icon">🪑</div>
+  <h1 class="nd-title">{% trans "Sin mueble asignado" %}</h1>
+  <p class="nd-subtitle">
+    {% trans "Tu cuenta no tiene ningún mueble CoBien asignado. Contacta con un administrador para que te asigne acceso." %}
+  </p>
+  <a class="nd-logout" href="{% url 'logout' %}">{% trans "Cerrar sesión" %}</a>
+</div>
+{% endblock %}

@@ -229,12 +229,30 @@ def device_online_status(device, online_window_minutes=5):
     return "online" if now - last_seen <= timedelta(minutes=online_window_minutes) else "offline"
 
 
+def _assignment_is_active(doc):
+    """Return True if the assignment doc is within its valid date window (if any)."""
+    now = datetime.now(timezone.utc)
+    valid_from = doc.get("valid_from")
+    valid_until = doc.get("valid_until")
+    if valid_from and isinstance(valid_from, datetime):
+        vf = valid_from if valid_from.tzinfo else valid_from.replace(tzinfo=timezone.utc)
+        if now < vf:
+            return False
+    if valid_until and isinstance(valid_until, datetime):
+        vu = valid_until if valid_until.tzinfo else valid_until.replace(tzinfo=timezone.utc)
+        if now > vu:
+            return False
+    return True
+
+
 def get_accessible_device_ids(username="", email=""):
     device_ids = []
     seen = set()
 
     if username:
         for doc in col_user_device_access.find({"username": username}).sort([("is_default", -1), ("device_id", 1)]):
+            if not _assignment_is_active(doc):
+                continue
             value = str(doc.get("device_id") or "").strip()
             if value and value not in seen:
                 seen.add(value)
@@ -287,21 +305,30 @@ def list_device_assignments(device_id):
     return list(col_user_device_access.find({"device_id": device_id}).sort([("is_default", -1), ("username", 1)]))
 
 
-def replace_device_assignments(device_id, usernames, default_username=""):
+def replace_device_assignments(device_id, usernames, default_username="", date_ranges=None):
+    """Replace all assignments for a device.
+
+    date_ranges: optional dict mapping username -> {"valid_from": datetime|None, "valid_until": datetime|None}
+    """
     device_id = str(device_id or "").strip()
     usernames = normalize_username_list(usernames)
     default_username = str(default_username or "").strip()
+    date_ranges = date_ranges or {}
 
     col_user_device_access.delete_many({"device_id": device_id})
     for username in usernames:
-        col_user_device_access.insert_one(
-            {
-                "username": username,
-                "device_id": device_id,
-                "role": "member",
-                "is_default": username == default_username,
-            }
-        )
+        dr = date_ranges.get(username, {})
+        doc = {
+            "username": username,
+            "device_id": device_id,
+            "role": "member",
+            "is_default": username == default_username,
+        }
+        if dr.get("valid_from"):
+            doc["valid_from"] = dr["valid_from"]
+        if dr.get("valid_until"):
+            doc["valid_until"] = dr["valid_until"]
+        col_user_device_access.insert_one(doc)
 
     if default_username and default_username not in usernames:
         col_user_device_access.insert_one(
@@ -312,6 +339,41 @@ def replace_device_assignments(device_id, usernames, default_username=""):
                 "is_default": True,
             }
         )
+
+
+def get_user_device_assignments(username):
+    """Return all device assignments for a user (with date range info)."""
+    return list(
+        col_user_device_access.find({"username": username}).sort("device_id", 1)
+    )
+
+
+def set_user_device_assignments(username, assignments):
+    """Replace all device assignments for a user.
+
+    assignments: list of dicts with keys:
+        device_id (str), is_default (bool),
+        valid_from (datetime|None), valid_until (datetime|None)
+    """
+    username = str(username or "").strip()
+    if not username:
+        return
+    col_user_device_access.delete_many({"username": username})
+    for a in assignments:
+        device_id = str(a.get("device_id") or "").strip()
+        if not device_id:
+            continue
+        doc = {
+            "username": username,
+            "device_id": device_id,
+            "role": "member",
+            "is_default": bool(a.get("is_default", False)),
+        }
+        if a.get("valid_from"):
+            doc["valid_from"] = a["valid_from"]
+        if a.get("valid_until"):
+            doc["valid_until"] = a["valid_until"]
+        col_user_device_access.insert_one(doc)
 
 
 def create_device(device_id, display_name="", enabled=True, hidden_in_admin=False, videocall_room="", event_visibility_scope="all", event_regions=None, deployment_profile=None):
