@@ -21,6 +21,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from functools import wraps
 from pymongo import MongoClient
+from bson import ObjectId
 from django.urls import reverse
 from rest_framework.permissions import IsAuthenticated
 from .call_monitor import call_monitor
@@ -75,6 +76,15 @@ def _user_default_device(request):
         username=getattr(request.user, "username", ""),
         email=getattr(request.user, "email", ""),
     )
+
+
+def _can_delete_event(request, event_doc):
+    if not getattr(request.user, "is_authenticated", False):
+        return False
+    if request.user.is_staff or request.user.is_superuser:
+        return True
+    created_by = str((event_doc or {}).get("created_by") or "").strip()
+    return bool(created_by) and created_by == getattr(request.user, "username", "")
 
 class EventoList(APIView):
     permission_classes = [IsAuthenticated]
@@ -140,17 +150,19 @@ def lista_eventos(request):
     collection = db["eventos"]
     condiciones = []
     is_admin = request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+    mode = request.GET.get("mode")  # 'global' | 'personal' | 'admin' | None
+    targets_param = (request.GET.get("targets") or "").strip()  # 'all' | 'a,b,c' | ''
+    device_filter = request.GET.get("device", "all")
 
     # 1) Filtro por región
     location = request.GET.get("location")
     if location and location.lower() != "all":
         condiciones.append({"location": location})
 
-    # 2) Visibilidad base — events for all + device events the user can see
-    visibilidad = {"$or": [
-        {"audience": {"$exists": False}},
-        {"audience": "all"},
-    ]}
+    requested_admin_mode = mode == "admin" or (device_filter == "admin")
+    if requested_admin_mode and not is_admin:
+        mode = "global"
+        requested_admin_mode = False
 
     linked_device = ""
     accessible_devices = []
@@ -158,12 +170,20 @@ def lista_eventos(request):
         accessible_devices = _user_accessible_devices(request)
         linked_device = _user_default_device(request)
 
-        if accessible_devices:
-            visibilidad["$or"].append({"audience": "device", "target_device": {"$in": accessible_devices}})
-            visibilidad["$or"].append({"audience": "device", "target_devices": {"$in": accessible_devices}})
-        visibilidad["$or"].append({"created_by": request.user.username})
+    # 2) Base visibility — skipped only in admin mode.
+    if not requested_admin_mode:
+        visibilidad = {"$or": [
+            {"audience": {"$exists": False}},
+            {"audience": "all"},
+        ]}
 
-    condiciones.append(visibilidad)
+        if request.user.is_authenticated:
+            if accessible_devices:
+                visibilidad["$or"].append({"audience": "device", "target_device": {"$in": accessible_devices}})
+                visibilidad["$or"].append({"audience": "device", "target_devices": {"$in": accessible_devices}})
+            visibilidad["$or"].append({"created_by": request.user.username})
+
+        condiciones.append(visibilidad)
 
     # 3) Load all registered devices once; never call get_or_create_device here,
     # as that would silently create MongoDB docs for stale/orphan device IDs.
@@ -195,15 +215,11 @@ def lista_eventos(request):
     my_devices = device_cards
     my_device_colors = my_devices
 
-    # 4) NUEVO: parámetros modernos
-    mode = request.GET.get("mode")  # 'global' | 'personal' | None
-    targets_param = (request.GET.get("targets") or "").strip()  # 'all' | 'a,b,c' | ''
-
-    # Compat anterior
-    device_filter = request.GET.get("device", "all")
-
     # 5) Aplicar filtrado según modo
-    if mode == "global":
+    if requested_admin_mode:
+        mode = "admin"
+        selected_targets = []
+    elif mode == "global":
         condiciones.append({"$or": [
             {"audience": {"$exists": False}},
             {"audience": "all"},
@@ -232,6 +248,8 @@ def lista_eventos(request):
                 {"audience": "all"},
             ]})
             mode = "global"
+        elif device_filter == "admin" and is_admin:
+            mode = "admin"
         elif device_filter not in ("all", "", None):
             condiciones.append({"audience": "device", "target_device": device_filter})
             mode = "personal"
@@ -255,10 +273,13 @@ def lista_eventos(request):
             fecha_iso = None
 
         item = {
+            "id": str(evento.get("_id") or ""),
             "title": evento.get("title", "Sin título"),
             "date": fecha_iso,
             "description": evento.get("description", "Sin descripción"),
-            "location": evento.get("location", "")
+            "location": evento.get("location", ""),
+            "created_by": str(evento.get("created_by") or "").strip(),
+            "can_delete": _can_delete_event(request, evento),
         }
         if evento.get("audience") == "device":
             single = str(evento.get("target_device") or "").strip()
@@ -271,7 +292,9 @@ def lista_eventos(request):
             item["color"] = color_for_device(all_targets[0] if all_targets else "")
             item["target_device"] = single
             item["target_devices_label"] = ", ".join(names) if names else ""
-            item["created_by"] = str(evento.get("created_by") or "").strip()
+            item["audience"] = "device"
+        else:
+            item["audience"] = "all"
 
         eventos.append(item)
 
@@ -286,6 +309,7 @@ def lista_eventos(request):
         "my_devices": my_devices,
         "my_device_colors": my_device_colors,
         "device_cards": device_cards,
+        "is_admin": is_admin,
     })
 
 
@@ -393,6 +417,41 @@ def guardar_evento(request):
             return JsonResponse({'success': False, 'error': repr(e)})
 
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
+@csrf_exempt
+def delete_evento(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON body.'}, status=400)
+
+    event_id = str(data.get('event_id') or '').strip()
+    if not event_id:
+        return JsonResponse({'success': False, 'error': 'Missing event id.'}, status=400)
+
+    try:
+        mongo_id = ObjectId(event_id)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Invalid event id.'}, status=400)
+
+    collection = db['eventos']
+    event_doc = collection.find_one({'_id': mongo_id})
+    if not event_doc:
+        return JsonResponse({'success': False, 'error': 'Event not found.'}, status=404)
+
+    if not _can_delete_event(request, event_doc):
+        return JsonResponse({'success': False, 'error': 'No tienes permisos para borrar este evento.'}, status=403)
+
+    result = collection.delete_one({'_id': mongo_id})
+    if result.deleted_count != 1:
+        return JsonResponse({'success': False, 'error': 'Could not delete event.'}, status=500)
+
+    return JsonResponse({'success': True})
 
 @csrf_exempt
 def extraer_evento(request):

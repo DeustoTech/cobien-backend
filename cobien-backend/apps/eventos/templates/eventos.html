@@ -199,6 +199,9 @@
   display: flex; gap: 8px; justify-content: flex-end;
   padding-top: 10px; border-top: 1px solid #E5E7EB;
 }
+.ev-modal-footer--split {
+  justify-content: space-between;
+}
 
 /* ── Event detail modal ─────────────────────────────────────────── */
 .ev-detail-header {
@@ -342,6 +345,10 @@
     <label class="ev-seg-label" for="modeGlobal">{% trans "Global" %}</label>
     <input type="radio" class="ev-seg-input" name="mode" id="modePersonal" value="personal">
     <label class="ev-seg-label" for="modePersonal">{% trans "Personal" %}</label>
+    {% if is_admin %}
+      <input type="radio" class="ev-seg-input" name="mode" id="modeAdmin" value="admin">
+      <label class="ev-seg-label" for="modeAdmin">{% trans "Admin" %}</label>
+    {% endif %}
   </div>
 
   {% if my_devices %}
@@ -400,6 +407,32 @@
       <div class="ev-detail-row" id="detailCreatedRow" style="display:none;">
         <span class="ev-detail-row-label">{% trans "Añadido por" %}</span>
         <span class="ev-detail-row-val" id="detailCreated"></span>
+      </div>
+    </div>
+    <div class="ev-modal-body" style="padding-top:0;">
+      <div class="ev-modal-footer ev-modal-footer--split" style="padding-top:0; border-top:none;">
+        <button class="ev-btn ev-btn-outline" id="deleteEventBtn" type="button" style="display:none;">
+          {% trans "Eliminar evento" %}
+        </button>
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          <button class="ev-btn ev-btn-outline" data-close="eventDetailModal" type="button">{% trans "Cerrar" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ev-modal-overlay" id="deleteEventModal">
+  <div class="ev-modal-box ev-modal-box--sm">
+    <div class="ev-modal-head">
+      <h2>{% trans "Confirmar eliminación" %}</h2>
+      <button class="ev-modal-close" data-close="deleteEventModal" type="button">✕</button>
+    </div>
+    <div class="ev-modal-body">
+      <p id="deleteEventMessage" style="margin:0; color:#374151; line-height:1.5;">{% trans "¿Seguro que quieres eliminar este evento?" %}</p>
+      <div class="ev-modal-footer">
+        <button class="ev-btn ev-btn-outline" data-close="deleteEventModal" type="button">{% trans "Cancelar" %}</button>
+        <button class="ev-btn ev-btn-primary" id="confirmDeleteEventBtn" type="button">{% trans "Eliminar" %}</button>
       </div>
     </div>
   </div>
@@ -547,7 +580,11 @@
     chooseLocation:   "{% trans 'Selecciona una ubicación o escribe una nueva.' %}",
     saveErrorPrefix:  "{% trans 'Error al guardar el evento:' %}",
     imageErrorPrefix: "{% trans 'Error al procesar la imagen:' %}",
+    deleteConfirm:    "{% trans '¿Seguro que quieres eliminar este evento?' %}",
+    deleteSuccess:    "{% trans 'Evento eliminado correctamente.' %}",
+    deleteError:      "{% trans 'Error al eliminar el evento.' %}",
   };
+  let currentDetailEvent = null;
 
   // ── Modal helpers ───────────────────────────────────────────────
   function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
@@ -650,15 +687,19 @@
             title:       "{{ evento.title|escapejs }}",
             start:       "{{ evento.date }}",
             description: "{{ evento.description|escapejs }}",
+            id:          "{{ evento.id|escapejs }}",
             location:    "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
             color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
             target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.target_devices_label %},
             target_devices_label: "{{ evento.target_devices_label|escapejs }}"{% endif %}{% if evento.created_by %},
-            created_by:  "{{ evento.created_by|escapejs }}"{% endif %}
+            created_by:  "{{ evento.created_by|escapejs }}"{% endif %},
+            can_delete:  {% if evento.can_delete %}true{% else %}false{% endif %},
+            audience:    "{{ evento.audience|default:'all'|escapejs }}"
           },
         {% endfor %}
       ],
       eventClick: function (info) {
+        currentDetailEvent = info.event;
         const dot  = document.getElementById('detailDot');
         const props = info.event.extendedProps;
 
@@ -692,11 +733,18 @@
 
         // Created by row
         const createdRow = document.getElementById('detailCreatedRow');
-        if (props.target_device && props.created_by) {
+        if (props.created_by) {
           document.getElementById('detailCreated').textContent = props.created_by;
           createdRow.style.display = '';
         } else {
           createdRow.style.display = 'none';
+        }
+
+        const deleteBtn = document.getElementById('deleteEventBtn');
+        if (deleteBtn) {
+          deleteBtn.style.display = props.can_delete ? '' : 'none';
+          deleteBtn.dataset.eventId = info.event.id || '';
+          deleteBtn.dataset.eventTitle = info.event.title || '';
         }
 
         openModal('eventDetailModal');
@@ -733,10 +781,13 @@
 
     const modeGlobal   = document.getElementById('modeGlobal');
     const modePersonal = document.getElementById('modePersonal');
+    const modeAdmin    = document.getElementById('modeAdmin');
     const chipRow      = document.getElementById('personalPicker');
 
     if (!modeGlobal || !modePersonal) return;
-    (mode === 'personal' ? modePersonal : modeGlobal).checked = true;
+    if (mode === 'personal') modePersonal.checked = true;
+    else if (mode === 'admin' && modeAdmin) modeAdmin.checked = true;
+    else modeGlobal.checked = true;
 
     function showPersonalControls(v) { if (chipRow) chipRow.style.display = v ? 'flex' : 'none'; }
     showPersonalControls(mode === 'personal');
@@ -782,7 +833,59 @@
 
     modeGlobal.addEventListener('change',   function () { showPersonalControls(false); navigate('global', new Set()); });
     modePersonal.addEventListener('change', function () { showPersonalControls(true);  navigate('personal', new Set()); });
+    if (modeAdmin) {
+      modeAdmin.addEventListener('change', function () { showPersonalControls(false); navigate('admin', new Set()); });
+    }
   });
+
+  (function () {
+    const deleteBtn = document.getElementById('deleteEventBtn');
+    const confirmBtn = document.getElementById('confirmDeleteEventBtn');
+    const messageEl = document.getElementById('deleteEventMessage');
+    if (!deleteBtn || !confirmBtn || !messageEl) return;
+
+    deleteBtn.addEventListener('click', function () {
+      const title = deleteBtn.dataset.eventTitle || '';
+      messageEl.textContent = title
+        ? `${I18N_EVENTS.deleteConfirm} ${title}`
+        : I18N_EVENTS.deleteConfirm;
+      openModal('deleteEventModal');
+    });
+
+    confirmBtn.addEventListener('click', function () {
+      const eventId = deleteBtn.dataset.eventId || '';
+      if (!eventId) {
+        window.showToast(I18N_EVENTS.deleteError, 'error');
+        return;
+      }
+
+      fetch('{% url "delete_evento" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ event_id: eventId })
+      })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || !data.success) {
+            throw new Error(data.error || I18N_EVENTS.deleteError);
+          }
+          if (currentDetailEvent) {
+            currentDetailEvent.remove();
+            currentDetailEvent = null;
+          }
+          closeModal('deleteEventModal');
+          closeModal('eventDetailModal');
+          window.showToast(I18N_EVENTS.deleteSuccess, 'success');
+        })
+        .catch(err => {
+          console.error(err);
+          window.showToast(err.message || I18N_EVENTS.deleteError, 'error');
+        });
+    });
+  })();
 
   {% if user.is_authenticated %}
   // ── Location custom field toggle ────────────────────────────────
