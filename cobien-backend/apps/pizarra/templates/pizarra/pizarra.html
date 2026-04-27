@@ -720,10 +720,22 @@
       if (activeTab === 'notifications') loadNotifications(did);
     } else if (n === 0) {
       currentSingle = null;
+      if (selectToggle) selectToggle.style.display = 'none';
       showEmpty('{% trans "Selecciona un dispositivo para ver el historial." %}');
     } else {
       currentSingle = null;
-      showEmpty('{% trans "Con varios dispositivos activos se muestra el historial al seleccionar uno solo." %}');
+      const ids = [...activeIds];
+      const names = ids.map(function (did) {
+        const chip = document.querySelector(`.pz-chip[data-device="${did}"]`);
+        return chip ? chip.dataset.name : did;
+      });
+      loadCommonHistory(ids, names);
+      if (activeTab === 'notifications') {
+        notifList.innerHTML = '';
+        notifEmpty.style.display = '';
+        notifEmpty.querySelector('.pz-empty-text').textContent = '{% trans "Selecciona un solo dispositivo para ver notificaciones." %}';
+        notifBadge.style.display = 'none';
+      }
     }
   }
 
@@ -765,19 +777,18 @@
     skeleton.classList.add('visible');
   }
 
-  function renderPosts(posts, deviceName, color) {
+  function renderPosts(posts, deviceName, color, allowMutations) {
     skeleton.classList.remove('visible');
     feed.innerHTML = '';
     exitSelectMode();
+    if (selectToggle) selectToggle.style.display = allowMutations ? '' : 'none';
     if (!posts.length) {
       empty.querySelector('.pz-empty-text').textContent =
         `{% trans "Aún no hay mensajes para" %} ${deviceName}.`;
       empty.style.display = '';
-      if (selectToggle) selectToggle.style.display = 'none';
       return;
     }
     empty.style.display = 'none';
-    if (selectToggle) selectToggle.style.display = '';
     const today = new Date().toISOString().slice(0, 10);
     posts.forEach(post => {
       const selectedReply = post.quick_reply_selected && typeof post.quick_reply_selected === 'object'
@@ -797,7 +808,7 @@
         : '';
       art.innerHTML = `
         <div class="pz-bubble-head">
-          <input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">
+          ${allowMutations ? `<input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">` : '<span></span>'}
           <div class="pz-bubble-author">
             ${avatarHtml}
             <div class="pz-bubble-author-meta">
@@ -805,7 +816,7 @@
               <span class="pz-bubble-author-user">@${escHtml(post.author || '')}</span>
             </div>
           </div>
-          <button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>
+          ${allowMutations ? `<button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>` : '<span></span>'}
         </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
@@ -827,13 +838,15 @@
       `;
       // Checkbox toggle (stop propagation so bubble click works separately)
       const cb = art.querySelector('.pz-bubble-cb');
-      cb.addEventListener('change', function (e) {
-        e.stopPropagation();
-        toggleBubbleSelect(art, cb.checked);
-      });
+      if (cb) {
+        cb.addEventListener('change', function (e) {
+          e.stopPropagation();
+          toggleBubbleSelect(art, cb.checked);
+        });
+      }
       // Clicking bubble in select mode selects it
       art.addEventListener('click', function (e) {
-        if (!selectMode) return;
+        if (!allowMutations || !selectMode || !cb) return;
         if (e.target.closest('[data-del]') || e.target.tagName === 'IMG') return;
         cb.checked = !cb.checked;
         toggleBubbleSelect(art, cb.checked);
@@ -951,7 +964,35 @@
     .then(data => {
       isFetching = false;
       if (data.ok) {
-        renderPosts(data.posts, name, color);
+        renderPosts(data.posts, name, color, true);
+      } else {
+        showToast(data.error || '{% trans "Error al cargar mensajes" %}', true);
+        showEmpty(data.error || '');
+      }
+    })
+    .catch(() => {
+      isFetching = false;
+      showToast('{% trans "Error de red" %}', true);
+      showEmpty('{% trans "No se pudo cargar el historial." %}');
+    });
+  }
+
+  function loadCommonHistory(deviceIds, names) {
+    if (isFetching) return;
+    badge.style.display = 'inline-flex';
+    badge.textContent = `{% trans "Mensajes comunes" %}: ${names.join(', ')}`;
+    showSkeleton();
+    isFetching = true;
+    const params = new URLSearchParams();
+    deviceIds.forEach(function (did) { params.append('recipient_keys', did); });
+    fetch(`${URL_MSGS}?${params.toString()}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      isFetching = false;
+      if (data.ok) {
+        renderPosts(data.posts, '{% trans "selección actual" %}', '#6B7280', false);
       } else {
         showToast(data.error || '{% trans "Error al cargar mensajes" %}', true);
         showEmpty(data.error || '');
@@ -1141,8 +1182,9 @@
       notifList.innerHTML = items.map(function (n) {
         const label = KIND_LABELS[n.kind] || n.kind;
         const isCall = CALL_KINDS.has(n.kind) && n.from_device;
-        const targetLine = n.from_device
-          ? `<div class="pz-notif-target">{% trans "Mueble" %}: ${escHtml(n.from_device)}</div>`
+        const targetLabel = n.to_user_name || n.to_user || '';
+        const targetLine = targetLabel
+          ? `<div class="pz-notif-target">{% trans "Para" %}: ${escHtml(targetLabel)}</div>`
           : '';
         return `<div class="pz-notif-card${n.read ? '' : ' pz-notif-card--unread'}">
           <div class="pz-notif-header">
