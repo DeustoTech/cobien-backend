@@ -1230,6 +1230,7 @@ def pizarra_home(request):
                 for entry in (d.get("read_by") or [])
                 if isinstance(entry, dict)
             ]
+            qr_selected = d.get("quick_reply_selected")
             posts.append({
                 "id": str(d["_id"]),
                 "recipient_key": d.get("recipient_key"),
@@ -1238,6 +1239,8 @@ def pizarra_home(request):
                 "created_at": d.get("created_at"),
                 "created_at_human": fecha_chat(d.get("created_at")),
                 "read_by": read_by,
+                "quick_replies": list(d.get("quick_replies") or []),
+                "quick_reply_selected": qr_selected,
                 **author_meta,
             })
 
@@ -1856,6 +1859,12 @@ def pizarra_create(request):
     if img:
         file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
 
+    quick_replies = []
+    for i in range(1, 6):
+        opt = str(request.POST.get(f"quick_reply_{i}") or "").strip()
+        if opt:
+            quick_replies.append(opt)
+
     # Inserta documento
     doc = {
         "author": request.user.username,
@@ -1863,6 +1872,7 @@ def pizarra_create(request):
         "content": cleaned.get("content") or "",
         "image_file_id": file_id,
         "created_at": datetime.now(timezone.utc),
+        "quick_replies": quick_replies,
     }
     col_messages.insert_one(doc)
 
@@ -1929,6 +1939,11 @@ def pizarra_send_multi(request):
     img = request.FILES.get("image")
     if not content and not img:
         return JsonResponse({"ok": False, "error": "Escribe un mensaje o sube una imagen."}, status=400)
+    multi_quick_replies = []
+    for i in range(1, 6):
+        opt = str(request.POST.get(f"quick_reply_{i}") or "").strip()
+        if opt:
+            multi_quick_replies.append(opt)
     file_id = None
     if img:
         file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
@@ -1940,6 +1955,7 @@ def pizarra_send_multi(request):
             "content": content,
             "image_file_id": file_id,
             "created_at": now,
+            "quick_replies": multi_quick_replies,
         }
         col_messages.insert_one(doc)
         try:
@@ -2067,6 +2083,8 @@ def api_pizarra_messages(request):
             "created_at": d.get("created_at").isoformat(),
             "created_at_human": fecha_chat(d.get("created_at")),
             "read_by": read_by,
+            "quick_replies": list(d.get("quick_replies") or []),
+            "quick_reply_selected": d.get("quick_reply_selected") or None,
         })
 
     return JsonResponse({"messages": items})
@@ -2145,6 +2163,51 @@ def api_mark_message_read(request, post_id: str):
             {"$push": {"read_by": {"device_id": device_id, "read_at": datetime.now(timezone.utc)}}},
         )
     return JsonResponse({"ok": True, "id": post_id, "device_id": device_id})
+
+
+@csrf_exempt
+def api_submit_quick_reply(request, post_id: str):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id") or "").strip()
+    reply_text = str(payload.get("reply_text") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+    if not reply_text:
+        return JsonResponse({"error": "reply_text requerido"}, status=400)
+
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"error": "post_id inválido"}, status=400)
+
+    doc = col_messages.find_one({"_id": target_id}, {"quick_replies": 1, "quick_reply_selected": 1})
+    if not doc:
+        return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
+
+    if doc.get("quick_reply_selected"):
+        return JsonResponse({"ok": True, "id": post_id, "already_replied": True,
+                             "reply": doc["quick_reply_selected"]})
+
+    allowed = list(doc.get("quick_replies") or [])
+    if allowed and reply_text not in allowed:
+        return JsonResponse({"error": "Respuesta no válida"}, status=400)
+
+    selected = {
+        "text": reply_text,
+        "device_id": device_id,
+        "replied_at": datetime.now(timezone.utc),
+    }
+    col_messages.update_one(
+        {"_id": target_id},
+        {"$set": {"quick_reply_selected": selected}},
+    )
+    return JsonResponse({"ok": True, "id": post_id, "reply": reply_text})
 
 
 @csrf_exempt
