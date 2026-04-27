@@ -1113,7 +1113,7 @@ def _parse_contact_rows(request, device_id, existing_contacts):
 
     # When the contacts form is in read-only mode (no editable rows submitted),
     # preserve the existing contacts unchanged.
-    if not indices:
+    if not indices and "contact_rows_total" not in request.POST:
         return list(existing_contacts or [])
 
     contacts = []
@@ -2270,6 +2270,12 @@ def api_pizarra_messages(request):
             for entry in (d.get("read_by") or [])
             if isinstance(entry, dict)
         ]
+        created_at_val = d.get("created_at")
+        if isinstance(created_at_val, datetime):
+            created_at_iso = created_at_val.isoformat()
+        else:
+            created_at_iso = str(created_at_val) if created_at_val else ""
+
         items.append({
             "id": str(d["_id"]),
             "author": author_meta["author"],
@@ -2279,8 +2285,8 @@ def api_pizarra_messages(request):
             "text": d.get("content", ""),
             "image": image_url,
             "image_url": image_url,
-            "created_at": d.get("created_at").isoformat(),
-            "created_at_human": fecha_chat(d.get("created_at")),
+            "created_at": created_at_iso,
+            "created_at_human": fecha_chat(created_at_val),
             "read_by": read_by,
             "quick_replies": list(d.get("quick_replies") or []),
             "quick_reply_selected": d.get("quick_reply_selected") or None,
