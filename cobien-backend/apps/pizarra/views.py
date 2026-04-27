@@ -1222,6 +1222,14 @@ def pizarra_home(request):
                     reverse("pizarra_image", args=[str(d["image_file_id"])])
                 )
             author_meta = _build_message_author_meta(d.get("author"), request=request)
+            read_by = [
+                {
+                    "device_id": entry.get("device_id", ""),
+                    "read_at": _serialize_datetime(entry.get("read_at")) or "",
+                }
+                for entry in (d.get("read_by") or [])
+                if isinstance(entry, dict)
+            ]
             posts.append({
                 "id": str(d["_id"]),
                 "recipient_key": d.get("recipient_key"),
@@ -1229,6 +1237,7 @@ def pizarra_home(request):
                 "image_url": image_url,
                 "created_at": d.get("created_at"),
                 "created_at_human": fecha_chat(d.get("created_at")),
+                "read_by": read_by,
                 **author_meta,
             })
 
@@ -2038,6 +2047,14 @@ def api_pizarra_messages(request):
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
         author_meta = _build_message_author_meta(d.get("author"), request=request)
+        read_by = [
+            {
+                "device_id": entry.get("device_id", ""),
+                "read_at": _serialize_datetime(entry.get("read_at")) or "",
+            }
+            for entry in (d.get("read_by") or [])
+            if isinstance(entry, dict)
+        ]
         items.append({
             "id": str(d["_id"]),
             "author": author_meta["author"],
@@ -2049,6 +2066,7 @@ def api_pizarra_messages(request):
             "image_url": image_url,
             "created_at": d.get("created_at").isoformat(),
             "created_at_human": fecha_chat(d.get("created_at")),
+            "read_by": read_by,
         })
 
     return JsonResponse({"messages": items})
@@ -2093,6 +2111,41 @@ def api_delete_pizarra_message(request, post_id: str):
     col_messages.delete_one({"_id": target_id})
     _enqueue_board_reload(doc.get("recipient_key", ""), show_last=False)
     return JsonResponse({"ok": True, "id": post_id})
+
+
+@csrf_exempt
+def api_mark_message_read(request, post_id: str):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"error": "post_id inválido"}, status=400)
+
+    doc = col_messages.find_one({"_id": target_id}, {"_id": 1, "read_by": 1})
+    if not doc:
+        return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
+
+    already_read = any(
+        entry.get("device_id") == device_id
+        for entry in (doc.get("read_by") or [])
+    )
+    if not already_read:
+        col_messages.update_one(
+            {"_id": target_id},
+            {"$push": {"read_by": {"device_id": device_id, "read_at": datetime.now(timezone.utc)}}},
+        )
+    return JsonResponse({"ok": True, "id": post_id, "device_id": device_id})
+
 
 @csrf_exempt
 def api_notify(request):

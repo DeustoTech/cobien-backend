@@ -279,6 +279,8 @@
     color: var(--text-muted, #6B7280);
   }
   .pz-bubble-time { font-variant-numeric: tabular-nums; }
+  .pz-bubble-read { color: #16A34A; font-size: .72rem; }
+  .pz-bubble-unread { color: #9CA3AF; font-size: .72rem; font-style: italic; }
 
   .pz-bubble-del {
     background: none;
@@ -699,6 +701,9 @@
         </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
+          ${post.read_by && post.read_by.length
+            ? `<span class="pz-bubble-read" title="{% trans 'Leído por el mueble' %}">✓ ${escHtml(post.read_by.map(r => r.device_id).join(', '))}</span>`
+            : `<span class="pz-bubble-unread">{% trans "No leído" %}</span>`}
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}

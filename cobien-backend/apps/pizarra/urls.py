@@ -22,6 +22,7 @@ urlpatterns = [
     path('img/<str:file_id>/', views.pizarra_image, name='pizarra_image'),
     path('api/messages/', views.api_pizarra_messages, name='pizarra_api_messages'),
     path('api/messages/<str:post_id>/delete/', views.api_delete_pizarra_message, name='pizarra_api_delete_message'),
+    path('api/messages/<str:post_id>/read/', views.api_mark_message_read, name='pizarra_api_mark_message_read'),
     path('api/contacts/', views.api_contacts_for_device, name='pizarra_api_contacts'),
     path('api/contacts/sync/', views.api_trigger_contacts_sync, name='pizarra_api_contacts_sync'),
     path('api/device/poll/', views.api_device_poll, name='pizarra_api_device_poll'),
