@@ -447,6 +447,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_sections": _device_hardware_sections(device_doc or {}),
         "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
+        "software_version": str((device_doc or {}).get("software_version") or ""),
         "people_profiles": people_profiles,
         "all_users": all_users,
         "assigned_set": assigned_set,
@@ -1036,25 +1037,14 @@ def _parse_contact_rows(request, device_id, existing_contacts):
         match = re.match(r"^contact_display_name_(\d+)$", str(key))
         if match:
             indices.add(int(match.group(1)))
-    for key in request.FILES.keys():
-        match = re.match(r"^contact_image_(\d+)$", str(key))
-        if match:
-            indices.add(int(match.group(1)))
 
     contacts = []
-    previous_by_key = {}
-    for item in normalize_contacts_list(existing_contacts):
-        previous_by_key[(item["display_name"], item["user_name"])] = item
-
     seen = set()
     for idx in sorted(indices):
         display_name = str(request.POST.get(f"contact_display_name_{idx}", "") or "").strip()
         user_name = str(request.POST.get(f"contact_user_name_{idx}", "") or "").strip()
-        previous_image_url = str(request.POST.get(f"contact_existing_image_url_{idx}", "") or "").strip()
-        remove_image = request.POST.get(f"contact_remove_image_{idx}") == "1"
-        uploaded_file = request.FILES.get(f"contact_image_{idx}")
 
-        if not display_name and not user_name and not previous_image_url and not uploaded_file:
+        if not display_name and not user_name:
             continue
         if not display_name or not user_name:
             raise ValueError(f"Cada contacto debe tener nombre visible y username (fila {idx + 1}).")
@@ -1064,27 +1054,14 @@ def _parse_contact_rows(request, device_id, existing_contacts):
             raise ValueError(f"Contacto duplicado: {display_name}={user_name}")
         seen.add(key)
 
-        image_url = previous_image_url
-        if remove_image:
-            _delete_managed_contact_image(previous_image_url)
-            image_url = ""
-        if uploaded_file:
-            _delete_managed_contact_image(previous_image_url)
-            image_url = _save_contact_image(device_id, display_name, uploaded_file)
-
+        # Image comes from the user profile; no per-contact image stored here.
         contacts.append(
             {
                 "display_name": display_name,
                 "user_name": user_name,
-                "image_url": image_url,
+                "image_url": "",
             }
         )
-
-    current_keys = {(item["display_name"], item["user_name"]) for item in contacts}
-    for item in normalize_contacts_list(existing_contacts):
-        original_key = (item["display_name"], item["user_name"])
-        if original_key not in current_keys:
-            _delete_managed_contact_image(item.get("image_url", ""))
 
     return contacts
 
@@ -1092,7 +1069,7 @@ def _parse_contact_rows(request, device_id, existing_contacts):
 def _contacts_for_template(raw_contacts):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
-        image_url = _normalize_contact_image_url(item.get("image_url", ""))
+        image_url = _user_avatar_url(item.get("user_name", ""))
         contacts.append(
             {
                 "display_name": item["display_name"],
@@ -1106,12 +1083,7 @@ def _contacts_for_template(raw_contacts):
 def _contacts_for_api(raw_contacts, request=None):
     contacts = []
     for item in normalize_contacts_list(raw_contacts):
-        image_url = _normalize_contact_image_url(item.get("image_url", ""))
-        if request is not None and image_url and str(image_url).startswith("/"):
-            try:
-                image_url = request.build_absolute_uri(image_url)
-            except Exception:
-                pass
+        image_url = _user_avatar_url(item.get("user_name", ""), request=request)
         contacts.append(
             {
                 "display_name": item["display_name"],
@@ -1250,6 +1222,15 @@ def pizarra_home(request):
                     reverse("pizarra_image", args=[str(d["image_file_id"])])
                 )
             author_meta = _build_message_author_meta(d.get("author"), request=request)
+            read_by = [
+                {
+                    "device_id": entry.get("device_id", ""),
+                    "read_at": _serialize_datetime(entry.get("read_at")) or "",
+                }
+                for entry in (d.get("read_by") or [])
+                if isinstance(entry, dict)
+            ]
+            qr_selected = d.get("quick_reply_selected")
             posts.append({
                 "id": str(d["_id"]),
                 "recipient_key": d.get("recipient_key"),
@@ -1257,6 +1238,9 @@ def pizarra_home(request):
                 "image_url": image_url,
                 "created_at": d.get("created_at"),
                 "created_at_human": fecha_chat(d.get("created_at")),
+                "read_by": read_by,
+                "quick_replies": list(d.get("quick_replies") or []),
+                "quick_reply_selected": qr_selected,
                 **author_meta,
             })
 
@@ -1511,6 +1495,18 @@ def devices_admin(request):
                         messages.success(request, f"Sincronización enviada a {selected_device}.")
                     elif action == "save_and_sync":
                         messages.success(request, f"Configuración y sincronización enviadas a {selected_device}.")
+            elif action in {"restart", "force_update"}:
+                if not selected_device:
+                    raise ValueError("Selecciona un dispositivo.")
+                command_payload = {
+                    "type": action,
+                    "to": selected_device,
+                    "from": "cobien-admin",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                enqueue_notification(selected_device, command_payload)
+                label = "reinicio" if action == "restart" else "actualización forzada"
+                messages.success(request, f"Comando de {label} enviado a {selected_device}.")
             elif action == "delete":
                 if not selected_device:
                     raise ValueError("Selecciona un dispositivo para eliminar.")
@@ -1863,6 +1859,12 @@ def pizarra_create(request):
     if img:
         file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
 
+    quick_replies = []
+    for i in range(1, 6):
+        opt = str(request.POST.get(f"quick_reply_{i}") or "").strip()
+        if opt:
+            quick_replies.append(opt)
+
     # Inserta documento
     doc = {
         "author": request.user.username,
@@ -1870,6 +1872,7 @@ def pizarra_create(request):
         "content": cleaned.get("content") or "",
         "image_file_id": file_id,
         "created_at": datetime.now(timezone.utc),
+        "quick_replies": quick_replies,
     }
     col_messages.insert_one(doc)
 
@@ -1936,6 +1939,11 @@ def pizarra_send_multi(request):
     img = request.FILES.get("image")
     if not content and not img:
         return JsonResponse({"ok": False, "error": "Escribe un mensaje o sube una imagen."}, status=400)
+    multi_quick_replies = []
+    for i in range(1, 6):
+        opt = str(request.POST.get(f"quick_reply_{i}") or "").strip()
+        if opt:
+            multi_quick_replies.append(opt)
     file_id = None
     if img:
         file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
@@ -1947,6 +1955,7 @@ def pizarra_send_multi(request):
             "content": content,
             "image_file_id": file_id,
             "created_at": now,
+            "quick_replies": multi_quick_replies,
         }
         col_messages.insert_one(doc)
         try:
@@ -2054,6 +2063,14 @@ def api_pizarra_messages(request):
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
         author_meta = _build_message_author_meta(d.get("author"), request=request)
+        read_by = [
+            {
+                "device_id": entry.get("device_id", ""),
+                "read_at": _serialize_datetime(entry.get("read_at")) or "",
+            }
+            for entry in (d.get("read_by") or [])
+            if isinstance(entry, dict)
+        ]
         items.append({
             "id": str(d["_id"]),
             "author": author_meta["author"],
@@ -2065,6 +2082,9 @@ def api_pizarra_messages(request):
             "image_url": image_url,
             "created_at": d.get("created_at").isoformat(),
             "created_at_human": fecha_chat(d.get("created_at")),
+            "read_by": read_by,
+            "quick_replies": list(d.get("quick_replies") or []),
+            "quick_reply_selected": d.get("quick_reply_selected") or None,
         })
 
     return JsonResponse({"messages": items})
@@ -2109,6 +2129,86 @@ def api_delete_pizarra_message(request, post_id: str):
     col_messages.delete_one({"_id": target_id})
     _enqueue_board_reload(doc.get("recipient_key", ""), show_last=False)
     return JsonResponse({"ok": True, "id": post_id})
+
+
+@csrf_exempt
+def api_mark_message_read(request, post_id: str):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"error": "post_id inválido"}, status=400)
+
+    doc = col_messages.find_one({"_id": target_id}, {"_id": 1, "read_by": 1})
+    if not doc:
+        return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
+
+    already_read = any(
+        entry.get("device_id") == device_id
+        for entry in (doc.get("read_by") or [])
+    )
+    if not already_read:
+        col_messages.update_one(
+            {"_id": target_id},
+            {"$push": {"read_by": {"device_id": device_id, "read_at": datetime.now(timezone.utc)}}},
+        )
+    return JsonResponse({"ok": True, "id": post_id, "device_id": device_id})
+
+
+@csrf_exempt
+def api_submit_quick_reply(request, post_id: str):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido. Usa POST."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    payload = _read_api_payload(request)
+    device_id = str(payload.get("device_id") or "").strip()
+    reply_text = str(payload.get("reply_text") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+    if not reply_text:
+        return JsonResponse({"error": "reply_text requerido"}, status=400)
+
+    try:
+        target_id = ObjectId(post_id)
+    except Exception:
+        return JsonResponse({"error": "post_id inválido"}, status=400)
+
+    doc = col_messages.find_one({"_id": target_id}, {"quick_replies": 1, "quick_reply_selected": 1})
+    if not doc:
+        return JsonResponse({"error": "Mensaje no encontrado"}, status=404)
+
+    if doc.get("quick_reply_selected"):
+        return JsonResponse({"ok": True, "id": post_id, "already_replied": True,
+                             "reply": doc["quick_reply_selected"]})
+
+    allowed = list(doc.get("quick_replies") or [])
+    if allowed and reply_text not in allowed:
+        return JsonResponse({"error": "Respuesta no válida"}, status=400)
+
+    selected = {
+        "text": reply_text,
+        "device_id": device_id,
+        "replied_at": datetime.now(timezone.utc),
+    }
+    col_messages.update_one(
+        {"_id": target_id},
+        {"$set": {"quick_reply_selected": selected}},
+    )
+    return JsonResponse({"ok": True, "id": post_id, "reply": reply_text})
+
 
 @csrf_exempt
 def api_notify(request):

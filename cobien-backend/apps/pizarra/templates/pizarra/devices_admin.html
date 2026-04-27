@@ -617,6 +617,10 @@
             <div class="dm-stat-label">{% trans "Eventos ICSO" %}</div>
             <div class="dm-stat-value">{{ events_count }}</div>
           </div>
+          <div class="dm-stat">
+            <div class="dm-stat-label">{% trans "Versión software" %}</div>
+            <div class="dm-stat-value">{{ software_version|default:"—" }}</div>
+          </div>
         </div>
 
         <!-- ── Configuración ── -->
@@ -821,6 +825,21 @@
               <button class="dm-btn dm-btn-outline" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
               <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save">{% trans "Guardar cambios" %}</button>
             </div>
+          </form>
+
+          <!-- Control remoto -->
+          <form method="post" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border,#E5E7EB); display:flex; gap:8px; justify-content:flex-end;">
+            {% csrf_token %}
+            <input type="hidden" name="device_id" value="{{ selected_device }}">
+            <button class="dm-btn dm-btn-outline" type="submit" name="action" value="force_update"
+              onclick="return confirm('{% trans "¿Enviar comando de actualización de software al mueble?" %}')">
+              {% trans "Actualizar software" %}
+            </button>
+            <button class="dm-btn dm-btn-outline" type="submit" name="action" value="restart"
+              style="color:#B91C1C; border-color:#B91C1C;"
+              onclick="return confirm('{% trans "¿Enviar comando de reinicio al mueble?" %}')">
+              {% trans "Reiniciar mueble" %}
+            </button>
           </form>
         </div>
 

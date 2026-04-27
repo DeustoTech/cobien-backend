@@ -279,6 +279,11 @@
     color: var(--text-muted, #6B7280);
   }
   .pz-bubble-time { font-variant-numeric: tabular-nums; }
+  .pz-bubble-read { color: #16A34A; font-size: .72rem; }
+  .pz-bubble-unread { color: #9CA3AF; font-size: .72rem; font-style: italic; }
+  .pz-bubble-reply-opts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .pz-bubble-reply-badge { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:20px; padding:2px 10px; font-size:.78rem; }
+  .pz-bubble-reply-selected { margin-top:8px; font-size:.82rem; color:#16A34A; font-weight:600; }
 
   .pz-bubble-del {
     background: none;
@@ -474,6 +479,18 @@
         </div>
         <img id="pzPreview" class="pz-img-preview" alt="">
         <span id="pzPreviewClear" class="pz-preview-clear">✕ {% trans "Quitar imagen" %}</span>
+
+        <!-- Respuestas rápidas -->
+        <details id="pzQuickRepliesSection">
+          <summary style="cursor:pointer; font-size:.82rem; color:#6B7280; user-select:none;">
+            {% trans "Respuestas rápidas (opcional)" %}
+          </summary>
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;" id="pzQuickRepliesInputs">
+            {% for i in "12345" %}
+              <input type="text" class="pz-quick-reply-input" placeholder="{% trans 'Opción' %} {{ forloop.counter }}" maxlength="80" style="font-size:.85rem;">
+            {% endfor %}
+          </div>
+        </details>
 
         <button id="pzSendBtn" class="pz-send-btn" type="button">
           {% trans "Enviar" %}
@@ -699,9 +716,17 @@
         </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
+          ${post.read_by && post.read_by.length
+            ? `<span class="pz-bubble-read" title="{% trans 'Leído por el mueble' %}">✓ ${escHtml(post.read_by.map(r => r.device_id).join(', '))}</span>`
+            : `<span class="pz-bubble-unread">{% trans "No leído" %}</span>`}
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
+        ${post.quick_reply_selected
+          ? `<div class="pz-bubble-reply-selected">✓ ${escHtml(post.quick_reply_selected.text || post.quick_reply_selected)}</div>`
+          : (post.quick_replies && post.quick_replies.length
+            ? `<div class="pz-bubble-reply-opts">${post.quick_replies.map(r => `<span class="pz-bubble-reply-badge">${escHtml(r)}</span>`).join('')}</div>`
+            : '')}
       `;
       feed.appendChild(art);
     });
@@ -829,6 +854,10 @@
     activeIds.forEach(did => fd.append('recipient_keys', did));
     if (txt) fd.append('content', txt);
     if (img) fd.append('image', img);
+    document.querySelectorAll('.pz-quick-reply-input').forEach((inp, idx) => {
+      const v = inp.value.trim();
+      if (v) fd.append(`quick_reply_${idx + 1}`, v);
+    });
 
     fetch(URL_SEND, { method: 'POST', body: fd })
     .then(r => r.json())
@@ -836,6 +865,7 @@
       if (data.ok) {
         content.value = '';
         previewClear.click();
+        document.querySelectorAll('.pz-quick-reply-input').forEach(inp => { inp.value = ''; });
         showToast(data.count === 1
           ? '{% trans "Mensaje enviado" %}'
           : `{% trans "Enviado a" %} ${data.count} {% trans "dispositivos" %}`, false);
