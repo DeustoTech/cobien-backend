@@ -649,14 +649,9 @@
         window.location.href = target;
       } catch (error) {
         console.warn('⚠️ Could not trigger embedded close sentinel:', error);
-        window.location.href = HOME_URL;
-        return;
       }
       setTimeout(() => {
-        if (window.location.href !== target) {
-          return;
-        }
-        window.location.href = HOME_URL;
+        window.location.replace(HOME_URL);
       }, 1500);
     }
 
@@ -1016,9 +1011,9 @@
         });
 
         document.getElementById('leave-room').onclick = () => {
-          closeEmbeddedCall('manual-leave');
           cleanup();
           room.disconnect();
+          closeEmbeddedCall('manual-leave');
         };
       } catch (error) {
         console.error("❌ Error en la videollamada:", error);
