@@ -340,6 +340,19 @@
     padding:2px 7px; border-radius:10px;
     background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;
   }
+  .pz-deleted-device-badge {
+    display:inline-block; font-size:.68rem; font-weight:700;
+    padding:2px 7px; border-radius:10px;
+    background:#F3F4F6; color:#6B7280; border:1px solid #D1D5DB;
+  }
+  .pz-bubble--deleted-device {
+    opacity: .65;
+    border-style: dashed;
+  }
+  .pz-bubble--deleted-device .pz-bubble-text,
+  .pz-bubble--deleted-device .pz-bubble-img {
+    display: none;
+  }
   .pz-expiry-badge.is-expired {
     background:#FEE2E2; color:#991B1B; border-color:#FECACA;
   }
@@ -816,15 +829,19 @@
       const replyOptions = Array.isArray(post.quick_replies) ? post.quick_replies : [];
       const syncUntil = post.sync_until || null;
       const isExpired = Boolean(post.hidden_from_devices);
+      const isDeletedFromDevice = Boolean(post.deleted_from_device);
       const art = document.createElement('article');
-      art.className = 'pz-bubble';
+      art.className = 'pz-bubble' + (isDeletedFromDevice ? ' pz-bubble--deleted-device' : '');
       art.dataset.id = post.id;
       const avatarHtml = post.author_avatar_url
         ? `<div class="pz-bubble-avatar"><img loading="lazy" src="${post.author_avatar_url}" alt="${escHtml(post.author_name || post.author || '')}"></div>`
         : `<div class="pz-bubble-avatar">${escHtml(post.author_initial || (post.author_name || post.author || 'U').charAt(0).toUpperCase())}</div>`;
-      const expiryHtml = isExpired
+      const deletedBadgeHtml = isDeletedFromDevice
+        ? `<span class="pz-deleted-device-badge" title="{% trans "El usuario del mueble eliminó este mensaje" %}">{% trans "Borrado en el mueble" %}</span>`
+        : '';
+      const expiryHtml = !isDeletedFromDevice && isExpired
         ? `<span class="pz-hidden-badge" title="{% trans "Oculto en tablets" %}">{% trans "Oculto" %}</span>`
-        : (syncUntil
+        : (!isDeletedFromDevice && syncUntil
           ? `<span class="pz-expiry-badge" title="{% trans "Visible hasta" %}">⏱ ${syncUntil}</span>`
           : '');
       art.innerHTML = `
@@ -842,6 +859,7 @@
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
           <span style="display:flex;gap:6px;align-items:center;">
+            ${deletedBadgeHtml}
             ${expiryHtml}
             ${post.read_by && post.read_by.length
               ? `<span class="pz-bubble-read" title="{% trans 'Leído por el mueble' %}">✓ ${escHtml(post.read_by.map(r => r.device_id).join(', '))}</span>`
@@ -850,10 +868,10 @@
         </div>
         ${post.content ? `<div class="pz-bubble-text">${escHtml(post.content)}</div>` : ''}
         ${post.image_url ? `<img class="pz-bubble-img" loading="lazy" src="${post.image_url}" alt="">` : ''}
-        ${selectedReply
+        ${!isDeletedFromDevice && selectedReply
           ? `<div class="pz-bubble-reply-selected">✓ ${escHtml(selectedReply)}</div>`
           : ''}
-        ${replyOptions.length
+        ${!isDeletedFromDevice && replyOptions.length
           ? `<div class="pz-bubble-reply-opts">${replyOptions.map(r => `<span class="pz-bubble-reply-badge${selectedReply && selectedReply === r ? ' pz-bubble-reply-badge--selected' : ''}">${escHtml(r)}</span>`).join('')}</div>`
           : ''}
       `;

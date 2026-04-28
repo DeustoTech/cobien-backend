@@ -2042,6 +2042,7 @@ def pizarra_web_messages(request):
     cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(50)
     raw_posts = []
     now = datetime.now(timezone.utc)
+    single_recipient_key = recipient_keys[0] if not multi_recipient else None
     for d in cursor:
         image_url = ""
         if d.get("image_file_id"):
@@ -2058,22 +2059,29 @@ def pizarra_web_messages(request):
             if isinstance(entry, dict)
         ]
         su = d.get("sync_until")
+        created_at = d.get("created_at")
+        is_read = any(r.get("device_id") == single_recipient_key for r in read_by) if single_recipient_key else True
         raw_posts.append({
             "id": str(d["_id"]),
             "content": d.get("content", ""),
             "image_url": image_url,
-            "created_at_human": fecha_chat(d.get("created_at")),
-            "created_at": d.get("created_at"),
+            "created_at_human": fecha_chat(created_at),
+            "created_at": created_at,
+            "_created_at_ts": created_at.timestamp() if isinstance(created_at, datetime) else 0,
+            "_is_read": is_read,
             "recipient_key": d.get("recipient_key", ""),
             "read_by": read_by,
             "quick_replies": list(d.get("quick_replies") or []),
             "quick_reply_selected": d.get("quick_reply_selected") or None,
             "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
             "hidden_from_devices": bool(isinstance(su, datetime) and su <= now),
+            "deleted_from_device": bool(d.get("deleted_from_device", False)),
             **author_meta,
         })
 
     if not multi_recipient:
+        # Unread messages first, then newest first within each group
+        raw_posts.sort(key=lambda p: (p.pop("_is_read"), -p.pop("_created_at_ts")))
         return JsonResponse({"ok": True, "posts": raw_posts})
 
     groups = {}
@@ -2111,6 +2119,8 @@ def pizarra_web_messages(request):
         post["read_by"] = merged_reads
         post["quick_reply_selected"] = replies[0] if replies and all(reply == replies[0] for reply in replies) else None
         post["multi_recipient"] = True
+        post.pop("_is_read", None)
+        post.pop("_created_at_ts", None)
         posts.append(post)
 
     return JsonResponse({"ok": True, "posts": posts})
@@ -2275,8 +2285,12 @@ def api_pizarra_messages(request):
             created_at_iso = created_at_val.isoformat()
         else:
             created_at_iso = str(created_at_val) if created_at_val else ""
+        _ts = created_at_val.timestamp() if isinstance(created_at_val, datetime) else 0
+        _is_read = any(e.get("device_id") == recipient for e in read_by)
 
         items.append({
+            "_ts": _ts,
+            "_is_read": _is_read,
             "id": str(d["_id"]),
             "author": author_meta["author"],
             "author_name": author_meta["author_name"],
@@ -2292,6 +2306,8 @@ def api_pizarra_messages(request):
             "quick_reply_selected": d.get("quick_reply_selected") or None,
         })
 
+    # Unread messages first, then newest first within each group
+    items.sort(key=lambda m: (m.pop("_is_read"), -m.pop("_ts")))
     return JsonResponse({"messages": items})
 
 
@@ -3035,3 +3051,57 @@ def api_device_events(request):
 
     except Exception as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+# --- CHESS ENDPOINTS ---
+
+@csrf_exempt
+def api_chess_state(request, device_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Usa GET"}, status=405)
+    
+    col = db["chess_games"]
+    game = col.find_one({"device_id": device_id})
+    if not game:
+        game = {
+            "device_id": device_id, 
+            "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 
+            "status": "active", 
+            "last_move": ""
+        }
+        col.insert_one(game)
+        del game["_id"]
+    else:
+        game["_id"] = str(game["_id"])
+        
+    return JsonResponse({"ok": True, "game": game})
+
+@csrf_exempt
+def api_chess_move(request, device_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Usa POST"}, status=405)
+    
+    import json
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+        
+    fen = data.get("fen")
+    move = data.get("move", "")
+    status = data.get("status", "active")
+    
+    if not fen:
+        return JsonResponse({"error": "fen requerido"}, status=400)
+        
+    col = db["chess_games"]
+    col.update_one(
+        {"device_id": device_id},
+        {"$set": {"fen": fen, "last_move": move, "status": status}},
+        upsert=True
+    )
+    
+    # Podríamos enviar una notificación MQTT al mueble aquí para avisar que movimos ficha
+    # pero el mueble hará polling por simplicidad si le toca
+    
+    return JsonResponse({"ok": True})
