@@ -2914,3 +2914,124 @@ def notification_mark_all(request):
         filt["to_user"] = request.user.username
     col_notifications.update_many(filt, {"$set": {"read": True, "read_at": datetime.now(timezone.utc)}})
     return redirect("pizarra_home")
+
+
+@csrf_exempt
+def api_device_events(request):
+    """Return events for a furniture device via HTTP (no direct MongoDB access required).
+
+    Replaces the MongoDB-direct path in loadEvents.fetch_events_from_mongo for
+    furniture devices that do not have MONGO_URI configured.
+
+    Authentication: X-API-KEY header or ?api_key= query param (same as other device APIs).
+
+    Query params:
+        device_id  (required) – the furniture device identifier
+        location   (optional) – device location for public event filtering (falls back to DB record)
+
+    Returns JSON:
+        {
+          "ok": true,
+          "events": [ { id, title, date, description, location, audience,
+                        target_device, all_day, start_time, end_time, created_by } ],
+          "count": <int>
+        }
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido. Usa GET."}, status=405)
+
+    if not _require_api_key(request):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    device_id = (request.GET.get("device_id") or "").strip()
+    if not device_id:
+        return JsonResponse({"error": "device_id requerido"}, status=400)
+
+    location = (request.GET.get("location") or "").strip()
+
+    try:
+        col_eventos = db["eventos"]
+        col_devs = db["devices"]
+
+        # Resolve device config for region-aware filtering
+        device_doc = col_devs.find_one({"device_id": device_id}) or {}
+        event_visibility_scope = str(device_doc.get("event_visibility_scope") or "all").strip().lower()
+        raw_regions = device_doc.get("event_regions") or []
+        if isinstance(raw_regions, str):
+            raw_regions = raw_regions.splitlines()
+        event_regions = [str(r).strip().casefold() for r in raw_regions if str(r).strip()]
+
+        # Use provided location or fall back to stored device location
+        if not location:
+            location = str(device_doc.get("location") or "").strip()
+        location_cf = location.strip().casefold()
+
+        def _location_visible(event_location):
+            """Return True if a public event's location passes the device's region filter."""
+            raw = str(event_location or "").strip()
+            if not raw:
+                return True  # no location = global event, always visible
+            cf = raw.casefold()
+            if cf == location_cf:
+                return True  # matches device location
+            if event_visibility_scope == "region":
+                allowed = event_regions if event_regions else ([location_cf] if location_cf else [])
+                return cf in allowed
+            # scope = "all": show everything
+            return True
+
+        # Fetch public events and personal events for this device
+        query = {
+            "$or": [
+                {
+                    "$or": [
+                        {"audience": "all"},
+                        {"audience": {"$exists": False}},
+                        {"audience": None},
+                    ]
+                },
+                {
+                    "audience": "device",
+                    "$or": [
+                        {"target_device": device_id},
+                        {"target_devices": device_id},
+                    ],
+                },
+            ]
+        }
+
+        AUDIENCE_COLORS = {"all": "#1E90FF", "device": "#FF3B30"}
+        events_out = []
+        for evt in col_eventos.find(query):
+            raw_audience = str(evt.get("audience") or "").strip().lower()
+            audience = "device" if raw_audience == "device" else "all"
+            color = AUDIENCE_COLORS.get(audience, AUDIENCE_COLORS["all"])
+
+            raw_loc = str(evt.get("location") or "").strip()
+            if audience == "all" and not _location_visible(raw_loc):
+                continue
+
+            # Events without a location are assigned the device location so the
+            # furniture EventStore indexes them correctly.
+            effective_loc = raw_loc if raw_loc else location
+
+            all_day = bool(evt.get("all_day", True))
+            events_out.append({
+                "id": str(evt.get("_id") or ""),
+                "date": str(evt.get("date") or ""),
+                "title": str(evt.get("title") or evt.get("titulo") or "Sin título"),
+                "description": str(evt.get("description") or evt.get("descripcion") or "Sin descripción"),
+                "location": effective_loc,
+                "audience": audience,
+                "color": color,
+                "target_device": str(evt.get("target_device") or ""),
+                "created_by": str(evt.get("created_by") or ""),
+                "all_day": all_day,
+                "start_time": str(evt.get("start_time") or "") if not all_day else "",
+                "end_time": str(evt.get("end_time") or "") if not all_day else "",
+            })
+
+        return JsonResponse({"ok": True, "events": events_out, "count": len(events_out)})
+
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)

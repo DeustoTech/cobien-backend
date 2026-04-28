@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/devices/heartbeat/', views.api_device_heartbeat, name='pizarra_api_device_heartbeat'),
     path('api/icso/telemetry/', views.api_icso_telemetry, name='pizarra_api_icso_telemetry'),
     path('api/icso/events/', views.api_icso_events, name='pizarra_api_icso_events'),
+    path('api/events/', views.api_device_events, name='pizarra_api_device_events'),
 
     # Notificaciones
     path('api/notify/', views.api_notify, name='pizarra_api_notify'),  # endpoint para el mueble
