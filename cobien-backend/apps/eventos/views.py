@@ -373,10 +373,14 @@ def guardar_evento(request):
                         payload = {
                             "type": "new_event",
                             "to": td,
+                            "audience": "device",
                             "title": title,
                             "date": fecha_ddmm,
                             "description": description,
                             "location": location,
+                            "all_day": all_day,
+                            "start_time": start_time if not all_day else "",
+                            "end_time": end_time if not all_day else "",
                             "timestamp": datetime.now().isoformat(),
                         }
                         enqueue_notification(td, payload)
@@ -385,10 +389,14 @@ def guardar_evento(request):
                     payload = {
                         "type": "new_event",
                         "to": "all",
+                        "audience": "all",
                         "title": title,
                         "date": fecha_ddmm,
                         "description": description,
                         "location": location,
+                        "all_day": all_day,
+                        "start_time": start_time if not all_day else "",
+                        "end_time": end_time if not all_day else "",
                         "timestamp": datetime.now().isoformat(),
                     }
                     inserted = enqueue_broadcast_notification(payload)
