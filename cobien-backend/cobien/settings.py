@@ -163,7 +163,7 @@ LANGUAGES = [
     ('fr', _('Français')),
 ]
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Madrid'
 
 # Location of translation files
 LOCALE_PATHS = [

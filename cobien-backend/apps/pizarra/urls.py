@@ -37,7 +37,10 @@ urlpatterns = [
     path('api/icso/telemetry/', views.api_icso_telemetry, name='pizarra_api_icso_telemetry'),
     path('api/icso/events/', views.api_icso_events, name='pizarra_api_icso_events'),
     path('api/events/', views.api_device_events, name='pizarra_api_device_events'),
-
+    
+    # Ajedrez Online
+    path('api/chess/state/<str:device_id>/', views.api_chess_state, name='pizarra_api_chess_state'),
+    path('api/chess/move/<str:device_id>/', views.api_chess_move, name='pizarra_api_chess_move'),
     # Notificaciones
     path('api/notify/', views.api_notify, name='pizarra_api_notify'),  # endpoint para el mueble
     path('api/notifications/', views.api_notifications, name='pizarra_api_notifications'),  # opcional JSON para web
