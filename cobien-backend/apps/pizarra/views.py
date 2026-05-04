@@ -781,6 +781,17 @@ def _enqueue_board_reload(recipient_key, show_last=False):
     )
 
 
+def _enqueue_board_reload_for_message_ids(message_object_ids, show_last=False):
+    if not message_object_ids:
+        return
+    try:
+        recipients = col_messages.distinct("recipient_key", {"_id": {"$in": list(message_object_ids)}})
+    except Exception:
+        recipients = []
+    for recipient in recipients:
+        _enqueue_board_reload(recipient, show_last=show_last)
+
+
 def _mark_message_deleted_from_device(doc):
     if not isinstance(doc, dict) or not doc.get("_id"):
         return False
@@ -2389,6 +2400,7 @@ def api_bulk_set_message_expiry(request):
         {"_id": {"$in": object_ids}},
         {"$set": {"sync_until": update_val}},
     )
+    _enqueue_board_reload_for_message_ids(object_ids, show_last=False)
     return JsonResponse({"ok": True, "updated": len(object_ids)})
 
 
