@@ -458,6 +458,38 @@
   .pz-tab-pane { display: none; }
   .pz-tab-pane.is-active { display: block; }
 
+  .pz-history-filters {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 0 12px;
+  }
+  .pz-history-filters-label {
+    font-size:.78rem;
+    font-weight:700;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    color:#6B7280;
+  }
+  .pz-filter-btn {
+    padding:6px 12px;
+    border:1px solid #D1D5DB;
+    border-radius:999px;
+    background:#fff;
+    color:#374151;
+    font-size:.78rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .12s, color .12s, border-color .12s;
+  }
+  .pz-filter-btn:hover { background:#F3F4F6; }
+  .pz-filter-btn.is-active {
+    background:#EEF2FF;
+    color:#4338CA;
+    border-color:#C7D2FE;
+  }
+
   /* ── Tarjetas de notificación ── */
   .pz-notif-list { display: flex; flex-direction: column; gap: 8px; }
   .pz-notif-card {
@@ -599,6 +631,12 @@
 
       <!-- Tab: Mensajes -->
       <div class="pz-tab-pane is-active" id="tab-messages" role="tabpanel">
+        <div class="pz-history-filters" id="pzHistoryFilters" style="display:none;">
+          <span class="pz-history-filters-label">{% trans "Ver" %}</span>
+          <button class="pz-filter-btn is-active" type="button" data-history-filter="all">{% trans "Todos" %}</button>
+          <button class="pz-filter-btn" type="button" data-history-filter="visible">{% trans "Visibles" %}</button>
+          <button class="pz-filter-btn" type="button" data-history-filter="hidden">{% trans "Ocultos" %}</button>
+        </div>
         <!-- Skeleton -->
         <div class="pz-skeleton" id="pzSkeleton">
           <div class="pz-sk-item"></div>
@@ -711,10 +749,17 @@
   const hideSelectedBtn = document.getElementById('pzHideSelectedBtn');
   const showSelectedBtn = document.getElementById('pzShowSelectedBtn');
   const clearSelectBtn = document.getElementById('pzClearSelectBtn');
+  const historyFilters = document.getElementById('pzHistoryFilters');
+  const historyFilterButtons = Array.from(document.querySelectorAll('[data-history-filter]'));
 
   let selectMode = false;
   let selectedMsgIds = new Set();
   let currentRenderedPosts = [];
+  let historyFilter = 'all';
+  let currentHistoryContext = {
+    deviceName: '',
+    allowMutations: false,
+  };
 
   // ── Toast ──────────────────────────────────────────────────────
   let _toastTimer;
@@ -808,15 +853,48 @@
     skeleton.classList.add('visible');
   }
 
-  function renderPosts(posts, deviceName, color, allowMutations) {
+  function getFilteredPosts() {
+    if (historyFilter === 'hidden') {
+      return currentRenderedPosts.filter(function (post) {
+        return Boolean(post.hidden_from_devices);
+      });
+    }
+    if (historyFilter === 'visible') {
+      return currentRenderedPosts.filter(function (post) {
+        return !post.hidden_from_devices;
+      });
+    }
+    return currentRenderedPosts.slice();
+  }
+
+  function getEmptyMessageForCurrentFilter() {
+    if (historyFilter === 'hidden') {
+      return '{% trans "No hay mensajes ocultos en esta vista." %}';
+    }
+    if (historyFilter === 'visible') {
+      return '{% trans "No hay mensajes visibles en esta vista." %}';
+    }
+    return `{% trans "Aún no hay mensajes para" %} ${currentHistoryContext.deviceName}.`;
+  }
+
+  function syncHistoryFilterUI() {
+    if (historyFilters) {
+      historyFilters.style.display = currentRenderedPosts.length ? 'flex' : 'none';
+    }
+    historyFilterButtons.forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.historyFilter === historyFilter);
+    });
+  }
+
+  function renderVisiblePosts() {
     skeleton.classList.remove('visible');
     feed.innerHTML = '';
-    currentRenderedPosts = Array.isArray(posts) ? posts.slice() : [];
     exitSelectMode();
-    if (selectToggle) selectToggle.style.display = allowMutations ? '' : 'none';
+    syncHistoryFilterUI();
+    const posts = getFilteredPosts();
+    if (selectToggle) selectToggle.style.display = (currentHistoryContext.allowMutations && posts.length) ? '' : 'none';
     if (!posts.length) {
-      empty.querySelector('.pz-empty-text').textContent =
-        `{% trans "Aún no hay mensajes para" %} ${deviceName}.`;
+      empty.querySelector('.pz-empty-text').textContent = getEmptyMessageForCurrentFilter();
       empty.style.display = '';
       return;
     }
@@ -846,7 +924,7 @@
           : '');
       art.innerHTML = `
         <div class="pz-bubble-head">
-          ${allowMutations ? `<input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">` : '<span></span>'}
+          ${currentHistoryContext.allowMutations ? `<input type="checkbox" class="pz-bubble-cb" aria-label="{% trans 'Seleccionar' %}">` : '<span></span>'}
           <div class="pz-bubble-author">
             ${avatarHtml}
             <div class="pz-bubble-author-meta">
@@ -854,7 +932,7 @@
               <span class="pz-bubble-author-user">@${escHtml(post.author || '')}</span>
             </div>
           </div>
-          ${allowMutations ? `<button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>` : '<span></span>'}
+          ${currentHistoryContext.allowMutations ? `<button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>` : '<span></span>'}
         </div>
         <div class="pz-bubble-meta">
           <span class="pz-bubble-time">${post.created_at_human}</span>
@@ -885,13 +963,22 @@
       }
       // Clicking bubble in select mode selects it
       art.addEventListener('click', function (e) {
-        if (!allowMutations || !selectMode || !cb) return;
+        if (!currentHistoryContext.allowMutations || !selectMode || !cb) return;
         if (e.target.closest('[data-del]') || e.target.tagName === 'IMG') return;
         cb.checked = !cb.checked;
         toggleBubbleSelect(art, cb.checked);
       });
       feed.appendChild(art);
     });
+  }
+
+  function renderPosts(posts, deviceName, color, allowMutations) {
+    currentRenderedPosts = Array.isArray(posts) ? posts.slice() : [];
+    currentHistoryContext = {
+      deviceName: deviceName,
+      allowMutations: allowMutations,
+    };
+    renderVisiblePosts();
   }
 
   // ── Select-mode helpers ────────────────────────────────────────
@@ -967,6 +1054,15 @@
     const color = chip ? getComputedStyle(chip).getPropertyValue('--c').trim() : '#6B7280';
     loadHistory(currentSingle, name, color);
   }
+
+  historyFilterButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const nextFilter = btn.dataset.historyFilter || 'all';
+      if (historyFilter === nextFilter) return;
+      historyFilter = nextFilter;
+      renderVisiblePosts();
+    });
+  });
 
   function setHiddenStateForSelection(hidden) {
     const ids = Array.from(selectedMsgIds);
@@ -1133,15 +1229,10 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        const art = document.querySelector(`.pz-bubble[data-id="${id}"]`);
-        if (art) art.remove();
-        if (!feed.querySelector('.pz-bubble')) {
-          if (currentSingle) {
-            const chip = document.querySelector(`.pz-chip[data-device="${currentSingle}"]`);
-            const name = chip ? chip.dataset.name : currentSingle;
-            showEmpty(`{% trans "Aún no hay mensajes para" %} ${name}.`);
-          }
-        }
+        currentRenderedPosts = currentRenderedPosts.filter(function (post) {
+          return post.id !== id;
+        });
+        renderVisiblePosts();
         showToast('{% trans "Mensaje eliminado" %}', false);
       } else {
         btn.disabled = false;
