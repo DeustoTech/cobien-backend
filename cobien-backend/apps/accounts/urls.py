@@ -2,7 +2,7 @@
 from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
 from .forms import MongoFriendlyPasswordResetForm
-from .views import ForceChangePasswordView
+from .views import ForceChangePasswordView, MongoFriendlyPasswordResetConfirmView
 
 
 urlpatterns = [
@@ -28,7 +28,7 @@ urlpatterns = [
     ),
     path(
         'reset/<uidb64>/<token>/',
-        auth_views.PasswordResetConfirmView.as_view(
+        MongoFriendlyPasswordResetConfirmView.as_view(
             template_name='registration/password_reset_confirm.html',
             success_url=reverse_lazy('password_reset_complete'),
         ),

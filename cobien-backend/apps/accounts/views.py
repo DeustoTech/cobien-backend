@@ -1,8 +1,9 @@
 from django.urls import reverse_lazy
 from django.views.generic import CreateView
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView, LogoutView, PasswordResetConfirmView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import SignUpForm, EmailLoginForm
+import logging
 import os
 from pymongo import MongoClient
 from django.contrib import messages
@@ -185,6 +186,26 @@ def enviar_email_activacion(request, user, lang="es"):
     )
     msg.attach_alternative(html_body, "text/html")
     msg.send()
+
+
+class MongoFriendlyPasswordResetConfirmView(PasswordResetConfirmView):
+    """Wraps Django's PasswordResetConfirmView to guarantee the new password is
+    written to MongoDB even when Djongo's ORM save() is unreliable."""
+
+    def form_valid(self, form):
+        user = form.save()
+        # Force a direct MongoDB write so Djongo ORM quirks cannot silently skip it.
+        try:
+            db["auth_user"].update_one(
+                {"username": user.username},
+                {"$set": {"password": user.password}},
+            )
+        except Exception as exc:
+            logging.getLogger(__name__).error(
+                "Password reset: MongoDB direct update failed for %s: %s", user.username, exc
+            )
+        update_session_auth_hash(self.request, user)
+        return super().form_valid(form)
 
 
 class ForceChangePasswordView(LoginRequiredMixin, View):

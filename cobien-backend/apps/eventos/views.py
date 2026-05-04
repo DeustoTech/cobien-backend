@@ -5,6 +5,7 @@ from rest_framework import status
 from .models import Evento
 from .serializers import EventoSerializer
 from django.utils.translation import gettext as _
+from django.utils import timezone
 from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -74,6 +75,42 @@ def _can_delete_event(request, event_doc):
         return True
     created_by = str((event_doc or {}).get("created_by") or "").strip()
     return bool(created_by) and created_by == getattr(request.user, "username", "")
+
+
+def _enqueue_events_reload(event_doc=None, target_devices=None):
+    payload = {
+        "type": "events_reload",
+        "target": "events",
+        "timestamp": timezone.now().isoformat(),
+    }
+
+    resolved_targets = []
+    if target_devices is not None:
+        for device_id in target_devices:
+            value = str(device_id or "").strip()
+            if value:
+                resolved_targets.append(value)
+    elif isinstance(event_doc, dict):
+        for device_id in (event_doc.get("target_devices") or []):
+            value = str(device_id or "").strip()
+            if value:
+                resolved_targets.append(value)
+        if not resolved_targets:
+            fallback_target = str(event_doc.get("target_device") or "").strip()
+            if fallback_target:
+                resolved_targets.append(fallback_target)
+
+    if resolved_targets:
+        seen = set()
+        for device_id in resolved_targets:
+            key = device_id.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            enqueue_notification(device_id, dict(payload, to=device_id))
+        return
+
+    enqueue_broadcast_notification(dict(payload, to="all"))
 
 class EventoList(APIView):
     permission_classes = [IsAuthenticated]
@@ -381,7 +418,7 @@ def guardar_evento(request):
                             "all_day": all_day,
                             "start_time": start_time if not all_day else "",
                             "end_time": end_time if not all_day else "",
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": timezone.now().isoformat(),
                         }
                         enqueue_notification(td, payload)
                     print(f"[DEVICE QUEUE EVENTOS] ✓ Event notification enqueued to {target_devices}")
@@ -397,7 +434,7 @@ def guardar_evento(request):
                         "all_day": all_day,
                         "start_time": start_time if not all_day else "",
                         "end_time": end_time if not all_day else "",
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": timezone.now().isoformat(),
                     }
                     inserted = enqueue_broadcast_notification(payload)
                     print(f"[DEVICE QUEUE EVENTOS] ✓ Broadcast event enqueued to {len(inserted)} device(s)")
@@ -447,6 +484,11 @@ def delete_evento(request):
     result = collection.delete_one({'_id': mongo_id})
     if result.deleted_count != 1:
         return JsonResponse({'success': False, 'error': 'Could not delete event.'}, status=500)
+
+    try:
+        _enqueue_events_reload(event_doc=event_doc)
+    except Exception as exc:
+        print(f"[DEVICE QUEUE EVENTOS] ✗ Reload enqueue error after delete: {exc}")
 
     return JsonResponse({'success': True})
 
@@ -629,7 +671,7 @@ def enqueue_videocall_notification(room_name: str, caller: str) -> None:
             "from": caller,
             "to": target_device_id or room_name,
             "room": room_name,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": timezone.now().isoformat()
         }
         enqueue_notification(target_device_id or room_name, payload)
         call_monitor.add_call(room_name=room_name, caller=caller)

@@ -10,7 +10,7 @@ import threading
 import time
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
 from django.conf import settings
@@ -88,9 +88,9 @@ class CallMonitor:
         self.active_calls[room_name] = {
             "caller": caller,
             "room": room_name,
-            "start_time": datetime.now().isoformat(),
+            "start_time": (now := datetime.now(tz=timezone.utc)).isoformat(),
             "answered": False,
-            "grace_period_end": datetime.now().timestamp() + 10 # attendre 10 seconde avant de vérifier si quelqu'un est partie de l'appel
+            "grace_period_end": now.timestamp() + 10
         }
         
         print(f"[CALL MONITOR] 📞 Nouvel appel tracké")
