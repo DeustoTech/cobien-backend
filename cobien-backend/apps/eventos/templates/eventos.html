@@ -404,7 +404,7 @@
         <span class="ev-detail-row-label">{% trans "Descripción" %}</span>
         <span class="ev-detail-row-val" id="detailDesc"></span>
       </div>
-      <div class="ev-detail-row" id="detailDevicesRow" style="display:none;">
+      <div class="ev-detail-row" id="detailDevicesRow">
         <span class="ev-detail-row-label">{% trans "Dirigido a" %}</span>
         <span class="ev-detail-row-val" id="detailDevices" style="display:flex; flex-wrap:wrap; gap:5px;"></span>
       </div>
@@ -419,6 +419,11 @@
           {% trans "Eliminar evento" %}
         </button>
         <div style="display:flex; gap:8px; margin-left:auto;">
+          {% if user.is_authenticated %}
+          <button class="ev-btn ev-btn-primary" id="editEventBtn" type="button" style="display:none;">
+            {% trans "Editar" %}
+          </button>
+          {% endif %}
           <button class="ev-btn ev-btn-outline" data-close="eventDetailModal" type="button">{% trans "Cerrar" %}</button>
         </div>
       </div>
@@ -468,12 +473,12 @@
 </div>
 
 {% if user.is_authenticated %}
-<!-- ── Modal: Añadir evento ── -->
+<!-- ── Modal: Añadir / Editar evento ── -->
 <div class="ev-modal-overlay" id="addEventModal">
   <div class="ev-modal-box">
     <div class="ev-modal-head">
-      <h2>{% trans "Añadir nuevo evento" %}</h2>
-      <button class="ev-modal-close" data-close="addEventModal" type="button">✕</button>
+      <h2 id="addEventModalTitle">{% trans "Añadir nuevo evento" %}</h2>
+      <button class="ev-modal-close" id="addEventModalClose" data-close="addEventModal" type="button">✕</button>
     </div>
     <div class="ev-modal-body">
       <form id="addEventForm">
@@ -556,8 +561,8 @@
         </div>
 
         <div class="ev-modal-footer" style="margin-top:4px;">
-          <button class="ev-btn ev-btn-outline" type="button" data-close="addEventModal">{% trans "Cancelar" %}</button>
-          <button class="ev-btn ev-btn-primary" type="submit">{% trans "Guardar evento" %}</button>
+          <button class="ev-btn ev-btn-outline" type="button" id="addEventCancelBtn" data-close="addEventModal">{% trans "Cancelar" %}</button>
+          <button class="ev-btn ev-btn-primary" type="submit" id="addEventSubmitBtn">{% trans "Guardar evento" %}</button>
         </div>
       </form>
     </div>
@@ -579,8 +584,16 @@
     deleteConfirm:    "{% trans '¿Seguro que quieres eliminar este evento?' %}",
     deleteSuccess:    "{% trans 'Evento eliminado correctamente.' %}",
     deleteError:      "{% trans 'Error al eliminar el evento.' %}",
+    addTitle:         "{% trans 'Añadir nuevo evento' %}",
+    editTitle:        "{% trans 'Editar evento' %}",
+    addSubmit:        "{% trans 'Guardar evento' %}",
+    editSubmit:       "{% trans 'Guardar cambios' %}",
+    editSuccess:      "{% trans 'Evento actualizado correctamente.' %}",
+    editError:        "{% trans 'Error al actualizar el evento.' %}",
+    audienceAll:      "{% trans 'Todos' %}",
   };
   let currentDetailEvent = null;
+  let editingEventId = null;
 
   // ── Modal helpers ───────────────────────────────────────────────
   function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
@@ -692,7 +705,8 @@
             end_time:    "{{ evento.end_time|default:''|escapejs }}"{% if evento.color %},
             color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
             target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.target_devices_label %},
-            target_devices_label: "{{ evento.target_devices_label|escapejs }}"{% endif %}{% if evento.created_by %},
+            target_devices_label: "{{ evento.target_devices_label|escapejs }}",
+            target_devices_raw:   {{ evento.target_devices|default:'[]'|safe }}{% endif %}{% if evento.created_by %},
             created_by:  "{{ evento.created_by|escapejs }}"{% endif %},
             can_delete:  {% if evento.can_delete %}true{% else %}false{% endif %},
             audience:    "{{ evento.audience|default:'all'|escapejs }}"
@@ -738,18 +752,18 @@
         document.getElementById('detailDesc').textContent = desc;
         document.getElementById('detailDescRow').style.display = desc ? '' : 'none';
 
-        // Devices row
+        // Dirigido a: always show — either device chips or "Todos"
         const devicesEl  = document.getElementById('detailDevices');
         const devicesRow = document.getElementById('detailDevicesRow');
         const devLabel   = props.target_devices_label || '';
-        if (devLabel && devicesEl) {
+        if (devLabel) {
           devicesEl.innerHTML = devLabel.split(', ').map(function (name) {
             return `<span style="display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;background:#EEF2FF;color:#4F46E5;font-size:.78rem;font-weight:600;">${name}</span>`;
           }).join('');
-          devicesRow.style.display = '';
         } else {
-          devicesRow.style.display = 'none';
+          devicesEl.textContent = I18N_EVENTS.audienceAll;
         }
+        devicesRow.style.display = '';
 
         // Created by row
         const createdRow = document.getElementById('detailCreatedRow');
@@ -765,6 +779,12 @@
           deleteBtn.style.display = props.can_delete ? '' : 'none';
           deleteBtn.dataset.eventId = info.event.id || '';
           deleteBtn.dataset.eventTitle = info.event.title || '';
+        }
+
+        const editBtn = document.getElementById('editEventBtn');
+        if (editBtn) {
+          editBtn.style.display = props.can_delete ? '' : 'none';
+          editBtn.dataset.eventId = info.event.id || '';
         }
 
         openModal('eventDetailModal');
@@ -857,6 +877,116 @@
       modeAdmin.addEventListener('change', function () { showPersonalControls(false); navigate('admin', new Set()); });
     }
   });
+
+  {% if user.is_authenticated %}
+  // ── Edit event ──────────────────────────────────────────────────
+  (function () {
+    const editBtn = document.getElementById('editEventBtn');
+    if (!editBtn) return;
+
+    editBtn.addEventListener('click', function () {
+      if (!currentDetailEvent) return;
+      closeModal('eventDetailModal');
+      openEditModal(currentDetailEvent);
+    });
+
+    function resetAddModal() {
+      editingEventId = null;
+      document.getElementById('addEventModalTitle').textContent  = I18N_EVENTS.addTitle;
+      document.getElementById('addEventSubmitBtn').textContent   = I18N_EVENTS.addSubmit;
+      document.getElementById('addEventForm').reset();
+      const grid = document.getElementById('eventDeviceGrid');
+      if (grid) {
+        grid.querySelectorAll('.ev-device-check').forEach(cb => { cb.checked = false; });
+        grid.querySelectorAll('.ev-device-card.is-selected').forEach(c => c.classList.remove('is-selected'));
+      }
+      const hint = document.getElementById('eventDeviceHint');
+      if (hint) hint.textContent = '{% trans "Sin selección → evento global visible para todos." %}';
+      const locSel    = document.getElementById('eventLocationSelect');
+      const customGrp = document.getElementById('eventLocationCustomGroup');
+      const customIn  = document.getElementById('eventLocationCustom');
+      if (locSel)    locSel.value = '';
+      if (customGrp) customGrp.style.display = 'none';
+      if (customIn)  customIn.value = '';
+      const timeFields = document.getElementById('eventTimeFields');
+      if (timeFields) timeFields.style.display = 'none';
+    }
+
+    // Cancel / close resets edit state
+    document.getElementById('addEventCancelBtn').addEventListener('click', resetAddModal);
+    document.getElementById('addEventModalClose').addEventListener('click', resetAddModal);
+
+    window._resetAddModal = resetAddModal;
+  })();
+
+  function openEditModal(event) {
+    const props  = event.extendedProps;
+    editingEventId = event.id;
+
+    document.getElementById('addEventModalTitle').textContent = I18N_EVENTS.editTitle;
+    document.getElementById('addEventSubmitBtn').textContent  = I18N_EVENTS.editSubmit;
+
+    document.getElementById('eventTitle').value = event.title || '';
+
+    // Date: extract YYYY-MM-DD from startStr
+    const dateStr = (event.startStr || '').substring(0, 10);
+    document.getElementById('eventDate').value = dateStr;
+
+    // All-day + times
+    const allDay = event.allDay;
+    document.getElementById('eventAllDay').checked = allDay;
+    const timeFields = document.getElementById('eventTimeFields');
+    if (timeFields) timeFields.style.display = allDay ? 'none' : '';
+    document.getElementById('eventStartTime').value = allDay ? '' : (props.start_time || '');
+    document.getElementById('eventEndTime').value   = allDay ? '' : (props.end_time   || '');
+
+    // Region select
+    const locSel    = document.getElementById('eventLocationSelect');
+    const customGrp = document.getElementById('eventLocationCustomGroup');
+    const customIn  = document.getElementById('eventLocationCustom');
+    const locVal    = props.location || '';
+    const opt = locSel ? Array.from(locSel.options).find(o => o.value === locVal && o.value !== '' && o.value !== '_new') : null;
+    if (locSel) {
+      if (opt) {
+        locSel.value = locVal;
+        if (customGrp) customGrp.style.display = 'none';
+      } else if (locVal) {
+        locSel.value = '_new';
+        if (customGrp) customGrp.style.display = '';
+        if (customIn)  customIn.value = locVal;
+      } else {
+        locSel.value = '';
+        if (customGrp) customGrp.style.display = 'none';
+      }
+    }
+
+    // Venue
+    document.getElementById('eventVenue').value = props.venue || '';
+
+    // Description
+    document.getElementById('eventDescription').value = props.description || '';
+
+    // Device grid
+    const grid = document.getElementById('eventDeviceGrid');
+    if (grid) {
+      const rawIds = new Set(props.target_devices_raw || []);
+      grid.querySelectorAll('.ev-device-check').forEach(cb => {
+        const checked = rawIds.has(cb.value);
+        cb.checked = checked;
+        cb.closest('.ev-device-card').classList.toggle('is-selected', checked);
+      });
+      const hint  = document.getElementById('eventDeviceHint');
+      const count = grid.querySelectorAll('.ev-device-check:checked').length;
+      if (hint) hint.textContent = count === 0
+        ? '{% trans "Sin selección → evento global visible para todos." %}'
+        : count === 1
+          ? '{% trans "1 mueble seleccionado → evento personal." %}'
+          : count + ' {% trans "muebles seleccionados → evento personal." %}';
+    }
+
+    openModal('addEventModal');
+  }
+  {% endif %}
 
   (function () {
     const deleteBtn = document.getElementById('deleteEventBtn');
@@ -983,32 +1113,45 @@
     const startTime = allDay ? '' : (document.getElementById('eventStartTime').value || '');
     const endTime   = allDay ? '' : (document.getElementById('eventEndTime').value || '');
 
-    fetch('/api/guardar_evento/', {
+    const isEditing  = !!editingEventId;
+    const url        = isEditing ? '/api/actualizar_evento/' : '/api/guardar_evento/';
+    const payload    = { title, date, description, location: eventLocation, venue, audience, target_devices: targetDevices, all_day: allDay, start_time: startTime, end_time: endTime };
+    if (isEditing) payload.event_id = editingEventId;
+
+    fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ title, date, description, location: eventLocation, venue, audience, target_devices: targetDevices, all_day: allDay, start_time: startTime, end_time: endTime })
+      body: JSON.stringify(payload)
     })
       .then(r => r.json())
       .then(data => {
-        if (data.success) {
-          calendar.addEvent({ title, start: date, description, location: eventLocation });
-          document.getElementById('addEventForm').reset();
-          if (grid) {
-            grid.querySelectorAll('.ev-device-check:checked').forEach(cb => { cb.checked = false; });
-            grid.querySelectorAll('.ev-device-card.is-selected').forEach(c => c.classList.remove('is-selected'));
-          }
-          const hint = document.getElementById('eventDeviceHint');
-          if (hint) hint.textContent = '{% trans "Sin selección → evento global visible para todos." %}';
-          closeModal('addEventModal');
-          window.showToast('{% trans "Evento guardado correctamente." %}', 'success');
-        } else {
-          window.showToast(`${I18N_EVENTS.saveErrorPrefix} ${data.error || ''}`, 'error');
+        if (!data.success) {
+          window.showToast(`${isEditing ? I18N_EVENTS.editError : I18N_EVENTS.saveErrorPrefix} ${data.error || ''}`, 'error');
+          return;
         }
+        if (isEditing && currentDetailEvent) {
+          // Update the calendar event in place without a full reload
+          currentDetailEvent.setProp('title', title);
+          const newStart = allDay ? date : date + 'T' + startTime;
+          const newEnd   = (!allDay && endTime) ? date + 'T' + endTime : null;
+          currentDetailEvent.setDates(newStart, newEnd, { allDay });
+          currentDetailEvent.setExtendedProp('description', description);
+          currentDetailEvent.setExtendedProp('location', eventLocation);
+          currentDetailEvent.setExtendedProp('venue', venue);
+          currentDetailEvent.setExtendedProp('start_time', startTime);
+          currentDetailEvent.setExtendedProp('end_time', endTime);
+          currentDetailEvent.setExtendedProp('target_devices_raw', targetDevices);
+        } else {
+          calendar.addEvent({ title, start: date, description, location: eventLocation });
+        }
+        if (window._resetAddModal) window._resetAddModal();
+        closeModal('addEventModal');
+        window.showToast(isEditing ? I18N_EVENTS.editSuccess : '{% trans "Evento guardado correctamente." %}', 'success');
       })
-      .catch(err => { console.error(err); window.showToast(I18N_EVENTS.saveErrorPrefix, 'error'); });
+      .catch(err => { console.error(err); window.showToast(isEditing ? I18N_EVENTS.editError : I18N_EVENTS.saveErrorPrefix, 'error'); });
   });
   {% endif %}
 </script>

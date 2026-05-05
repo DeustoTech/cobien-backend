@@ -298,6 +298,7 @@ def lista_eventos(request):
         except Exception:
             fecha_iso = None
 
+        raw_tds = [str(d).strip() for d in (evento.get("target_devices") or []) if str(d).strip()]
         item = {
             "id": str(evento.get("_id") or ""),
             "title": evento.get("title", "Sin título"),
@@ -308,6 +309,7 @@ def lista_eventos(request):
             "all_day": bool(evento.get("all_day", True)),
             "start_time": evento.get("start_time", ""),
             "end_time": evento.get("end_time", ""),
+            "target_devices": raw_tds,
             "created_by": str(evento.get("created_by") or "").strip(),
             "can_delete": _can_delete_event(request, evento),
         }
@@ -459,6 +461,87 @@ def guardar_evento(request):
             return JsonResponse({'success': False, 'error': repr(e)})
 
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
+@csrf_exempt
+def actualizar_evento(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+
+    event_id = str(data.get('event_id') or '').strip()
+    if not event_id:
+        return JsonResponse({'success': False, 'error': 'Falta el id del evento'}, status=400)
+
+    try:
+        mongo_id = ObjectId(event_id)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Id de evento inválido'}, status=400)
+
+    collection = db['eventos']
+    event_doc = collection.find_one({'_id': mongo_id})
+    if not event_doc:
+        return JsonResponse({'success': False, 'error': 'Evento no encontrado'}, status=404)
+
+    if not _can_delete_event(request, event_doc):
+        return JsonResponse({'success': False, 'error': 'No tienes permisos para editar este evento'}, status=403)
+
+    try:
+        title       = data.get('title', 'Sin título')
+        date_string = data.get('date')
+        description = data.get('description', '')
+        location    = data.get('location', '')
+        venue       = data.get('venue', '')
+        start_time  = (data.get('start_time') or '').strip()
+        end_time    = (data.get('end_time') or '').strip()
+        all_day     = bool(data.get('all_day', True))
+
+        raw_targets = data.get('target_devices') or []
+        if isinstance(raw_targets, str):
+            raw_targets = [raw_targets] if raw_targets.strip() else []
+        target_devices = [str(t).strip() for t in raw_targets if str(t).strip()]
+        audience = "device" if target_devices else "all"
+
+        fecha_ddmm = None
+        if date_string:
+            fecha_ddmm = datetime.strptime(date_string, "%Y-%m-%d").strftime("%d-%m-%Y")
+
+        update_fields = {
+            "title"      : title,
+            "date"       : fecha_ddmm,
+            "description": description,
+            "location"   : location,
+            "venue"      : venue,
+            "audience"   : audience,
+            "all_day"    : all_day,
+            "start_time" : start_time if not all_day else "",
+            "end_time"   : end_time if not all_day else "",
+            "target_devices": target_devices if audience == "device" else [],
+            "target_device" : target_devices[0] if audience == "device" and target_devices else "",
+        }
+
+        collection.update_one({'_id': mongo_id}, {'$set': update_fields})
+
+        try:
+            old_targets = [str(d).strip() for d in (event_doc.get("target_devices") or []) if str(d).strip()]
+            if event_doc.get("target_device") and event_doc["target_device"] not in old_targets:
+                old_targets.append(str(event_doc["target_device"]).strip())
+            all_notify = list({d for d in old_targets + target_devices if d})
+            if all_notify:
+                _enqueue_events_reload(target_devices=all_notify)
+        except Exception as exc:
+            print(f"[DEVICE QUEUE EVENTOS] ✗ Reload enqueue error after update: {exc}")
+
+        return JsonResponse({'success': True})
+
+    except Exception as e:
+        print("[actualizar_evento] Error:", repr(e))
+        return JsonResponse({'success': False, 'error': repr(e)})
 
 
 @login_required
