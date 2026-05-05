@@ -1299,10 +1299,10 @@
     const name  = tr.querySelector('.ev-region-name-cell input').value.trim();
     const color = tr.querySelector('.ev-region-color-cell input').value;
     if (!name) { window.showToast('{% trans "El nombre no puede estar vacío." %}', 'warning'); return; }
-    fetch(`/api/regiones/${regionId}/update/`, {
+    fetch('{% url "update_region" %}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-      body: JSON.stringify({ name, color }),
+      body: JSON.stringify({ region_id: regionId, orig_name: origName, name, color }),
     })
     .then(r => r.json())
     .then(data => {
@@ -1333,10 +1333,10 @@
 
   function deleteRegion(regionId, regionName) {
     if (!confirm(I18N_REGION.confirmDelete + regionName + I18N_REGION.confirmDelete2)) return;
-    fetch(`/api/regiones/${regionId}/delete/`, {
+    fetch('{% url "delete_region" %}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ region_id: regionId, orig_name: regionName }),
     })
     .then(r => r.json())
     .then(data => {
