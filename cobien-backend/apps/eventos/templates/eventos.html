@@ -392,8 +392,12 @@
         <span class="ev-detail-row-label">{% trans "Fecha" %}</span>
         <span class="ev-detail-row-val" id="detailDate"></span>
       </div>
+      <div class="ev-detail-row" id="detailVenueRow" style="display:none;">
+        <span class="ev-detail-row-label">{% trans "Localización" %}</span>
+        <span class="ev-detail-row-val" id="detailVenue"></span>
+      </div>
       <div class="ev-detail-row" id="detailLocationRow">
-        <span class="ev-detail-row-label">{% trans "Lugar" %}</span>
+        <span class="ev-detail-row-label">{% trans "Región" %}</span>
         <span class="ev-detail-row-val" id="detailLocation"></span>
       </div>
       <div class="ev-detail-row" id="detailDescRow">
@@ -502,19 +506,24 @@
         </div>
 
         <div class="ev-field">
-          <label for="eventLocationSelect">{% trans "Localización" %}</label>
+          <label for="eventLocationSelect">{% trans "Región" %}</label>
           <select id="eventLocationSelect">
             <option value="">{% trans "— Selecciona —" %}</option>
             {% for region in regiones %}
               <option value="{{ region }}">{{ region }}</option>
             {% endfor %}
-            <option value="_new">+ {% trans "Nueva ubicación…" %}</option>
+            <option value="_new">+ {% trans "Nueva región…" %}</option>
           </select>
         </div>
 
         <div class="ev-field" id="eventLocationCustomGroup" style="display:none;">
-          <label for="eventLocationCustom">{% trans "Nueva ubicación" %}</label>
-          <input type="text" id="eventLocationCustom" placeholder="{% trans 'Escribe una nueva ubicación' %}">
+          <label for="eventLocationCustom">{% trans "Nueva región" %}</label>
+          <input type="text" id="eventLocationCustom" placeholder="{% trans 'Escribe una nueva región' %}">
+        </div>
+
+        <div class="ev-field">
+          <label for="eventVenue">{% trans "Localización" %}</label>
+          <input type="text" id="eventVenue" placeholder="{% trans 'Lugar del evento (opcional)' %}">
         </div>
 
         <div class="ev-field">
@@ -672,10 +681,15 @@
         {% for evento in eventos %}
           {
             title:       "{{ evento.title|escapejs }}",
-            start:       "{{ evento.date }}",
+            start:       "{{ evento.date }}{% if not evento.all_day and evento.start_time %}T{{ evento.start_time }}{% endif %}",
+            {% if not evento.all_day and evento.end_time %}end: "{{ evento.date }}T{{ evento.end_time }}",{% endif %}
+            allDay:      {% if evento.all_day %}true{% else %}false{% endif %},
             description: "{{ evento.description|escapejs }}",
             id:          "{{ evento.id|escapejs }}",
-            location:    "{{ evento.location|default:''|escapejs }}"{% if evento.color %},
+            location:    "{{ evento.location|default:''|escapejs }}",
+            venue:       "{{ evento.venue|default:''|escapejs }}",
+            start_time:  "{{ evento.start_time|default:''|escapejs }}",
+            end_time:    "{{ evento.end_time|default:''|escapejs }}"{% if evento.color %},
             color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
             target_device: "{{ evento.target_device|escapejs }}"{% endif %}{% if evento.target_devices_label %},
             target_devices_label: "{{ evento.target_devices_label|escapejs }}"{% endif %}{% if evento.created_by %},
@@ -691,11 +705,30 @@
         const props = info.event.extendedProps;
 
         document.getElementById('detailTitle').textContent = info.event.title;
-        document.getElementById('detailDate').textContent  = info.event.start
-          ? info.event.start.toLocaleDateString('{{ LANGUAGE_CODE }}', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
-          : '';
+
+        // Build date text from startStr to avoid UTC midnight off-by-one-day issue.
+        // "YYYY-MM-DD" parsed via new Date() is UTC midnight; using year/month/day
+        // directly avoids any timezone shift.
+        const rawDateStr = (info.event.startStr || '').substring(0, 10);
+        let dateText = '';
+        if (rawDateStr) {
+          const [dy, dm, dd] = rawDateStr.split('-').map(Number);
+          const localDate = new Date(dy, dm - 1, dd);
+          dateText = localDate.toLocaleDateString('{{ LANGUAGE_CODE }}', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+        }
+        const startTime = props.start_time || '';
+        const endTime   = props.end_time   || '';
+        if (!info.event.allDay && startTime) {
+          dateText += ' · ' + startTime;
+          if (endTime) dateText += ' – ' + endTime;
+        }
+        document.getElementById('detailDate').textContent = dateText;
 
         if (dot && info.event.backgroundColor) dot.style.background = info.event.backgroundColor;
+
+        const venue = props.venue || '';
+        document.getElementById('detailVenue').textContent = venue;
+        document.getElementById('detailVenueRow').style.display = venue ? '' : 'none';
 
         const loc = props.location || '';
         document.getElementById('detailLocation').textContent = loc;
@@ -929,6 +962,7 @@
     const title       = document.getElementById('eventTitle').value;
     const date        = document.getElementById('eventDate').value;
     const description = document.getElementById('eventDescription').value;
+    const venue       = (document.getElementById('eventVenue').value || '').trim();
     const locSel      = document.getElementById('eventLocationSelect');
     const locCustom   = document.getElementById('eventLocationCustom');
 
@@ -955,7 +989,7 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ title, date, description, location: eventLocation, audience, target_devices: targetDevices, all_day: allDay, start_time: startTime, end_time: endTime })
+      body: JSON.stringify({ title, date, description, location: eventLocation, venue, audience, target_devices: targetDevices, all_day: allDay, start_time: startTime, end_time: endTime })
     })
       .then(r => r.json())
       .then(data => {

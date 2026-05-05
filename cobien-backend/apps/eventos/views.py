@@ -304,6 +304,10 @@ def lista_eventos(request):
             "date": fecha_iso,
             "description": evento.get("description", "Sin descripción"),
             "location": evento.get("location", ""),
+            "venue": evento.get("venue", ""),
+            "all_day": bool(evento.get("all_day", True)),
+            "start_time": evento.get("start_time", ""),
+            "end_time": evento.get("end_time", ""),
             "created_by": str(evento.get("created_by") or "").strip(),
             "can_delete": _can_delete_event(request, evento),
         }
@@ -354,6 +358,7 @@ def guardar_evento(request):
             date_string = data.get('date')
             description = data.get('description', '')
             location    = data.get('location', '')
+            venue       = data.get('venue', '')
             start_time  = (data.get('start_time') or '').strip()
             end_time    = (data.get('end_time') or '').strip()
             all_day     = bool(data.get('all_day', True))
@@ -391,6 +396,7 @@ def guardar_evento(request):
                 "date"       : fecha_ddmm,
                 "description": description,
                 "location"   : location,
+                "venue"      : venue,
                 "created_by" : request.user.username,
                 "audience"   : "device" if audience == "device" else "all",
                 "all_day"    : all_day,
@@ -415,6 +421,7 @@ def guardar_evento(request):
                             "date": fecha_ddmm,
                             "description": description,
                             "location": location,
+                            "venue": venue,
                             "all_day": all_day,
                             "start_time": start_time if not all_day else "",
                             "end_time": end_time if not all_day else "",
@@ -431,6 +438,7 @@ def guardar_evento(request):
                         "date": fecha_ddmm,
                         "description": description,
                         "location": location,
+                        "venue": venue,
                         "all_day": all_day,
                         "start_time": start_time if not all_day else "",
                         "end_time": end_time if not all_day else "",
