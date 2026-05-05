@@ -308,6 +308,19 @@
 }
 .ev-region-chip-clear:hover { background: #A5B4FC; }
 
+/* ── Region admin panel ─────────────────────────────────────────── */
+.ev-region-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.ev-region-table th { text-align: left; padding: 8px 12px; font-weight: 600; color: #6B7280; border-bottom: 1px solid #E5E7EB; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+.ev-region-table td { padding: 10px 12px; border-bottom: 1px solid #F3F4F6; vertical-align: middle; }
+.ev-region-table tr:last-child td { border-bottom: none; }
+.ev-region-swatch { display: inline-block; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.08); vertical-align: middle; flex-shrink: 0; }
+.ev-region-actions { display: flex; gap: 6px; }
+.ev-btn-danger { color: #EF4444 !important; border-color: #FCA5A5 !important; }
+.ev-btn-danger:hover { background: #FEF2F2 !important; }
+.ev-collapsed { display: none !important; }
+.ev-input-sm { height: 34px; border: 1.5px solid #D1D5DB; border-radius: 6px; padding: 0 10px; font-size: .84rem; outline: none; }
+.ev-input-sm:focus { border-color: #6366F1; box-shadow: 0 0 0 2px #EEF2FF; }
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ev-topbar { flex-direction: column; align-items: flex-start; }
@@ -376,6 +389,51 @@
   <div id="calendar"></div>
 </div>
 
+{% if is_admin %}
+<!-- ── Panel: Gestión de regiones (solo admin) ── -->
+<div class="ev-card" id="regionAdminPanel" style="margin-top:18px;">
+  <div class="ev-card-head" style="cursor:pointer;user-select:none;" onclick="document.getElementById('regionAdminBody').classList.toggle('ev-collapsed');">
+    <div>
+      <h2 style="font-size:1rem;">&#127758; {% trans "Gestión de regiones" %}</h2>
+    </div>
+    <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="event.stopPropagation();openAddRegionRow();">+ {% trans "Nueva región" %}</button>
+  </div>
+  <div id="regionAdminBody">
+    <table class="ev-region-table">
+      <thead>
+        <tr>
+          <th style="width:40px;"></th>
+          <th>{% trans "Nombre" %}</th>
+          <th style="width:110px;">{% trans "Color" %}</th>
+          <th style="width:130px;"></th>
+        </tr>
+      </thead>
+      <tbody id="regionAdminRows">
+        {% for region in regiones %}
+        <tr data-region-id="{{ region.id }}" data-region-name="{{ region.name|escapejs }}" data-region-color="{{ region.color }}">
+          <td><span class="ev-region-swatch" style="background:{{ region.color }};"></span></td>
+          <td class="ev-region-name-cell">{{ region.name }}</td>
+          <td class="ev-region-color-cell">{{ region.color }}</td>
+          <td class="ev-region-actions">
+            <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="editRegionRow(this)">{% trans "Editar" %}</button>
+            <button type="button" class="ev-btn ev-btn-outline ev-btn-sm ev-btn-danger" onclick="deleteRegion('{{ region.id }}','{{ region.name|escapejs }}')">{% trans "Eliminar" %}</button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="noRegionsRow"><td colspan="4" style="text-align:center;color:#9CA3AF;padding:16px;">{% trans "No hay regiones registradas." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="addRegionRow" style="display:none;padding:12px 16px;border-top:1px solid #E5E7EB;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="newRegionName" placeholder="{% trans 'Nombre de región' %}" class="ev-input-sm" style="flex:1;min-width:160px;">
+      <input type="color" id="newRegionColor" value="#6366F1" style="width:40px;height:34px;border:1.5px solid #D1D5DB;border-radius:6px;cursor:pointer;padding:2px;">
+      <button type="button" class="ev-btn ev-btn-primary ev-btn-sm" onclick="submitNewRegion()">{% trans "Guardar" %}</button>
+      <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="closeAddRegionRow()">{% trans "Cancelar" %}</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Modal: Detalle de evento ── -->
 <div class="ev-modal-overlay" id="eventDetailModal">
   <div class="ev-modal-box ev-modal-box--sm">
@@ -398,7 +456,9 @@
       </div>
       <div class="ev-detail-row" id="detailLocationRow">
         <span class="ev-detail-row-label">{% trans "Región" %}</span>
-        <span class="ev-detail-row-val" id="detailLocation"></span>
+        <span class="ev-detail-row-val">
+          <span id="detailLocationPill" style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;font-size:.78rem;font-weight:600;color:#fff;background:#6366F1;"></span>
+        </span>
       </div>
       <div class="ev-detail-row" id="detailDescRow">
         <span class="ev-detail-row-label">{% trans "Descripción" %}</span>
@@ -460,7 +520,7 @@
         <select id="regionSelect">
           <option value="all">{% trans "Todas las regiones" %}</option>
           {% for region in regiones %}
-            <option value="{{ region }}">{{ region }}</option>
+            <option value="{{ region.name }}">{{ region.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -515,10 +575,11 @@
           <select id="eventLocationSelect">
             <option value="">{% trans "— Selecciona —" %}</option>
             {% for region in regiones %}
-              <option value="{{ region }}">{{ region }}</option>
+              <option value="{{ region.name }}" data-color="{{ region.color }}">{{ region.name }}</option>
             {% endfor %}
             <option value="_new">+ {% trans "Nueva región…" %}</option>
           </select>
+          <span id="locationColorSwatch" style="display:inline-block;width:14px;height:14px;border-radius:50%;margin-left:8px;vertical-align:middle;background:#6366F1;"></span>
         </div>
 
         <div class="ev-field" id="eventLocationCustomGroup" style="display:none;">
@@ -699,8 +760,9 @@
             allDay:      {% if evento.all_day %}true{% else %}false{% endif %},
             description: "{{ evento.description|escapejs }}",
             id:          "{{ evento.id|escapejs }}",
-            location:    "{{ evento.location|default:''|escapejs }}",
-            venue:       "{{ evento.venue|default:''|escapejs }}",
+            location:       "{{ evento.location|default:''|escapejs }}",
+            location_color: "{{ evento.location_color|default:'#6366F1'|escapejs }}",
+            venue:          "{{ evento.venue|default:''|escapejs }}",
             start_time:  "{{ evento.start_time|default:''|escapejs }}",
             end_time:    "{{ evento.end_time|default:''|escapejs }}"{% if evento.color %},
             color:       "{{ evento.color|escapejs }}"{% endif %}{% if evento.target_device %},
@@ -745,7 +807,9 @@
         document.getElementById('detailVenueRow').style.display = venue ? '' : 'none';
 
         const loc = props.location || '';
-        document.getElementById('detailLocation').textContent = loc;
+        const locColor = props.location_color || '#6366F1';
+        const pill = document.getElementById('detailLocationPill');
+        if (pill) { pill.textContent = loc; pill.style.background = locColor; }
         document.getElementById('detailLocationRow').style.display = loc ? '' : 'none';
 
         const desc = props.description || '';
@@ -1140,6 +1204,10 @@
           currentDetailEvent.setDates(newStart, newEnd, { allDay });
           currentDetailEvent.setExtendedProp('description', description);
           currentDetailEvent.setExtendedProp('location', eventLocation);
+          const locSel2 = document.getElementById('eventLocationSelect');
+          const selOpt = locSel2 ? locSel2.options[locSel2.selectedIndex] : null;
+          const newLocColor = (selOpt && selOpt.dataset.color && locSel2.value !== '_new') ? selOpt.dataset.color : '#6366F1';
+          currentDetailEvent.setExtendedProp('location_color', newLocColor);
           currentDetailEvent.setExtendedProp('venue', venue);
           currentDetailEvent.setExtendedProp('start_time', startTime);
           currentDetailEvent.setExtendedProp('end_time', endTime);
@@ -1153,6 +1221,187 @@
       })
       .catch(err => { console.error(err); window.showToast(isEditing ? I18N_EVENTS.editError : I18N_EVENTS.saveErrorPrefix, 'error'); });
   });
+  {% endif %}
+
+  // ── Location select color swatch ────────────────────────────────
+  (function () {
+    const sel    = document.getElementById('eventLocationSelect');
+    const swatch = document.getElementById('locationColorSwatch');
+    if (!sel || !swatch) return;
+    function updateSwatch() {
+      const opt = sel.options[sel.selectedIndex];
+      swatch.style.background = (opt && opt.dataset.color) ? opt.dataset.color : '#6366F1';
+      swatch.style.display = (sel.value && sel.value !== '_new' && sel.value !== '') ? 'inline-block' : 'none';
+    }
+    sel.addEventListener('change', updateSwatch);
+    updateSwatch();
+  })();
+
+  {% if is_admin %}
+  // ── Region management panel ─────────────────────────────────────
+  const I18N_REGION = {
+    confirmDelete: "{% trans '¿Eliminar la región' %} ",
+    confirmDelete2: "{% trans '? Los eventos que la usen quedarán sin región.' %}",
+    saved: "{% trans 'Región guardada.' %}",
+    deleted: "{% trans 'Región eliminada.' %}",
+    errorSave: "{% trans 'Error al guardar la región.' %}",
+    errorDelete: "{% trans 'Error al eliminar la región.' %}",
+  };
+
+  function openAddRegionRow() {
+    const row = document.getElementById('addRegionRow');
+    if (row) { row.style.display = 'flex'; document.getElementById('newRegionName').focus(); }
+  }
+  function closeAddRegionRow() {
+    const row = document.getElementById('addRegionRow');
+    if (row) { row.style.display = 'none'; }
+    document.getElementById('newRegionName').value = '';
+    document.getElementById('newRegionColor').value = '#6366F1';
+  }
+
+  function submitNewRegion() {
+    const name  = (document.getElementById('newRegionName').value || '').trim();
+    const color = document.getElementById('newRegionColor').value || '#6366F1';
+    if (!name) { window.showToast('{% trans "Escribe un nombre para la región." %}', 'warning'); return; }
+    fetch('{% url "create_region" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      body: JSON.stringify({ name, color }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.error || I18N_REGION.errorSave);
+      window.showToast(I18N_REGION.saved, 'success');
+      closeAddRegionRow();
+      _insertRegionRow(data.id, name, color);
+      _addRegionOptionToSelects(name, color);
+    })
+    .catch(err => window.showToast(err.message || I18N_REGION.errorSave, 'error'));
+  }
+
+  function editRegionRow(btn) {
+    const tr = btn.closest('tr');
+    const nameCell  = tr.querySelector('.ev-region-name-cell');
+    const colorCell = tr.querySelector('.ev-region-color-cell');
+    const actionsCell = tr.querySelector('.ev-region-actions');
+    const origName  = nameCell.textContent.trim();
+    const origColor = colorCell.textContent.trim();
+
+    nameCell.innerHTML  = `<input type="text" class="ev-input-sm" value="${origName}" style="width:100%;">`;
+    colorCell.innerHTML = `<input type="color" value="${origColor}" style="width:40px;height:34px;border:1.5px solid #D1D5DB;border-radius:6px;cursor:pointer;padding:2px;">`;
+    actionsCell.innerHTML = `
+      <button type="button" class="ev-btn ev-btn-primary ev-btn-sm" onclick="saveRegionRow(this,'${tr.dataset.regionId}','${origName}')">{% trans "Guardar" %}</button>
+      <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="cancelRegionEdit(this,'${origName}','${origColor}')">{% trans "Cancelar" %}</button>`;
+  }
+
+  function saveRegionRow(btn, regionId, origName) {
+    const tr = btn.closest('tr');
+    const name  = tr.querySelector('.ev-region-name-cell input').value.trim();
+    const color = tr.querySelector('.ev-region-color-cell input').value;
+    if (!name) { window.showToast('{% trans "El nombre no puede estar vacío." %}', 'warning'); return; }
+    fetch(`/api/regiones/${regionId}/update/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      body: JSON.stringify({ name, color }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.error || I18N_REGION.errorSave);
+      window.showToast(I18N_REGION.saved, 'success');
+      tr.dataset.regionName = name;
+      tr.dataset.regionColor = color;
+      tr.querySelector('.ev-region-swatch').style.background = color;
+      tr.querySelector('.ev-region-name-cell').textContent = name;
+      tr.querySelector('.ev-region-color-cell').textContent = color;
+      tr.querySelector('.ev-region-actions').innerHTML = `
+        <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="editRegionRow(this)">{% trans "Editar" %}</button>
+        <button type="button" class="ev-btn ev-btn-outline ev-btn-sm ev-btn-danger" onclick="deleteRegion('${regionId}','${name}')">{% trans "Eliminar" %}</button>`;
+      _updateRegionOptionInSelects(origName, name, color);
+    })
+    .catch(err => window.showToast(err.message || I18N_REGION.errorSave, 'error'));
+  }
+
+  function cancelRegionEdit(btn, origName, origColor) {
+    const tr = btn.closest('tr');
+    const regionId = tr.dataset.regionId;
+    tr.querySelector('.ev-region-name-cell').textContent = origName;
+    tr.querySelector('.ev-region-color-cell').textContent = origColor;
+    tr.querySelector('.ev-region-actions').innerHTML = `
+      <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="editRegionRow(this)">{% trans "Editar" %}</button>
+      <button type="button" class="ev-btn ev-btn-outline ev-btn-sm ev-btn-danger" onclick="deleteRegion('${regionId}','${origName}')">{% trans "Eliminar" %}</button>`;
+  }
+
+  function deleteRegion(regionId, regionName) {
+    if (!confirm(I18N_REGION.confirmDelete + regionName + I18N_REGION.confirmDelete2)) return;
+    fetch(`/api/regiones/${regionId}/delete/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.error || I18N_REGION.errorDelete);
+      window.showToast(I18N_REGION.deleted, 'success');
+      const tr = document.querySelector(`#regionAdminRows tr[data-region-id="${regionId}"]`);
+      if (tr) tr.remove();
+      _removeRegionOptionFromSelects(regionName);
+    })
+    .catch(err => window.showToast(err.message || I18N_REGION.errorDelete, 'error'));
+  }
+
+  function _insertRegionRow(id, name, color) {
+    const tbody = document.getElementById('regionAdminRows');
+    const noRow = document.getElementById('noRegionsRow');
+    if (noRow) noRow.remove();
+    const tr = document.createElement('tr');
+    tr.dataset.regionId = id;
+    tr.dataset.regionName = name;
+    tr.dataset.regionColor = color;
+    tr.innerHTML = `
+      <td><span class="ev-region-swatch" style="background:${color};"></span></td>
+      <td class="ev-region-name-cell">${name}</td>
+      <td class="ev-region-color-cell">${color}</td>
+      <td class="ev-region-actions">
+        <button type="button" class="ev-btn ev-btn-outline ev-btn-sm" onclick="editRegionRow(this)">{% trans "Editar" %}</button>
+        <button type="button" class="ev-btn ev-btn-outline ev-btn-sm ev-btn-danger" onclick="deleteRegion('${id}','${name}')">{% trans "Eliminar" %}</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+
+  function _addRegionOptionToSelects(name, color) {
+    ['eventLocationSelect', 'regionSelect'].forEach(function (selId) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (selId === 'eventLocationSelect') {
+        opt.dataset.color = color;
+        const newOpt = sel.querySelector('option[value="_new"]');
+        if (newOpt) sel.insertBefore(opt, newOpt); else sel.appendChild(opt);
+      } else {
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  function _updateRegionOptionInSelects(oldName, newName, newColor) {
+    ['eventLocationSelect', 'regionSelect'].forEach(function (selId) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const opt = Array.from(sel.options).find(o => o.value === oldName);
+      if (opt) { opt.value = newName; opt.textContent = newName; if (opt.dataset.color !== undefined) opt.dataset.color = newColor; }
+    });
+  }
+
+  function _removeRegionOptionFromSelects(name) {
+    ['eventLocationSelect', 'regionSelect'].forEach(function (selId) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const opt = Array.from(sel.options).find(o => o.value === name);
+      if (opt) opt.remove();
+    });
+  }
   {% endif %}
 </script>
 {% endblock %}
