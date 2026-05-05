@@ -663,54 +663,85 @@ def create_region(request):
 
 @login_required
 @csrf_exempt
-def update_region(request, region_id):
+def update_region(request):
     if not (request.user.is_staff or request.user.is_superuser):
         return JsonResponse({"success": False, "error": "No autorizado"}, status=403)
     if request.method not in ("POST", "PUT"):
         return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
     try:
         data = json.loads(request.body or '{}')
-        region_id_obj = ObjectId(region_id)
     except Exception:
-        return JsonResponse({"success": False, "error": "ID inválido"}, status=400)
+        return JsonResponse({"success": False, "error": "JSON inválido"}, status=400)
+
+    region_id = str(data.get("region_id") or "").strip()
+    orig_name  = str(data.get("orig_name") or "").strip()
+    new_name   = str(data.get("name") or "").strip()
+    new_color  = str(data.get("color") or "").strip()
+
     try:
-        old_doc = db["regiones"].find_one({"_id": region_id_obj})
+        # Look up by id if available, else by name (regions auto-created from events have no id yet)
+        if region_id:
+            old_doc = db["regiones"].find_one({"_id": ObjectId(region_id)})
+        elif orig_name:
+            old_doc = db["regiones"].find_one({"name": orig_name})
+            if not old_doc:
+                # Region not yet in collection — create it now
+                result = db["regiones"].insert_one({"name": orig_name, "color": new_color or "#6366F1"})
+                return JsonResponse({"success": True, "id": str(result.inserted_id)})
+        else:
+            return JsonResponse({"success": False, "error": "Falta region_id u orig_name"}, status=400)
+
         if not old_doc:
             return JsonResponse({"success": False, "error": "Región no encontrada"}, status=404)
+
+        region_id_obj = old_doc["_id"]
         update_fields = {}
-        new_name = str(data.get("name") or "").strip()
-        new_color = str(data.get("color") or "").strip()
-        if new_name and new_name != str(old_doc.get("name") or "").strip():
+        current_name = str(old_doc.get("name") or "").strip()
+
+        if new_name and new_name != current_name:
             if db["regiones"].find_one({"name": new_name, "_id": {"$ne": region_id_obj}}):
                 return JsonResponse({"success": False, "error": "Ya existe una región con ese nombre"}, status=400)
-            old_name = str(old_doc.get("name") or "").strip()
-            if old_name:
-                db["eventos"].update_many({"location": old_name}, {"$set": {"location": new_name}})
+            if current_name:
+                db["eventos"].update_many({"location": current_name}, {"$set": {"location": new_name}})
             update_fields["name"] = new_name
+
         if new_color:
             update_fields["color"] = new_color
+
         if update_fields:
             db["regiones"].update_one({"_id": region_id_obj}, {"$set": update_fields})
-        return JsonResponse({"success": True})
+
+        return JsonResponse({"success": True, "id": str(region_id_obj)})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 @login_required
 @csrf_exempt
-def delete_region(request, region_id):
+def delete_region(request):
     if not (request.user.is_staff or request.user.is_superuser):
         return JsonResponse({"success": False, "error": "No autorizado"}, status=403)
     if request.method not in ("POST", "DELETE"):
         return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
     try:
-        region_id_obj = ObjectId(region_id)
+        data = json.loads(request.body or '{}')
     except Exception:
-        return JsonResponse({"success": False, "error": "ID inválido"}, status=400)
+        return JsonResponse({"success": False, "error": "JSON inválido"}, status=400)
+
+    region_id  = str(data.get("region_id") or "").strip()
+    orig_name  = str(data.get("orig_name") or "").strip()
+
     try:
-        region_doc = db["regiones"].find_one({"_id": region_id_obj})
+        if region_id:
+            region_doc = db["regiones"].find_one({"_id": ObjectId(region_id)})
+        elif orig_name:
+            region_doc = db["regiones"].find_one({"name": orig_name})
+        else:
+            return JsonResponse({"success": False, "error": "Falta region_id u orig_name"}, status=400)
+
         if not region_doc:
             return JsonResponse({"success": False, "error": "Región no encontrada"}, status=404)
+
         region_name = str(region_doc.get("name") or "").strip()
         events_count = db["eventos"].count_documents({"location": region_name}) if region_name else 0
         if events_count > 0:
@@ -719,7 +750,7 @@ def delete_region(request, region_id):
                 "error": f"No se puede eliminar: {events_count} evento(s) usan esta región. Reasígnalos primero.",
                 "events_count": events_count,
             }, status=400)
-        db["regiones"].delete_one({"_id": region_id_obj})
+        db["regiones"].delete_one({"_id": region_doc["_id"]})
         return JsonResponse({"success": True})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
