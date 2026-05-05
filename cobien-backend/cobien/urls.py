@@ -13,6 +13,10 @@ from apps.eventos.views import (
     videocall_device,
     device_videocall_session,
     toggle_emotion_detection,
+    list_regiones,
+    create_region,
+    update_region,
+    delete_region,
 )
 from django.views.generic import TemplateView
 from django.views.i18n import set_language
@@ -32,6 +36,10 @@ urlpatterns = [
     path('api/guardar_evento/', guardar_evento, name='guardar_evento'),
     path('api/actualizar_evento/', actualizar_evento, name='actualizar_evento'),
     path('api/delete_evento/', delete_evento, name='delete_evento'),
+    path('api/regiones/', list_regiones, name='list_regiones'),
+    path('api/regiones/create/', create_region, name='create_region'),
+    path('api/regiones/<str:region_id>/update/', update_region, name='update_region'),
+    path('api/regiones/<str:region_id>/delete/', delete_region, name='delete_region'),
     path('', home, name='home'),
     path('api/generate-token/<str:identity>/<str:room_name>/', generate_video_token, name='generate_video_token'),
     path('api/device-videocall-session/', device_videocall_session, name='device_videocall_session'),

@@ -68,6 +68,33 @@ def _user_default_device(request):
     )
 
 
+def _get_region_map():
+    """Return {name: color} from regiones collection."""
+    try:
+        return {
+            str(r.get("name") or "").strip(): str(r.get("color") or "#6366F1").strip()
+            for r in db["regiones"].find({})
+            if str(r.get("name") or "").strip()
+        }
+    except Exception:
+        return {}
+
+
+def _ensure_region(name, default_color="#6366F1"):
+    """Upsert a region entry if it does not already exist."""
+    name = str(name or "").strip()
+    if not name:
+        return
+    try:
+        db["regiones"].update_one(
+            {"name": name},
+            {"$setOnInsert": {"name": name, "color": default_color}},
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[REGION] Could not ensure region '{name}': {e}")
+
+
 def _can_delete_event(request, event_doc):
     if not getattr(request.user, "is_authenticated", False):
         return False
@@ -289,6 +316,7 @@ def lista_eventos(request):
             ]})
 
     filtro_final = {"$and": condiciones} if condiciones else {}
+    region_map = _get_region_map()
 
     # 6) Construcción de eventos (igual que antes, con props extra para personales)
     eventos = []
@@ -328,9 +356,21 @@ def lista_eventos(request):
         else:
             item["audience"] = "all"
 
+        region_color = region_map.get(str(evento.get("location") or "").strip(), "#6366F1")
+        item["location_color"] = region_color
+
         eventos.append(item)
 
-    regiones = collection.distinct("location")
+    # Build regiones list: from regiones collection + any unregistered event locations
+    col_regions = list(db["regiones"].find({}).sort("name", 1))
+    col_region_names = {str(r.get("name") or "").strip() for r in col_regions}
+    regiones = [
+        {"id": str(r["_id"]), "name": str(r.get("name") or "").strip(), "color": str(r.get("color") or "#6366F1").strip()}
+        for r in col_regions if str(r.get("name") or "").strip()
+    ]
+    for loc in collection.distinct("location"):
+        if loc and loc.strip() and loc.strip() not in col_region_names:
+            regiones.append({"id": "", "name": loc.strip(), "color": "#6366F1"})
 
     return render(request, "eventos.html", {
         "eventos": eventos,
@@ -410,6 +450,7 @@ def guardar_evento(request):
                 doc["target_device"] = target_devices[0]  # backward compat
 
             db["eventos"].insert_one(doc)
+            _ensure_region(location)
 
             # ========== NOTIFICATION DEVICE QUEUE ==========
             try:
@@ -526,6 +567,7 @@ def actualizar_evento(request):
         }
 
         collection.update_one({'_id': mongo_id}, {'$set': update_fields})
+        _ensure_region(location)
 
         try:
             old_targets = [str(d).strip() for d in (event_doc.get("target_devices") or []) if str(d).strip()]
@@ -582,6 +624,106 @@ def delete_evento(request):
         print(f"[DEVICE QUEUE EVENTOS] ✗ Reload enqueue error after delete: {exc}")
 
     return JsonResponse({'success': True})
+
+
+# ── Region management views ──────────────────────────────────────────────────
+
+@login_required
+def list_regiones(request):
+    try:
+        regions = [
+            {"id": str(r["_id"]), "name": str(r.get("name") or ""), "color": str(r.get("color") or "#6366F1")}
+            for r in db["regiones"].find({}).sort("name", 1)
+        ]
+        return JsonResponse({"success": True, "regions": regions})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def create_region(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse({"success": False, "error": "No autorizado"}, status=403)
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body or '{}')
+        name = str(data.get("name") or "").strip()
+        color = str(data.get("color") or "#6366F1").strip()
+        if not name:
+            return JsonResponse({"success": False, "error": "El nombre es obligatorio"}, status=400)
+        if db["regiones"].find_one({"name": name}):
+            return JsonResponse({"success": False, "error": "Ya existe una región con ese nombre"}, status=400)
+        result = db["regiones"].insert_one({"name": name, "color": color})
+        return JsonResponse({"success": True, "id": str(result.inserted_id), "name": name, "color": color})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def update_region(request, region_id):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse({"success": False, "error": "No autorizado"}, status=403)
+    if request.method not in ("POST", "PUT"):
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body or '{}')
+        region_id_obj = ObjectId(region_id)
+    except Exception:
+        return JsonResponse({"success": False, "error": "ID inválido"}, status=400)
+    try:
+        old_doc = db["regiones"].find_one({"_id": region_id_obj})
+        if not old_doc:
+            return JsonResponse({"success": False, "error": "Región no encontrada"}, status=404)
+        update_fields = {}
+        new_name = str(data.get("name") or "").strip()
+        new_color = str(data.get("color") or "").strip()
+        if new_name and new_name != str(old_doc.get("name") or "").strip():
+            if db["regiones"].find_one({"name": new_name, "_id": {"$ne": region_id_obj}}):
+                return JsonResponse({"success": False, "error": "Ya existe una región con ese nombre"}, status=400)
+            old_name = str(old_doc.get("name") or "").strip()
+            if old_name:
+                db["eventos"].update_many({"location": old_name}, {"$set": {"location": new_name}})
+            update_fields["name"] = new_name
+        if new_color:
+            update_fields["color"] = new_color
+        if update_fields:
+            db["regiones"].update_one({"_id": region_id_obj}, {"$set": update_fields})
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def delete_region(request, region_id):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse({"success": False, "error": "No autorizado"}, status=403)
+    if request.method not in ("POST", "DELETE"):
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+    try:
+        region_id_obj = ObjectId(region_id)
+    except Exception:
+        return JsonResponse({"success": False, "error": "ID inválido"}, status=400)
+    try:
+        region_doc = db["regiones"].find_one({"_id": region_id_obj})
+        if not region_doc:
+            return JsonResponse({"success": False, "error": "Región no encontrada"}, status=404)
+        region_name = str(region_doc.get("name") or "").strip()
+        events_count = db["eventos"].count_documents({"location": region_name}) if region_name else 0
+        if events_count > 0:
+            return JsonResponse({
+                "success": False,
+                "error": f"No se puede eliminar: {events_count} evento(s) usan esta región. Reasígnalos primero.",
+                "events_count": events_count,
+            }, status=400)
+        db["regiones"].delete_one({"_id": region_id_obj})
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
 
 def generate_video_token(request, identity, room_name):
     try:

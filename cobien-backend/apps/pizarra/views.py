@@ -3029,6 +3029,11 @@ def api_device_events(request):
         }
 
         AUDIENCE_COLORS = {"all": "#1E90FF", "device": "#FF3B30"}
+        region_map = {
+            str(r.get("name") or "").strip(): str(r.get("color") or "#6366F1").strip()
+            for r in db["regiones"].find({})
+            if str(r.get("name") or "").strip()
+        }
         events_out = []
         for evt in col_eventos.find(query):
             raw_audience = str(evt.get("audience") or "").strip().lower()
@@ -3048,8 +3053,10 @@ def api_device_events(request):
                 "id": str(evt.get("_id") or ""),
                 "date": str(evt.get("date") or ""),
                 "title": str(evt.get("title") or evt.get("titulo") or "Sin título"),
-                "description": str(evt.get("description") or evt.get("descripcion") or "Sin descripción"),
+                "description": str(evt.get("description") or evt.get("descripcion") or ""),
                 "location": effective_loc,
+                "location_color": region_map.get(effective_loc, "#6366F1"),
+                "venue": str(evt.get("venue") or ""),
                 "audience": audience,
                 "color": color,
                 "target_device": str(evt.get("target_device") or ""),
