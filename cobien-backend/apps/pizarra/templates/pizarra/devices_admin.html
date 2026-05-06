@@ -105,12 +105,45 @@
 /* ── Main panel ── */
 .dm-main {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
+.dm-main-head {
+  padding: 16px 24px 0;
+  flex-shrink: 0;
+}
+.dm-main-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+/* ── Top-level device tabs ── */
+.dm-device-tabs-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border, #E5E7EB);
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+.dm-device-tab-btn {
+  padding: 11px 18px;
+  border: none;
+  background: none;
+  font-size: .86rem;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s;
+  white-space: nowrap;
+}
+.dm-device-tab-btn:hover { color: #374151; }
+.dm-device-tab-btn.is-active { color: #4F46E5; border-bottom-color: #6366F1; }
+.dm-device-tab-pane { display: none; }
+.dm-device-tab-pane.is-active { display: block; }
 
 /* ── Cards ── */
 .dm-card {
@@ -610,154 +643,186 @@
     <main class="dm-main">
       {% if selected_device %}
 
-        <!-- Stats strip -->
-        <div class="dm-stats">
-          <div class="dm-stat">
-            <div class="dm-stat-label">{% trans "Estado" %}</div>
-            <div class="dm-stat-value">
-              <span class="status-dot {% if status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
-              {{ status }}
+        <!-- Stats strip + tab nav (always visible, outside scroll) -->
+        <div class="dm-main-head">
+          <div class="dm-stats" style="margin-bottom:16px;">
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Estado" %}</div>
+              <div class="dm-stat-value">
+                <span class="status-dot {% if status == 'online' %}status-dot--online{% else %}status-dot--offline{% endif %}"></span>
+                {{ status }}
+              </div>
+            </div>
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Último heartbeat" %}</div>
+              <div class="dm-stat-value" style="font-size:.88rem; font-weight:600;">{{ last_seen_at|fecha_legible }}</div>
+            </div>
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Contactos" %}</div>
+              <div class="dm-stat-value">{{ contacts_count }}</div>
+            </div>
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Eventos ICSO" %}</div>
+              <div class="dm-stat-value">{{ events_count }}</div>
+            </div>
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Versión software" %}</div>
+              <div class="dm-stat-value">{{ software_version|default:"—" }}</div>
             </div>
           </div>
-          <div class="dm-stat">
-            <div class="dm-stat-label">{% trans "Último heartbeat" %}</div>
-            <div class="dm-stat-value" style="font-size:.88rem; font-weight:600;">{{ last_seen_at|fecha_legible }}</div>
-          </div>
-          <div class="dm-stat">
-            <div class="dm-stat-label">{% trans "Contactos" %}</div>
-            <div class="dm-stat-value">{{ contacts_count }}</div>
-          </div>
-          <div class="dm-stat">
-            <div class="dm-stat-label">{% trans "Eventos ICSO" %}</div>
-            <div class="dm-stat-value">{{ events_count }}</div>
-          </div>
-          <div class="dm-stat">
-            <div class="dm-stat-label">{% trans "Versión software" %}</div>
-            <div class="dm-stat-value">{{ software_version|default:"—" }}</div>
-          </div>
+
+          <!-- Top-level tabs -->
+          <nav class="dm-device-tabs-nav" role="tablist">
+            <button class="dm-device-tab-btn is-active" type="button" data-device-tab="config" aria-selected="true">{% trans "Configuración" %}</button>
+            <button class="dm-device-tab-btn" type="button" data-device-tab="contacts" aria-selected="false">
+              {% trans "Contactos" %}
+              <span style="margin-left:5px; font-size:.72rem; font-weight:600; padding:1px 6px; border-radius:8px; background:#EEF2FF; color:#4F46E5;">{{ contact_rows|length }}</span>
+            </button>
+            <button class="dm-device-tab-btn" type="button" data-device-tab="access" aria-selected="false">
+              {% trans "Acceso" %}
+              <span style="margin-left:5px; font-size:.72rem; font-weight:600; padding:1px 6px; border-radius:8px; background:#EEF2FF; color:#4F46E5;" id="accessCountBadge">{{ assigned_set|length }}</span>
+            </button>
+            <button class="dm-device-tab-btn" type="button" data-device-tab="logs" aria-selected="false">{% trans "Logs" %}</button>
+            {% if snapshot or events or hardware_sections %}
+              <button class="dm-device-tab-btn" type="button" data-device-tab="icso" aria-selected="false">{% trans "ICSO / Hardware" %}</button>
+            {% endif %}
+            <button class="dm-device-tab-btn" type="button" data-device-tab="danger" aria-selected="false" style="margin-left:auto; color:#B91C1C;">{% trans "Zona de peligro" %}</button>
+          </nav>
         </div>
 
-        <!-- ── Configuración ── -->
-        <div class="dm-card">
-          <div class="dm-card-head">
-            <h2>{% trans "Configuración" %} · <span style="font-weight:400; color:#374151;">{{ selected_device }}</span></h2>
+        <!-- Scrollable tab content -->
+        <div class="dm-main-body">
+
+          <!-- ══ TAB: Configuración ══ -->
+          <div class="dm-device-tab-pane is-active" id="device-tab-config">
+            <div class="dm-card">
+              <div class="dm-card-head">
+                <h2>{% trans "Configuración" %} · <span style="font-weight:400; color:#374151;">{{ selected_device }}</span></h2>
+              </div>
+              <form method="post" enctype="multipart/form-data" id="deviceForm">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
+                <input type="hidden" name="contacts" id="contacts" value="{{ contacts_text }}">
+                <input type="hidden" name="assigned_users" id="assigned_users" value="{{ assigned_users_text }}">
+
+                <!-- Identidad -->
+                <div style="margin-bottom:20px;">
+                  <p class="dm-section-label">{% trans "Identidad" %}</p>
+                  <div class="dm-grid-2">
+                    <div class="dm-field">
+                      <label for="display_name_device">{% trans "Nombre visible" %}</label>
+                      <input type="text" id="display_name_device" name="display_name" value="{{ profile_source|default:selected_device }}">
+                    </div>
+                    <div class="dm-field">
+                      <label for="videocall_room_device">{% trans "Sala de videollamada" %}</label>
+                      <input type="text" id="videocall_room_device" name="videocall_room" value="{{ videocall_room }}" placeholder="{{ selected_device }}">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Calendario -->
+                <div style="margin-bottom:20px;">
+                  <p class="dm-section-label">{% trans "Calendario" %}</p>
+                  <div class="dm-grid-2">
+                    <div class="dm-field">
+                      <label for="event_visibility_scope">{% trans "Visibilidad de eventos" %}</label>
+                      <select id="event_visibility_scope" name="event_visibility_scope">
+                        <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Todos los eventos generales" %}</option>
+                        <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones" %}</option>
+                      </select>
+                    </div>
+                    <div class="dm-field">
+                      <label for="event_regions">{% trans "Regiones visibles" %} <span style="font-weight:400; color:#9CA3AF;">({% trans "una por línea" %})</span></label>
+                      <textarea id="event_regions" name="event_regions" rows="3" placeholder="Logroño&#10;Bilbao">{{ event_regions_text }}</textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Opciones -->
+                <div style="margin-bottom:24px;">
+                  <p class="dm-section-label">{% trans "Opciones" %}</p>
+                  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <label class="dm-toggle">
+                      <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
+                      {% trans "Habilitado" %}
+                    </label>
+                    <label class="dm-toggle">
+                      <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
+                      {% trans "Oculto en panel" %}
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Weather cities -->
+                <div style="margin-bottom:24px;" id="wc-section">
+                  <p class="dm-section-label" style="margin-bottom:8px;">{% trans "Ciudades del tiempo" %}</p>
+                  <p style="margin:0 0 10px; font-size:.82rem; color:#6B7280;">{% trans "Ciudades que el mueble mostrará en la pantalla del tiempo. Se actualizan en el próximo cobien.env." %}</p>
+                  <div id="wc-chips" style="display:flex; flex-wrap:wrap; gap:8px; min-height:36px; margin-bottom:10px;"></div>
+                  <div style="position:relative; max-width:380px;">
+                    <input id="wc-search-input" type="text" autocomplete="off"
+                           placeholder="{% trans 'Buscar ciudad para añadir…' %}"
+                           style="width:100%; padding:8px 12px; font-size:.85rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
+                    <div id="wc-search-results" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #E5E7EB; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:200; overflow:hidden;"></div>
+                  </div>
+                </div>
+
+                <!-- Deployment profile -->
+                <div style="margin-bottom:24px;">
+                  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px;">
+                    <div>
+                      <p class="dm-section-label" style="margin-bottom:6px;">{% trans "Deployment profile" %}</p>
+                      <p style="margin:0; font-size:.82rem; color:#6B7280;">
+                        {% trans "Define only the furniture-specific overrides that should shape the generated cobien.env. Global defaults and secrets are resolved on the server when exporting the file." %}
+                      </p>
+                    </div>
+                    {% if device_env_download_url %}
+                      <a class="dm-btn dm-btn-outline dm-btn-sm" href="{{ device_env_download_url }}">{% trans "Download cobien.env" %}</a>
+                    {% endif %}
+                  </div>
+                  <div class="dm-field">
+                    <label for="deployment_profile_json">{% trans "Deployment profile JSON" %}</label>
+                    <textarea
+                      id="deployment_profile_json"
+                      name="deployment_profile_json"
+                      rows="12"
+                      spellcheck="false"
+                      style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;"
+                      placeholder='{"COBIEN_DEVICE_LOCATION":"Logroño","COBIEN_DISPLAY_ROTATION":"right"}'
+                    >{{ deployment_profile_json }}</textarea>
+                    <p style="margin:8px 0 0; font-size:.78rem; color:#9CA3AF;">
+                      {% trans "Typical overrides: location, display settings, pins, weather cities, RFID actions, audio devices or any env key that differs from the shared deployment baseline." %}
+                    </p>
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:8px; justify-content:flex-end; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
+                  <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
+                </div>
+              </form>
+
+              <!-- Control remoto -->
+              <form method="post" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border,#E5E7EB); display:flex; gap:8px; justify-content:flex-end;">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <button class="dm-btn dm-btn-outline" type="submit" name="action" value="force_update"
+                  onclick="return confirm('{% trans "¿Enviar comando de actualización de software al mueble?" %}')">
+                  {% trans "Actualizar software" %}
+                </button>
+                <button class="dm-btn dm-btn-outline" type="submit" name="action" value="restart"
+                  style="color:#B91C1C; border-color:#B91C1C;"
+                  onclick="return confirm('{% trans "¿Enviar comando de reinicio al mueble?" %}')">
+                  {% trans "Reiniciar mueble" %}
+                </button>
+              </form>
+            </div>
           </div>
 
-          <form method="post" enctype="multipart/form-data" id="deviceForm">
-            {% csrf_token %}
-            <input type="hidden" name="device_id" value="{{ selected_device }}">
-            <input type="hidden" id="contact_rows_total" name="contact_rows_total" value="{{ contact_rows|length }}">
-
-            <!-- Identidad -->
-            <div style="margin-bottom:20px;">
-              <p class="dm-section-label">{% trans "Identidad" %}</p>
-              <div class="dm-grid-2">
-                <div class="dm-field">
-                  <label for="display_name_device">{% trans "Nombre visible" %}</label>
-                  <input type="text" id="display_name_device" name="display_name" value="{{ profile_source|default:selected_device }}">
-                </div>
-                <div class="dm-field">
-                  <label for="videocall_room_device">{% trans "Sala de videollamada" %}</label>
-                  <input type="text" id="videocall_room_device" name="videocall_room" value="{{ videocall_room }}" placeholder="{{ selected_device }}">
-                </div>
-              </div>
-            </div>
-
-            <!-- Calendario -->
-            <div style="margin-bottom:20px;">
-              <p class="dm-section-label">{% trans "Calendario" %}</p>
-              <div class="dm-grid-2">
-                <div class="dm-field">
-                  <label for="event_visibility_scope">{% trans "Visibilidad de eventos" %}</label>
-                  <select id="event_visibility_scope" name="event_visibility_scope">
-                    <option value="all" {% if event_visibility_scope == "all" %}selected{% endif %}>{% trans "Todos los eventos generales" %}</option>
-                    <option value="region" {% if event_visibility_scope == "region" %}selected{% endif %}>{% trans "Filtrar por regiones" %}</option>
-                  </select>
-                </div>
-                <div class="dm-field">
-                  <label for="event_regions">{% trans "Regiones visibles" %} <span style="font-weight:400; color:#9CA3AF;">({% trans "una por línea" %})</span></label>
-                  <textarea id="event_regions" name="event_regions" rows="3" placeholder="Logroño&#10;Bilbao">{{ event_regions_text }}</textarea>
-                </div>
-              </div>
-            </div>
-
-            <!-- Opciones básicas -->
-            <div style="margin-bottom:24px;">
-              <p class="dm-section-label">{% trans "Opciones" %}</p>
-              <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <label class="dm-toggle">
-                  <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
-                  {% trans "Habilitado" %}
-                </label>
-                <label class="dm-toggle">
-                  <input type="checkbox" name="hidden_in_admin" value="1" {% if hidden_in_admin %}checked{% endif %}>
-                  {% trans "Oculto en panel" %}
-                </label>
-              </div>
-            </div>
-
-            <!-- ── Weather cities ── -->
-            <div style="margin-bottom:24px;" id="wc-section">
-              <p class="dm-section-label" style="margin-bottom:8px;">{% trans "Ciudades del tiempo" %}</p>
-              <p style="margin:0 0 10px; font-size:.82rem; color:#6B7280;">{% trans "Ciudades que el mueble mostrará en la pantalla del tiempo. Se actualizan en el próximo cobien.env." %}</p>
-              <div id="wc-chips" style="display:flex; flex-wrap:wrap; gap:8px; min-height:36px; margin-bottom:10px;"></div>
-              <div style="position:relative; max-width:380px;">
-                <input id="wc-search-input" type="text" autocomplete="off"
-                       placeholder="{% trans 'Buscar ciudad para añadir…' %}"
-                       style="width:100%; padding:8px 12px; font-size:.85rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
-                <div id="wc-search-results" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #E5E7EB; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:200; overflow:hidden;"></div>
-              </div>
-            </div>
-
-            <div style="margin-bottom:24px;">
-              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:10px;">
-                <div>
-                  <p class="dm-section-label" style="margin-bottom:6px;">{% trans "Deployment profile" %}</p>
-                  <p style="margin:0; font-size:.82rem; color:#6B7280;">
-                    {% trans "Define only the furniture-specific overrides that should shape the generated cobien.env. Global defaults and secrets are resolved on the server when exporting the file." %}
-                  </p>
-                </div>
-                {% if device_env_download_url %}
-                  <a class="dm-btn dm-btn-outline dm-btn-sm" href="{{ device_env_download_url }}">
-                    {% trans "Download cobien.env" %}
-                  </a>
-                {% endif %}
-              </div>
-              <div class="dm-field">
-                <label for="deployment_profile_json">{% trans "Deployment profile JSON" %}</label>
-                <textarea
-                  id="deployment_profile_json"
-                  name="deployment_profile_json"
-                  rows="12"
-                  spellcheck="false"
-                  style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;"
-                  placeholder='{"COBIEN_DEVICE_LOCATION":"Logroño","COBIEN_DISPLAY_ROTATION":"right"}'
-                >{{ deployment_profile_json }}</textarea>
-                <p style="margin:8px 0 0; font-size:.78rem; color:#9CA3AF;">
-                  {% trans "Typical overrides: location, display settings, pins, weather cities, RFID actions, audio devices or any env key that differs from the shared deployment baseline." %}
-                </p>
-              </div>
-            </div>
-
-            <!-- ── Tabs: Contactos / Acceso ── -->
-            <div class="dm-tabs-nav" role="tablist">
-              <button class="dm-tab-btn is-active" type="button" role="tab" data-tab="contacts" aria-selected="true">
-                {% trans "Contactos" %}
-                <span style="margin-left:6px; font-size:.74rem; font-weight:600; padding:1px 7px; border-radius:8px; background:#EEF2FF; color:#4F46E5;">{{ contact_rows|length }}</span>
-              </button>
-              <button class="dm-tab-btn" type="button" role="tab" data-tab="access" aria-selected="false">
-                {% trans "Acceso de usuarios" %}
-                <span style="margin-left:6px; font-size:.74rem; font-weight:600; padding:1px 7px; border-radius:8px; background:#EEF2FF; color:#4F46E5;" id="accessCountBadge">{{ assigned_set|length }}</span>
-              </button>
-            </div>
-
-            <!-- Tab: Contactos -->
-            <div class="dm-tab-pane is-active" id="tab-contacts" role="tabpanel">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px;">
-                <p style="font-size:.82rem; color:#6B7280; margin:0;">
-                  {% trans "Las imágenes de los contactos se obtienen automáticamente del perfil del usuario web vinculado o se pueden gestionar desde la" %}
-                  <a href="{% url 'pizarra_directory_people_admin' %}" style="color:#6366F1;">{% trans "libreta" %}</a>.
-                </p>
+          <!-- ══ TAB: Contactos ══ -->
+          <div class="dm-device-tab-pane" id="device-tab-contacts">
+            <div class="dm-card">
+              <div class="dm-card-head">
+                <h2>{% trans "Contactos" %}</h2>
                 <div style="display:flex; gap:8px; flex-shrink:0;">
                   {% if people_profiles %}
                     <select id="people-profile-select" style="font-size:.82rem; padding:5px 8px; border:1px solid var(--border,#D1D5DB); border-radius:8px;">
@@ -773,292 +838,276 @@
                   <button class="dm-btn dm-btn-outline dm-btn-sm" type="button" id="add-contact-row">+ {% trans "Nuevo contacto" %}</button>
                 </div>
               </div>
-
-              <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
-                {% for contact in contact_rows %}
-                  <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
-                    <div class="dm-contact-avatar" id="avatar-{{ forloop.counter0 }}">
-                      {% if contact.image_url %}
-                        <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
-                      {% else %}
-                        {{ contact.display_name|first|upper }}
-                      {% endif %}
+              <p style="font-size:.82rem; color:#6B7280; margin:0 0 14px;">
+                {% trans "Las imágenes de los contactos se obtienen automáticamente del perfil del usuario web vinculado o se pueden gestionar desde la" %}
+                <a href="{% url 'pizarra_directory_people_admin' %}" style="color:#6366F1;">{% trans "libreta" %}</a>.
+              </p>
+              <form method="post" enctype="multipart/form-data" id="contactsForm">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <input type="hidden" name="action" value="save_and_sync">
+                <input type="hidden" id="contact_rows_total_contacts" name="contact_rows_total" value="{{ contact_rows|length }}">
+                <div id="contacts-grid" style="display:flex; flex-direction:column; gap:8px;">
+                  {% for contact in contact_rows %}
+                    <div class="dm-contact-row contact-row" data-row-index="{{ forloop.counter0 }}">
+                      <div class="dm-contact-avatar" id="avatar-{{ forloop.counter0 }}">
+                        {% if contact.image_url %}
+                          <img src="{{ contact.image_url }}" alt="{{ contact.display_name }}">
+                        {% else %}
+                          {{ contact.display_name|first|upper }}
+                        {% endif %}
+                      </div>
+                      <div class="dm-field" style="margin:0;">
+                        <label>{% trans "Nombre" %}</label>
+                        <input type="text" name="contact_display_name_{{ forloop.counter0 }}"
+                               value="{{ contact.display_name }}" placeholder="María"
+                               data-avatar-for="{{ forloop.counter0 }}">
+                        <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
+                      </div>
+                      <div class="dm-field" style="margin:0;">
+                        <label>{% trans "Usuario web vinculado" %}</label>
+                        <input type="text" name="contact_user_name_{{ forloop.counter0 }}"
+                               value="{{ contact.user_name }}" placeholder="maria">
+                      </div>
+                      <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
+                              style="color:#EF4444; padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>
                     </div>
-                    <div class="dm-field" style="margin:0;">
-                      <label>{% trans "Nombre" %}</label>
-                      <input type="text" name="contact_display_name_{{ forloop.counter0 }}"
-                             value="{{ contact.display_name }}" placeholder="María"
-                             data-avatar-for="{{ forloop.counter0 }}">
-                      <input type="hidden" name="contact_existing_image_url_{{ forloop.counter0 }}" value="{{ contact.image_url }}">
-                    </div>
-                    <div class="dm-field" style="margin:0;">
-                      <label>{% trans "Usuario web vinculado" %}</label>
-                      <input type="text" name="contact_user_name_{{ forloop.counter0 }}"
-                             value="{{ contact.user_name }}" placeholder="maria">
-                    </div>
-                    <button class="dm-btn dm-btn-ghost dm-btn-sm remove-contact-row" type="button"
-                            style="color:#EF4444; padding:5px 10px;" title="{% trans 'Quitar contacto' %}">✕</button>
-                  </div>
-                {% endfor %}
-              </div>
-              <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
-            </div>
-
-            <!-- Tab: Acceso de usuarios -->
-            <div class="dm-tab-pane" id="tab-access" role="tabpanel">
-              <div style="margin-bottom:10px;">
-                <input type="text" id="userSearch" placeholder="{% trans 'Buscar usuario…' %}"
-                       style="width:100%; padding:8px 12px; font-size:.82rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
-              </div>
-              <div class="dm-user-list">
-                {% for u in all_users %}
-                  <label class="dm-user-item user-check-item" data-username="{{ u.username }}">
-                    <input type="checkbox" name="assigned_users_check" value="{{ u.username }}"
-                           {% if u.username in assigned_set %}checked{% endif %}>
-                    <div class="dm-user-avatar-sm">{{ u.username|first|upper }}</div>
-                    <div class="dm-user-info">
-                      <strong>{{ u.username }}</strong>
-                      {% if u.first_name or u.last_name %}
-                        <span>{{ u.first_name }} {{ u.last_name }}</span>
-                      {% endif %}
-                    </div>
-                  </label>
-                {% empty %}
-                  <p style="padding:10px 12px; font-size:.82rem; color:#9CA3AF; margin:0;">{% trans "No hay usuarios registrados." %}</p>
-                {% endfor %}
-              </div>
-              <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
-
-              <!-- Usuario por defecto -->
-              <div class="dm-default-user-box">
-                <div class="dm-field" style="flex:1; margin:0;">
-                  <label for="default_username">{% trans "Usuario de inicio automático" %}</label>
-                  <select id="default_username" name="default_username">
-                    <option value="">— {% trans "Ninguno" %} —</option>
-                    {% for u in all_users %}
-                      <option value="{{ u.username }}" {% if u.username == default_username %}selected{% endif %}>
-                        {{ u.username }}{% if u.first_name or u.last_name %} ({{ u.first_name }} {{ u.last_name }}){% endif %}
-                      </option>
-                    {% endfor %}
-                  </select>
-                  <p class="dm-default-user-hint">
-                    {% trans "El perfil de este usuario se cargará automáticamente en el mueble al arrancar, sin necesidad de que nadie inicie sesión." %}
-                  </p>
+                  {% endfor %}
                 </div>
-              </div>
-            </div>
-            <!-- /Tabs -->
-
-            <!-- Acciones form -->
-            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
-              <button class="dm-btn dm-btn-primary" type="submit" name="action" value="save_and_sync">{% trans "Guardar y sincronizar" %}</button>
-            </div>
-          </form>
-
-          <!-- Control remoto -->
-          <form method="post" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border,#E5E7EB); display:flex; gap:8px; justify-content:flex-end;">
-            {% csrf_token %}
-            <input type="hidden" name="device_id" value="{{ selected_device }}">
-            <button class="dm-btn dm-btn-outline" type="submit" name="action" value="force_update"
-              onclick="return confirm('{% trans "¿Enviar comando de actualización de software al mueble?" %}')">
-              {% trans "Actualizar software" %}
-            </button>
-            <button class="dm-btn dm-btn-outline" type="submit" name="action" value="restart"
-              style="color:#B91C1C; border-color:#B91C1C;"
-              onclick="return confirm('{% trans "¿Enviar comando de reinicio al mueble?" %}')">
-              {% trans "Reiniciar mueble" %}
-            </button>
-          </form>
-        </div>
-
-        <!-- ── Support logs ── -->
-        <div class="dm-card">
-          <div class="dm-card-head">
-            <h2>{% trans "Logs de soporte" %}</h2>
-            <div class="dm-log-header-meta">
-              <span class="dm-log-status-badge dm-log-status-badge--{{ runtime_logs_status }}">
-                {{ runtime_logs_status_label }}
-              </span>
-              <span class="dm-log-note">
-              {% if runtime_logs_updated_at %}
-                {% trans "Última sincronización" %}: {{ runtime_logs_updated_at|fecha_legible }}
-              {% else %}
-                {% trans "Se mostrarán aquí los últimos 2 días cuando el mueble sincronice sus logs." %}
-              {% endif %}
-              </span>
+                <textarea id="contacts" name="contacts" rows="4" style="display:none;">{{ contacts_text }}</textarea>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
+                  <button class="dm-btn dm-btn-primary" type="submit">{% trans "Guardar contactos" %}</button>
+                </div>
+              </form>
             </div>
           </div>
 
-          {% if runtime_logs_by_type %}
-            <div class="dm-log-toolbar">
-              <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Tipos de log' %}">
-                {% for group in runtime_logs_by_type %}
-                  <button
-                    type="button"
-                    class="dm-log-pill dm-log-type-btn {% if forloop.first %}is-active{% endif %}"
-                    data-log-type="{{ group.log_type }}"
-                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
-                  >
-                    {{ group.log_type_label }}
-                  </button>
-                {% endfor %}
+          <!-- ══ TAB: Acceso ══ -->
+          <div class="dm-device-tab-pane" id="device-tab-access">
+            <div class="dm-card">
+              <div class="dm-card-head">
+                <h2>{% trans "Acceso de usuarios" %}</h2>
               </div>
+              <form method="post" id="accessForm">
+                {% csrf_token %}
+                <input type="hidden" name="device_id" value="{{ selected_device }}">
+                <input type="hidden" name="action" value="save_and_sync">
+                <div style="margin-bottom:10px;">
+                  <input type="text" id="userSearch" placeholder="{% trans 'Buscar usuario…' %}"
+                         style="width:100%; padding:8px 12px; font-size:.82rem; border:1px solid var(--border,#D1D5DB); border-radius:8px; box-sizing:border-box;">
+                </div>
+                <div class="dm-user-list">
+                  {% for u in all_users %}
+                    <label class="dm-user-item user-check-item" data-username="{{ u.username }}">
+                      <input type="checkbox" name="assigned_users_check" value="{{ u.username }}"
+                             {% if u.username in assigned_set %}checked{% endif %}>
+                      <div class="dm-user-avatar-sm">{{ u.username|first|upper }}</div>
+                      <div class="dm-user-info">
+                        <strong>{{ u.username }}</strong>
+                        {% if u.first_name or u.last_name %}
+                          <span>{{ u.first_name }} {{ u.last_name }}</span>
+                        {% endif %}
+                      </div>
+                    </label>
+                  {% empty %}
+                    <p style="padding:10px 12px; font-size:.82rem; color:#9CA3AF; margin:0;">{% trans "No hay usuarios registrados." %}</p>
+                  {% endfor %}
+                </div>
+                <textarea id="assigned_users" name="assigned_users" style="display:none;">{{ assigned_users_text }}</textarea>
 
-              {% if runtime_logs_available_dates %}
-                <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Días disponibles' %}">
-                  {% for log_date in runtime_logs_available_dates %}
-                    <button
-                      type="button"
-                      class="dm-log-pill dm-log-date-btn {% if forloop.first %}is-active{% endif %}"
-                      data-log-date="{{ log_date }}"
-                      aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
-                    >
-                      {{ log_date }}
-                    </button>
+                <div class="dm-default-user-box" style="margin-top:16px;">
+                  <div class="dm-field" style="flex:1; margin:0;">
+                    <label for="default_username">{% trans "Usuario de inicio automático" %}</label>
+                    <select id="default_username" name="default_username">
+                      <option value="">— {% trans "Ninguno" %} —</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.username }}" {% if u.username == default_username %}selected{% endif %}>
+                          {{ u.username }}{% if u.first_name or u.last_name %} ({{ u.first_name }} {{ u.last_name }}){% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <p class="dm-default-user-hint">
+                      {% trans "El perfil de este usuario se cargará automáticamente en el mueble al arrancar, sin necesidad de que nadie inicie sesión." %}
+                    </p>
+                  </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px; padding-top:16px; border-top:1px solid var(--border,#E5E7EB);">
+                  <button class="dm-btn dm-btn-primary" type="submit">{% trans "Guardar acceso" %}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- ══ TAB: Logs ══ -->
+          <div class="dm-device-tab-pane" id="device-tab-logs">
+            <div class="dm-card">
+              <div class="dm-card-head">
+                <h2>{% trans "Logs de soporte" %}</h2>
+                <div class="dm-log-header-meta">
+                  <span class="dm-log-status-badge dm-log-status-badge--{{ runtime_logs_status }}">{{ runtime_logs_status_label }}</span>
+                  <span class="dm-log-note">
+                    {% if runtime_logs_updated_at %}
+                      {% trans "Última sincronización" %}: {{ runtime_logs_updated_at|fecha_legible }}
+                    {% else %}
+                      {% trans "Se mostrarán aquí los últimos 2 días cuando el mueble sincronice sus logs." %}
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+              {% if runtime_logs_by_type %}
+                <div class="dm-log-toolbar">
+                  <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Tipos de log' %}">
+                    {% for group in runtime_logs_by_type %}
+                      <button type="button" class="dm-log-pill dm-log-type-btn {% if forloop.first %}is-active{% endif %}"
+                              data-log-type="{{ group.log_type }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                        {{ group.log_type_label }}
+                      </button>
+                    {% endfor %}
+                  </div>
+                  {% if runtime_logs_available_dates %}
+                    <div class="dm-log-pill-group" role="tablist" aria-label="{% trans 'Días disponibles' %}">
+                      {% for log_date in runtime_logs_available_dates %}
+                        <button type="button" class="dm-log-pill dm-log-date-btn {% if forloop.first %}is-active{% endif %}"
+                                data-log-date="{{ log_date }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                          {{ log_date }}
+                        </button>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  <input type="search" class="dm-log-search" id="supportLogSearch"
+                         placeholder="{% trans 'Buscar dentro del log visible…' %}" autocomplete="off">
+                </div>
+                <div class="dm-log-panels">
+                  {% for group in runtime_logs_by_type %}
+                    {% for entry in group.entries %}
+                      <div class="dm-log-panel {% if forloop.parentloop.first and forloop.first %}is-active{% endif %}"
+                           data-log-type="{{ group.log_type }}" data-log-date="{{ entry.log_date }}">
+                        <div class="dm-log-meta">
+                          <div class="dm-log-meta-main">
+                            <span class="dm-log-chip">{{ group.log_type_label }}</span>
+                            <span class="dm-log-chip">{{ entry.log_date }}</span>
+                            {% if entry.line_count %}<span class="dm-log-note">{{ entry.line_count }} {% trans "líneas" %}</span>{% endif %}
+                            {% if entry.truncated %}<span class="dm-log-note">{% trans "Mostrando una vista recortada para soporte web." %}</span>{% endif %}
+                          </div>
+                          <div class="dm-log-note">{{ entry.updated_at|fecha_legible }}</div>
+                        </div>
+                        <div class="dm-log-viewer">
+                          <div class="dm-log-viewer-head">
+                            <strong>{{ entry.filename|default:"runtime.log" }}</strong>
+                            <span>{{ entry.byte_count }} bytes</span>
+                          </div>
+                          <pre>{{ entry.content|default:"" }}</pre>
+                        </div>
+                        <div class="dm-log-no-match">{% trans "No hay coincidencias en este log para la búsqueda actual." %}</div>
+                      </div>
+                    {% endfor %}
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="dm-log-empty">
+                  <strong>{% trans "Todavía no hay logs sincronizados" %}</strong>
+                  <span>{% trans "Cuando el mueble publique sus logs de aplicación, CAN Bus y MQTT-CAN Bridge, aparecerán aquí con foco en soporte técnico." %}</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- ══ TAB: ICSO / Hardware ══ -->
+          {% if snapshot or events or hardware_sections %}
+          <div class="dm-device-tab-pane" id="device-tab-icso">
+            {% if snapshot or events %}
+            <div class="dm-card" style="margin-bottom:16px;">
+              <div class="dm-card-head">
+                <h2>{% trans "Datos ICSO" %}</h2>
+                {% if events %}
+                  <div style="display:flex; gap:6px;">
+                    <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv">CSV</a>
+                    <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json">JSON</a>
+                  </div>
+                {% endif %}
+              </div>
+              {% if snapshot %}
+                <p style="font-size:.78rem; color:#9CA3AF; margin:0 0 12px;">
+                  {% trans "Capturado" %}: {{ snapshot.captured_at|fecha_legible }} · {% trans "Actualizado" %}: {{ snapshot.updated_at|fecha_legible }} · {{ snapshot.payload_count }} {% trans "campos" %}
+                </p>
+                {% if snapshot.payload_items %}
+                  <div class="dm-icso-grid">
+                    {% for item in snapshot.payload_items %}
+                      <div class="dm-icso-item">
+                        <strong>{{ item.key }}</strong>
+                        {% if item.complex %}<pre style="white-space:pre-wrap; margin:4px 0 0; font-size:.78rem;">{{ item.value }}</pre>
+                        {% else %}<span>{{ item.value }}</span>{% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                <details style="margin-top:12px;">
+                  <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
+                  <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ snapshot.payload_json }}</pre>
+                </details>
+              {% endif %}
+              {% if events %}
+                <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:14px 0 8px;">{% trans "Eventos recientes" %}</p>
+                <div style="max-height:280px; overflow-y:auto;">
+                  {% for event in events %}
+                    <div class="dm-event-row">
+                      <strong>{{ event.source }}</strong>
+                      <span style="flex:1; color:#374151;">{{ event.message }}</span>
+                      <span style="color:#9CA3AF; white-space:nowrap;">{{ event.logged_at|fecha_legible }}</span>
+                    </div>
                   {% endfor %}
                 </div>
               {% endif %}
-              <input
-                type="search"
-                class="dm-log-search"
-                id="supportLogSearch"
-                placeholder="{% trans 'Buscar dentro del log visible…' %}"
-                autocomplete="off"
-              >
             </div>
+            {% endif %}
 
-            <div class="dm-log-panels">
-              {% for group in runtime_logs_by_type %}
-                {% for entry in group.entries %}
-                  <div
-                    class="dm-log-panel {% if forloop.parentloop.first and forloop.first %}is-active{% endif %}"
-                    data-log-type="{{ group.log_type }}"
-                    data-log-date="{{ entry.log_date }}"
-                  >
-                    <div class="dm-log-meta">
-                      <div class="dm-log-meta-main">
-                        <span class="dm-log-chip">{{ group.log_type_label }}</span>
-                        <span class="dm-log-chip">{{ entry.log_date }}</span>
-                        {% if entry.line_count %}
-                          <span class="dm-log-note">{{ entry.line_count }} {% trans "líneas" %}</span>
-                        {% endif %}
-                        {% if entry.truncated %}
-                          <span class="dm-log-note">{% trans "Mostrando una vista recortada para soporte web." %}</span>
-                        {% endif %}
-                      </div>
-                      <div class="dm-log-note">
-                        {{ entry.updated_at|fecha_legible }}
-                      </div>
-                    </div>
-                    <div class="dm-log-viewer">
-                      <div class="dm-log-viewer-head">
-                        <strong>{{ entry.filename|default:"runtime.log" }}</strong>
-                        <span>{{ entry.byte_count }} bytes</span>
-                      </div>
-                      <pre>{{ entry.content|default:"" }}</pre>
-                    </div>
-                    <div class="dm-log-no-match">{% trans "No hay coincidencias en este log para la búsqueda actual." %}</div>
+            {% if hardware_sections %}
+            <div class="dm-card">
+              <div class="dm-card-head">
+                <h2>{% trans "Inventario hardware" %}</h2>
+                <span style="font-size:.78rem; color:#9CA3AF;">{{ hardware_reported_at|fecha_legible }}</span>
+              </div>
+              <div class="dm-hw-grid">
+                {% for item in hardware_sections %}
+                  <div class="dm-hw-card">
+                    <strong>{{ item.label }}</strong>
+                    {% if item.hardware %}<div>{{ item.hardware }}</div>{% endif %}
+                    {% if item.driver %}<div style="color:#9CA3AF; font-size:.78rem; margin-top:4px;">Driver: {{ item.driver }}</div>{% endif %}
                   </div>
                 {% endfor %}
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="dm-log-empty">
-              <strong>{% trans "Todavía no hay logs sincronizados" %}</strong>
-              <span>{% trans "Cuando el mueble publique sus logs de aplicación, CAN Bus y MQTT-CAN Bridge, aparecerán aquí con foco en soporte técnico." %}</span>
-            </div>
-          {% endif %}
-        </div>
-
-        <!-- ── Datos ICSO ── -->
-        {% if snapshot or events %}
-        <div class="dm-card">
-          <div class="dm-card-head">
-            <h2>{% trans "Datos ICSO" %}</h2>
-            {% if events %}
-              <div style="display:flex; gap:6px;">
-                <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=csv">CSV</a>
-                <a class="dm-btn dm-btn-ghost dm-btn-sm" href="{% url 'pizarra_icso_download_events' %}?device_id={{ selected_device }}&format=json">JSON</a>
               </div>
+              <details style="margin-top:12px;">
+                <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
+                <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ hardware_inventory_json }}</pre>
+              </details>
+            </div>
             {% endif %}
           </div>
-          {% if snapshot %}
-            <p style="font-size:.78rem; color:#9CA3AF; margin:0 0 12px;">
-              {% trans "Capturado" %}: {{ snapshot.captured_at|fecha_legible }} ·
-              {% trans "Actualizado" %}: {{ snapshot.updated_at|fecha_legible }} ·
-              {{ snapshot.payload_count }} {% trans "campos" %}
-            </p>
-            {% if snapshot.payload_items %}
-              <div class="dm-icso-grid">
-                {% for item in snapshot.payload_items %}
-                  <div class="dm-icso-item">
-                    <strong>{{ item.key }}</strong>
-                    {% if item.complex %}<pre style="white-space:pre-wrap; margin:4px 0 0; font-size:.78rem;">{{ item.value }}</pre>
-                    {% else %}<span>{{ item.value }}</span>{% endif %}
-                  </div>
-                {% endfor %}
-              </div>
-            {% endif %}
-            <details style="margin-top:12px;">
-              <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
-              <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ snapshot.payload_json }}</pre>
-            </details>
           {% endif %}
-          {% if events %}
-            <p style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin:14px 0 8px;">{% trans "Eventos recientes" %}</p>
-            <div style="max-height:280px; overflow-y:auto;">
-              {% for event in events %}
-                <div class="dm-event-row">
-                  <strong>{{ event.source }}</strong>
-                  <span style="flex:1; color:#374151;">{{ event.message }}</span>
-                  <span style="color:#9CA3AF; white-space:nowrap;">{{ event.logged_at|fecha_legible }}</span>
+
+          <!-- ══ TAB: Zona de peligro ══ -->
+          <div class="dm-device-tab-pane" id="device-tab-danger">
+            <div class="dm-card" style="border-color:#FECACA;">
+              <div class="dm-danger-zone">
+                <div class="dm-danger-text">
+                  <strong>{% trans "Zona de peligro" %}</strong>
+                  <p>{% trans "Eliminar este mueble borrará todos sus mensajes, notificaciones, ICSO y asignaciones. Irreversible." %}</p>
                 </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- ── Hardware ── -->
-        {% if hardware_sections %}
-        <div class="dm-card">
-          <div class="dm-card-head">
-            <h2>{% trans "Inventario hardware" %}</h2>
-            <span style="font-size:.78rem; color:#9CA3AF;">{{ hardware_reported_at|fecha_legible }}</span>
-          </div>
-          <div class="dm-hw-grid">
-            {% for item in hardware_sections %}
-              <div class="dm-hw-card">
-                <strong>{{ item.label }}</strong>
-                {% if item.hardware %}<div>{{ item.hardware }}</div>{% endif %}
-                {% if item.driver %}<div style="color:#9CA3AF; font-size:.78rem; margin-top:4px;">Driver: {{ item.driver }}</div>{% endif %}
+                <button type="button" class="dm-btn dm-btn-danger" id="openDeleteModal">
+                  {% trans "Eliminar mueble" %}
+                </button>
               </div>
-            {% endfor %}
-          </div>
-          <details style="margin-top:12px;">
-            <summary style="cursor:pointer; font-size:.78rem; color:#9CA3AF;">{% trans "JSON completo" %}</summary>
-            <pre style="white-space:pre-wrap; margin-top:8px; font-size:.75rem;">{{ hardware_inventory_json }}</pre>
-          </details>
-        </div>
-        {% endif %}
-
-        <!-- ── Zona de peligro ── -->
-        <div class="dm-card" style="border-color:#FECACA;">
-          <div class="dm-danger-zone">
-            <div class="dm-danger-text">
-              <strong>{% trans "Zona de peligro" %}</strong>
-              <p>{% trans "Eliminar este mueble borrará todos sus mensajes, notificaciones, ICSO y asignaciones. Irreversible." %}</p>
             </div>
-            <button type="button" class="dm-btn dm-btn-danger" id="openDeleteModal">
-              {% trans "Eliminar mueble" %}
-            </button>
           </div>
-        </div>
+
+        </div><!-- /dm-main-body -->
 
       {% else %}
-        <div class="dm-empty">
-          <span class="dm-empty-icon">🖥️</span>
-          <span>{% trans "Selecciona un mueble en la barra lateral para ver y editar su configuración." %}</span>
+        <div class="dm-main-body">
+          <div class="dm-empty">
+            <span class="dm-empty-icon">🖥️</span>
+            <span>{% trans "Selecciona un mueble en la barra lateral para ver y editar su configuración." %}</span>
+          </div>
         </div>
       {% endif %}
     </main>
@@ -1159,16 +1208,16 @@
     });
   })();
 
-  // ── Tabs ────────────────────────────────────────────────────────
+  // ── Device tabs ─────────────────────────────────────────────────
   (function () {
-    const btns = document.querySelectorAll('.dm-tab-btn[data-tab]');
+    const btns = document.querySelectorAll('.dm-device-tab-btn[data-device-tab]');
     btns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         btns.forEach(function (b) { b.classList.remove('is-active'); b.setAttribute('aria-selected','false'); });
         btn.classList.add('is-active');
         btn.setAttribute('aria-selected','true');
-        document.querySelectorAll('.dm-tab-pane').forEach(function (p) { p.classList.remove('is-active'); });
-        const pane = document.getElementById('tab-' + btn.dataset.tab);
+        document.querySelectorAll('.dm-device-tab-pane').forEach(function (p) { p.classList.remove('is-active'); });
+        const pane = document.getElementById('device-tab-' + btn.dataset.deviceTab);
         if (pane) pane.classList.add('is-active');
       });
     });
