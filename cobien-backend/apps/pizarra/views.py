@@ -453,6 +453,8 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_reported_at": _serialize_datetime((device_doc or {}).get("hardware_reported_at")),
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
         "software_version": str((device_doc or {}).get("software_version") or ""),
+        "services_status": (device_doc or {}).get("services_status") or {},
+        "services_reported_at": _serialize_datetime((device_doc or {}).get("services_reported_at")),
         "people_profiles": people_profiles,
         "all_users": all_users,
         "assigned_set": assigned_set,

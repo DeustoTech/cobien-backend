@@ -119,6 +119,35 @@
   padding: 0 24px 24px;
 }
 
+/* ── Services status traffic lights ── */
+.dm-services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.dm-service-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #F9FAFB;
+  border: 1px solid var(--border, #E5E7EB);
+  font-size: .82rem;
+  font-weight: 500;
+}
+.dm-service-pill .dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green  { background: #22C55E; box-shadow: 0 0 6px #22C55E88; }
+.dot-yellow { background: #F59E0B; box-shadow: 0 0 6px #F59E0B88; }
+.dot-red    { background: #EF4444; box-shadow: 0 0 6px #EF444488; }
+.dot-grey   { background: #9CA3AF; }
+.dm-services-meta { font-size:.74rem; color:#9CA3AF; margin-top:-12px; margin-bottom:16px; }
+
 /* ── Top-level device tabs ── */
 .dm-device-tabs-nav {
   display: flex;
@@ -695,6 +724,69 @@
 
           <!-- ══ TAB: Configuración ══ -->
           <div class="dm-device-tab-pane is-active" id="device-tab-config">
+
+            <!-- ── Estado de servicios ── -->
+            <div class="dm-card" style="margin-bottom:20px;">
+              <div class="dm-card-head">
+                <h2>{% trans "Estado de servicios" %}</h2>
+              </div>
+              <div style="padding:16px 20px 20px;">
+                {% with ss=services_status %}
+                <div class="dm-services-grid">
+
+                  <!-- Mueble online -->
+                  {% if status == "online" %}
+                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Mueble online" %}</div>
+                  {% elif last_seen_at %}
+                    <div class="dm-service-pill"><span class="dot dot-yellow"></span>{% trans "Mueble inactivo" %}</div>
+                  {% else %}
+                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Sin datos" %}</div>
+                  {% endif %}
+
+                  <!-- App -->
+                  {% if ss.app %}
+                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "App" %}</div>
+                  {% elif last_seen_at %}
+                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "App" %}</div>
+                  {% else %}
+                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "App" %}</div>
+                  {% endif %}
+
+                  <!-- Broker MQTT -->
+                  {% if ss.mosquitto %}
+                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Broker MQTT" %}</div>
+                  {% elif ss %}
+                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Broker MQTT" %}</div>
+                  {% else %}
+                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Broker MQTT" %}</div>
+                  {% endif %}
+
+                  <!-- Bridge MQTT-CAN -->
+                  {% if ss.mqtt_can_bridge %}
+                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% elif ss %}
+                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% else %}
+                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% endif %}
+
+                  <!-- Bus CAN -->
+                  {% if ss.can_interface %}
+                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Bus CAN" %}</div>
+                  {% elif ss %}
+                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Bus CAN" %}</div>
+                  {% else %}
+                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Bus CAN" %}</div>
+                  {% endif %}
+
+                </div>
+                {% endwith %}
+                {% if services_reported_at %}
+                  <p class="dm-services-meta">{% trans "Última actualización" %}: {{ services_reported_at }}</p>
+                {% endif %}
+              </div>
+            </div>
+
             <div class="dm-card">
               <div class="dm-card-head">
                 <h2>{% trans "Configuración" %} · <span style="font-weight:400; color:#374151;">{{ selected_device }}</span></h2>
