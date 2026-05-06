@@ -446,6 +446,10 @@ def touch_device_heartbeat(device_id, payload=None):
     software_version = str(payload.get("software_version") or "").strip()
     if software_version:
         update_fields["software_version"] = software_version
+    services_status = payload.get("services_status")
+    if isinstance(services_status, dict) and services_status:
+        update_fields["services_status"] = services_status
+        update_fields["services_reported_at"] = datetime.now(timezone.utc)
 
     col_devices.update_one(
         {"device_id": device_id},
