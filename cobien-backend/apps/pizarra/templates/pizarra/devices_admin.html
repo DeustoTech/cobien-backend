@@ -744,39 +744,45 @@
                   {% endif %}
 
                   <!-- App -->
-                  {% if ss.app %}
-                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "App" %}</div>
+                  {% if ss.app == "ok" %}
+                    <div class="dm-service-pill" title="{% trans 'App corriendo' %}"><span class="dot dot-green"></span>{% trans "App" %}</div>
                   {% elif last_seen_at %}
-                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "App" %}</div>
+                    <div class="dm-service-pill" title="{% trans 'App no responde' %}"><span class="dot dot-red"></span>{% trans "App" %}</div>
                   {% else %}
-                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "App" %}</div>
+                    <div class="dm-service-pill" title="{% trans 'Sin datos' %}"><span class="dot dot-grey"></span>{% trans "App" %}</div>
                   {% endif %}
 
                   <!-- Broker MQTT -->
-                  {% if ss.mosquitto %}
-                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Broker MQTT" %}</div>
-                  {% elif ss %}
-                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Broker MQTT" %}</div>
+                  {% if ss.mosquitto == "ok" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso activo y aceptando conexiones' %}"><span class="dot dot-green"></span>{% trans "Broker MQTT" %}</div>
+                  {% elif ss.mosquitto == "warn" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso activo pero no acepta conexiones en :1883' %}"><span class="dot dot-yellow"></span>{% trans "Broker MQTT" %}</div>
+                  {% elif ss.mosquitto == "error" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso no encontrado' %}"><span class="dot dot-red"></span>{% trans "Broker MQTT" %}</div>
                   {% else %}
-                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Broker MQTT" %}</div>
+                    <div class="dm-service-pill" title="{% trans 'Sin datos' %}"><span class="dot dot-grey"></span>{% trans "Broker MQTT" %}</div>
                   {% endif %}
 
                   <!-- Bridge MQTT-CAN -->
-                  {% if ss.mqtt_can_bridge %}
-                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Bridge MQTT-CAN" %}</div>
-                  {% elif ss %}
-                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% if ss.mqtt_can_bridge == "ok" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso activo y conectado al broker' %}"><span class="dot dot-green"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% elif ss.mqtt_can_bridge == "warn" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso activo pero desconectado del broker' %}"><span class="dot dot-yellow"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                  {% elif ss.mqtt_can_bridge == "error" %}
+                    <div class="dm-service-pill" title="{% trans 'Proceso no encontrado' %}"><span class="dot dot-red"></span>{% trans "Bridge MQTT-CAN" %}</div>
                   {% else %}
-                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Bridge MQTT-CAN" %}</div>
+                    <div class="dm-service-pill" title="{% trans 'Sin datos' %}"><span class="dot dot-grey"></span>{% trans "Bridge MQTT-CAN" %}</div>
                   {% endif %}
 
                   <!-- Bus CAN -->
-                  {% if ss.can_interface %}
-                    <div class="dm-service-pill"><span class="dot dot-green"></span>{% trans "Bus CAN" %}</div>
-                  {% elif ss %}
-                    <div class="dm-service-pill"><span class="dot dot-red"></span>{% trans "Bus CAN" %}</div>
+                  {% if ss.can_interface == "ok" %}
+                    <div class="dm-service-pill" title="{% trans 'Interfaz up con tráfico detectado' %}"><span class="dot dot-green"></span>{% trans "Bus CAN" %}</div>
+                  {% elif ss.can_interface == "warn" %}
+                    <div class="dm-service-pill" title="{% trans 'Interfaz up pero sin paquetes rx/tx' %}"><span class="dot dot-yellow"></span>{% trans "Bus CAN" %}</div>
+                  {% elif ss.can_interface == "error" %}
+                    <div class="dm-service-pill" title="{% trans 'Interfaz down o no presente' %}"><span class="dot dot-red"></span>{% trans "Bus CAN" %}</div>
                   {% else %}
-                    <div class="dm-service-pill"><span class="dot dot-grey"></span>{% trans "Bus CAN" %}</div>
+                    <div class="dm-service-pill" title="{% trans 'Sin datos' %}"><span class="dot dot-grey"></span>{% trans "Bus CAN" %}</div>
                   {% endif %}
 
                 </div>
