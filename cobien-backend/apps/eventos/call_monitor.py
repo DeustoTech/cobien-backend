@@ -215,6 +215,37 @@ class CallMonitor:
             print(f"[CALL MONITOR] ❌ Erreur vérification room {room_name}: {e}")
             import traceback
             traceback.print_exc()
+
+    def cancel_call(self, room_name: str):
+        """
+        Annulation manuelle d'un appel (ex: l'appelant a raccroché avant réponse).
+        
+        Args:
+            room_name: Nom de la room Twilio
+        """
+        if not self.enabled:
+            return
+            
+        call_info = self.active_calls.get(room_name)
+        if not call_info:
+            return
+            
+        if not call_info["answered"]:
+            print(f"[CALL MONITOR] 📵 Appel manqué forcé (annulation manuelle) !")
+            self._send_missed_call_notification(
+                room_name=room_name,
+                caller=call_info["caller"],
+                timestamp=call_info["start_time"]
+            )
+        
+        try:
+            # Forcer la complétion de la room sur Twilio pour ne pas la polluer
+            self.twilio_client.video.rooms(room_name).update(status='completed')
+        except Exception:
+            pass
+            
+        del self.active_calls[room_name]
+        print(f"[CALL MONITOR] 🧹 Room retirée du tracker (annulation manuelle): {room_name}")
     
     def _send_missed_call_notification(self, room_name: str, caller: str, timestamp: str):
         """

@@ -962,6 +962,25 @@ def call_answered(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@csrf_exempt
+def cancel_call(request):
+    """Endpoint llamado por el portal cuando el emisor cuelga antes de que contesten"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        room_name = data.get('room')
+        
+        if not room_name:
+            return JsonResponse({'error': 'Missing room'}, status=400)
+        
+        call_monitor.cancel_call(room_name)
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 # Démarrer le call monitor au chargement du module si está habilitado
 call_monitor.start()
 

@@ -1010,7 +1010,20 @@
           updateGridLayout();
         });
 
+        window.addEventListener('beforeunload', () => {
+          if (room && room.participants && room.participants.size === 0) {
+            navigator.sendBeacon('/api/cancel-call/', JSON.stringify({ room: room.name }));
+          }
+        });
+
         document.getElementById('leave-room').onclick = () => {
+          if (room.participants.size === 0) {
+            fetch('/api/cancel-call/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ room: room.name })
+            }).catch(e => console.error(e));
+          }
           cleanup();
           room.disconnect();
           closeEmbeddedCall('manual-leave');
