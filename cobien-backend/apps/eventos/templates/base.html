@@ -151,6 +151,9 @@
           <div class="footer-bottom">
             <span>© 2025 CoBien · {% trans "Todos los derechos reservados" %}</span>
             <span>POCTEFA 2021–2027</span>
+            {% if DEPLOY_TIMESTAMP %}
+              <span style="font-size: 0.8rem; color: #888;">Despliegue: {{ DEPLOY_TIMESTAMP }}</span>
+            {% endif %}
           </div>
 
         </div>

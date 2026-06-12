@@ -103,6 +103,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'cobien.settings.deploy_context_processor',
             ],
         },
     },
@@ -243,3 +244,12 @@ PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
+
+import time
+DEPLOY_TIMESTAMP = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+
+def deploy_context_processor(request):
+    return {
+        'DEPLOY_TIMESTAMP': DEPLOY_TIMESTAMP
+    }
+
