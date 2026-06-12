@@ -2087,7 +2087,7 @@ def pizarra_web_messages(request):
             "quick_replies": list(d.get("quick_replies") or []),
             "quick_reply_selected": d.get("quick_reply_selected") or None,
             "sync_until": su.strftime("%Y-%m-%d") if isinstance(su, datetime) else (su or None),
-            "hidden_from_devices": bool(isinstance(su, datetime) and su <= now),
+            "hidden_from_devices": bool(isinstance(su, datetime) and _ensure_aware_utc(su) <= now),
             "deleted_from_device": bool(d.get("deleted_from_device", False)),
             **author_meta,
         })
