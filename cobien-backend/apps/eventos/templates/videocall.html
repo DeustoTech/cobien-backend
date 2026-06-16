@@ -1024,15 +1024,20 @@
 
         document.getElementById('leave-room').onclick = () => {
           callAnswered = true;
-          if (room.participants.size === 0) {
+          const rName = (room && room.name) || activeRoomName;
+          if (!room || room.participants.size === 0) {
             fetch('/api/cancel-call/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ room: room.name })
+              body: JSON.stringify({ room: rName })
             }).catch(e => console.error(e));
           }
-          cleanup();
-          room.disconnect();
+          if (typeof cleanup === 'function') {
+            cleanup();
+          }
+          if (room && typeof room.disconnect === 'function') {
+            room.disconnect();
+          }
           closeEmbeddedCall('manual-leave');
         };
       } catch (error) {

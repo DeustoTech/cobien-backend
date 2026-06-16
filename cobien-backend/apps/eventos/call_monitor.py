@@ -257,18 +257,22 @@ class CallMonitor:
             timestamp: Timestamp de début d'appel
         """
         try:
+            from apps.pizarra.device_registry import resolve_device_id_for_queue_target
+            target_device_id = resolve_device_id_for_queue_target(room_name)
+            target_id = target_device_id or room_name
+            
             payload = {
                 "type": "missed_call",
                 "from": caller,
-                "to": room_name,
+                "to": target_id,
                 "room": room_name,
                 "timestamp": timestamp
             }
-            enqueue_notification(room_name, payload)
+            enqueue_notification(target_id, payload)
             print(f"[CALL MONITOR] ✓ Notification queue envoyée")
             print(f"[CALL MONITOR]   Type: missed_call")
             print(f"[CALL MONITOR]   From: {caller}")
-            print(f"[CALL MONITOR]   To: {room_name}")
+            print(f"[CALL MONITOR]   To: {target_id}")
             print(f"[CALL MONITOR]   Payload: {json.dumps(payload)}")
         
         except Exception as e:
