@@ -1566,21 +1566,49 @@ def devices_admin(request):
                 cleaned = form.cleaned_data
                 device_doc = get_or_create_device(selected_device) or {}
                 contacts = []
-                deployment_profile = _parse_deployment_profile_json(cleaned.get("deployment_profile_json", ""))
+
+                # Detect whether the full config section was submitted.
+                # The contacts tab and access tab forms don't include config
+                # fields (enabled, display_name, videocall_room, etc.), so
+                # we must preserve the existing DB values when they're absent.
+                config_present = "display_name" in request.POST and "videocall_room" in request.POST
+
+                if config_present:
+                    deployment_profile = _parse_deployment_profile_json(cleaned.get("deployment_profile_json", ""))
+                else:
+                    deployment_profile = device_doc.get("deployment_profile") if isinstance(device_doc.get("deployment_profile"), dict) else {}
+
                 if action in {"save", "save_and_sync"}:
                     contacts = _parse_contact_rows(request, selected_device, device_doc.get("contacts", []))
-                    display_name = cleaned.get("display_name") or selected_device
+
+                    if config_present:
+                        # Full config form: use submitted values
+                        display_name = cleaned.get("display_name") or selected_device
+                        meta_enabled = cleaned.get("enabled", False)
+                        meta_hidden = cleaned.get("hidden_in_admin", False)
+                        meta_videocall_room = cleaned.get("videocall_room", "")
+                        meta_event_scope = cleaned.get("event_visibility_scope", "all")
+                        meta_event_regions = cleaned.get("event_regions", "")
+                    else:
+                        # Contacts/access tab: preserve existing device config
+                        display_name = str(device_doc.get("display_name") or selected_device).strip() or selected_device
+                        meta_enabled = device_doc.get("enabled", True)
+                        meta_hidden = device_doc.get("hidden_in_admin", False)
+                        meta_videocall_room = str(device_doc.get("videocall_room") or selected_device).strip()
+                        meta_event_scope = str(device_doc.get("event_visibility_scope") or "all").strip()
+                        meta_event_regions = "\n".join(device_doc.get("event_regions") or [])
+
                     assigned_users = normalize_username_list(str(cleaned.get("assigned_users", "")).splitlines())
                     default_username = cleaned.get("default_username", "")
                     update_device_contacts(selected_device, contacts, display_name=display_name)
                     update_device_metadata(
                         selected_device,
                         display_name=display_name,
-                        videocall_room=cleaned.get("videocall_room", ""),
-                        enabled=cleaned.get("enabled", False),
-                        hidden_in_admin=cleaned.get("hidden_in_admin", False),
-                        event_visibility_scope=cleaned.get("event_visibility_scope", "all"),
-                        event_regions=cleaned.get("event_regions", ""),
+                        videocall_room=meta_videocall_room,
+                        enabled=meta_enabled,
+                        hidden_in_admin=meta_hidden,
+                        event_visibility_scope=meta_event_scope,
+                        event_regions=meta_event_regions,
                         deployment_profile=deployment_profile,
                     )
                     replace_device_assignments(selected_device, assigned_users, default_username=default_username)
