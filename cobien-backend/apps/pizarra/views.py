@@ -538,7 +538,7 @@ def _build_cobien_env_map(device_doc, request=None):
 
     env_map = {
         "COBIEN_WORKSPACE_ROOT": "$HOME/cobien",
-        "COBIEN_FRONTEND_REPO_NAME": "cobien_FrontEnd",
+        "COBIEN_FRONTEND_REPO_NAME": "cobien-furniture-electron",
         "COBIEN_MQTT_REPO_NAME": "cobien_MQTT_Dictionnary",
         "COBIEN_UPDATE_REMOTE": "origin",
         "COBIEN_UPDATE_BRANCH": "master",
