@@ -435,6 +435,9 @@ def touch_device_heartbeat(device_id, payload=None):
         "updated_at": datetime.now(timezone.utc),
         "heartbeat": payload,
     }
+    rustdesk_id = str(payload.get("rustdesk_id") or "").strip()
+    if rustdesk_id:
+        update_fields["rustdesk_id"] = rustdesk_id
     hardware_summary = payload.get("hardware_summary")
     hardware_inventory = payload.get("hardware_inventory")
     if isinstance(hardware_summary, dict) and hardware_summary:
