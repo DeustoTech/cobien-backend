@@ -3151,7 +3151,7 @@ def db_diagnostic(request):
         
         step_start = time.time()
         devices = []
-        for dev in db["pizarra_devices"].find({}, {"device_id": 1, "display_name": 1, "last_seen_at": 1, "software_version": 1, "_id": 0}):
+        for dev in db["devices"].find({}, {"device_id": 1, "display_name": 1, "last_seen_at": 1, "software_version": 1, "_id": 0}):
             devices.append({
                 "device_id": dev.get("device_id"),
                 "display_name": dev.get("display_name"),
