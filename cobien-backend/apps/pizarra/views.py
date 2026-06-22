@@ -1199,13 +1199,16 @@ def contact_image(request, filename):
         grid_out = fs_contacts.get_last_version(filename=safe_name)
         resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
         resp["Content-Length"] = grid_out.length
+        resp["Cache-Control"] = "public, max-age=86400"
         return resp
     except Exception:
         pass
     path = os.path.join(_contact_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
-    return FileResponse(open(path, "rb"))
+    resp = FileResponse(open(path, "rb"))
+    resp["Cache-Control"] = "public, max-age=86400"
+    return resp
 
 
 def directory_person_image(request, filename):
@@ -1216,13 +1219,16 @@ def directory_person_image(request, filename):
         grid_out = fs_people.get_last_version(filename=safe_name)
         resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
         resp["Content-Length"] = grid_out.length
+        resp["Cache-Control"] = "public, max-age=86400"
         return resp
     except Exception:
         pass
     path = os.path.join(_directory_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
-    return FileResponse(open(path, "rb"))
+    resp = FileResponse(open(path, "rb"))
+    resp["Cache-Control"] = "public, max-age=86400"
+    return resp
 
 
 def _serialize_usernames_text(raw_usernames):
