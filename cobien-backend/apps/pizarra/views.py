@@ -84,6 +84,7 @@ try:
         unique=True,
     )
     col_device_runtime_logs.create_index([("device_id", ASCENDING), ("updated_at", DESCENDING)])
+    col_device_runtime_logs.create_index([("device_id", ASCENDING), ("log_date", DESCENDING), ("updated_at", DESCENDING)])
 except Exception:
     pass
 
@@ -234,10 +235,10 @@ def _build_device_runtime_logs_payload(device_id, days=2):
         if not log_date or not log_type:
             continue
         if log_date not in seen_dates:
+            if len(seen_dates) >= max(int(days or 2), 1):
+                break
             seen_dates.add(log_date)
             available_dates.append(log_date)
-        if len(seen_dates) > max(int(days or 2), 1):
-            continue
         meta = _DEVICE_RUNTIME_LOG_TYPES.get(log_type, {})
         updated_value = _serialize_datetime(doc.get("updated_at"))
         docs.append(
