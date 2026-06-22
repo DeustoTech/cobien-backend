@@ -3144,7 +3144,7 @@ def db_diagnostic(request):
         db_names = client.list_database_names()
         results["steps"]["list_dbs_ms"] = round((time.time() - step_start) * 1000, 2)
         
-        db = client["LabasAppDB"]
+        db = client[os.getenv("DB_NAME", "LabasAppDB")]
         step_start = time.time()
         collections = db.list_collection_names()
         results["steps"]["list_collections_ms"] = round((time.time() - step_start) * 1000, 2)
