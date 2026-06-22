@@ -3148,6 +3148,9 @@ def db_diagnostic(request):
         step_start = time.time()
         collections = db.list_collection_names()
         results["steps"]["list_collections_ms"] = round((time.time() - step_start) * 1000, 2)
+        results["db_name"] = db.name
+        results["all_dbs"] = db_names
+        results["collections"] = collections
         
         step_start = time.time()
         devices = []
