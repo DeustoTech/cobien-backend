@@ -702,6 +702,19 @@
               <div class="dm-stat-label">{% trans "RustDesk ID" %}</div>
               <div class="dm-stat-value" style="font-family: monospace;">{{ rustdesk_id|default:"—" }}</div>
             </div>
+            <div class="dm-stat">
+              <div class="dm-stat-label">{% trans "Velocidad de red" %}</div>
+              <div class="dm-stat-value">
+                {% if network_speed_display %}
+                  <span style="color:{{ network_speed_display.color }}; font-weight:700;">{{ network_speed_display.label }}</span>
+                  {% if network_speed_reported_at %}
+                    <div style="font-size:0.75rem; color:#999; margin-top:2px;">{{ network_speed_reported_at }}</div>
+                  {% endif %}
+                {% else %}
+                  <span style="color:#aaa;">—</span>
+                {% endif %}
+              </div>
+            </div>
           </div>
 
           <!-- Top-level tabs -->

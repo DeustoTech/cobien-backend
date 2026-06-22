@@ -438,6 +438,13 @@ def touch_device_heartbeat(device_id, payload=None):
     rustdesk_id = str(payload.get("rustdesk_id") or "").strip()
     if rustdesk_id:
         update_fields["rustdesk_id"] = rustdesk_id
+    network_speed_kbps = payload.get("network_speed_kbps")
+    if network_speed_kbps is not None:
+        try:
+            update_fields["network_speed_kbps"] = int(network_speed_kbps)
+            update_fields["network_speed_reported_at"] = datetime.now(timezone.utc)
+        except (TypeError, ValueError):
+            pass
     hardware_summary = payload.get("hardware_summary")
     hardware_inventory = payload.get("hardware_inventory")
     if isinstance(hardware_summary, dict) and hardware_summary:

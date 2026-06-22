@@ -180,6 +180,22 @@ def _serialize_datetime(value):
     return value
 
 
+def _format_network_speed(kbps):
+    """Return a dict with display string and CSS color class for a speed in kbps."""
+    if kbps is None:
+        return None
+    try:
+        kbps = int(kbps)
+    except (TypeError, ValueError):
+        return None
+    if kbps >= 5000:
+        return {"label": f"{kbps / 1000:.1f} Mbps", "color": "#1a7f37"}
+    elif kbps >= 1000:
+        return {"label": f"{kbps / 1000:.1f} Mbps", "color": "#9a6700"}
+    else:
+        return {"label": f"{kbps} kbps", "color": "#cf222e"}
+
+
 def _ensure_aware_utc(value):
     if not isinstance(value, datetime):
         return value
@@ -454,6 +470,9 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "hardware_inventory_json": json.dumps((device_doc or {}).get("hardware_inventory", {}), indent=2, default=str, ensure_ascii=False),
         "software_version": str((device_doc or {}).get("software_version") or ""),
         "rustdesk_id": str((device_doc or {}).get("rustdesk_id") or ""),
+        "network_speed_kbps": (device_doc or {}).get("network_speed_kbps"),
+        "network_speed_display": _format_network_speed((device_doc or {}).get("network_speed_kbps")),
+        "network_speed_reported_at": _serialize_datetime((device_doc or {}).get("network_speed_reported_at")),
         "services_status": (device_doc or {}).get("services_status") or {},
         "services_reported_at": _serialize_datetime((device_doc or {}).get("services_reported_at")),
         "people_profiles": people_profiles,
