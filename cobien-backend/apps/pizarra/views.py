@@ -3105,3 +3105,54 @@ def api_device_events(request):
 
     except Exception as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def db_diagnostic(request):
+    """
+    Public endpoint to diagnose MongoDB connectivity and performance from Render.
+    """
+    import time
+    from pymongo import MongoClient
+    import os
+    
+    start_time = time.time()
+    results = {
+        "status": "ok",
+        "steps": {},
+        "errors": []
+    }
+    
+    try:
+        mongo_uri = os.getenv("MONGO_URI", "")
+        results["mongo_uri_configured"] = bool(mongo_uri)
+        if not mongo_uri:
+            raise ValueError("MONGO_URI not configured in env")
+            
+        step_start = time.time()
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        info = client.server_info()
+        results["steps"]["mongo_ping_ms"] = round((time.time() - step_start) * 1000, 2)
+        results["mongo_version"] = info.get("version")
+        
+        step_start = time.time()
+        db_names = client.list_database_names()
+        results["steps"]["list_dbs_ms"] = round((time.time() - step_start) * 1000, 2)
+        
+        db = client["LabasAppDB"]
+        step_start = time.time()
+        collections = db.list_collection_names()
+        results["steps"]["list_collections_ms"] = round((time.time() - step_start) * 1000, 2)
+        
+        step_start = time.time()
+        devices_count = db["pizarra_devices"].count_documents({})
+        logs_count = db["pizarra_device_runtime_logs"].count_documents({})
+        results["steps"]["count_docs_ms"] = round((time.time() - step_start) * 1000, 2)
+        results["devices_count"] = devices_count
+        results["runtime_logs_count"] = logs_count
+        
+    except Exception as e:
+        results["status"] = "error"
+        results["errors"].append(str(e))
+        
+    results["total_time_ms"] = round((time.time() - start_time) * 1000, 2)
+    return JsonResponse(results)
