@@ -4,7 +4,6 @@ import base64, json
 import numpy as np
 import os
 import cv2
-from deepface import DeepFace
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .uploader_mongo import subir_log_a_mongo
@@ -164,6 +163,7 @@ def detectar_emocion_superpuestos(request):
 
         # 4) Analizar emoción con DeepFace
         try:
+            from deepface import DeepFace
             resultado = DeepFace.analyze(
                 img_path=cara_resized,
                 actions=['emotion'],
