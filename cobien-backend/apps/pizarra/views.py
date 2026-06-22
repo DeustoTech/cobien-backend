@@ -218,9 +218,12 @@ def _build_device_runtime_logs_payload(device_id, days=2):
             "runtime_logs_status_label": "Waiting for sync",
         }
 
+    cutoff_days = max(int(days or 2), 1)
+    cutoff_date = (now - timedelta(days=cutoff_days + 1)).strftime("%Y-%m-%d")
+
     cursor = (
         col_device_runtime_logs
-        .find({"device_id": device_id}, {"_id": 0})
+        .find({"device_id": device_id, "log_date": {"$gte": cutoff_date}}, {"_id": 0})
         .sort([("log_date", DESCENDING), ("updated_at", DESCENDING)])
     )
 
