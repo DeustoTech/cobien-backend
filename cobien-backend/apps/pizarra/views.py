@@ -3150,7 +3150,16 @@ def db_diagnostic(request):
         results["steps"]["list_collections_ms"] = round((time.time() - step_start) * 1000, 2)
         
         step_start = time.time()
-        devices_count = db["pizarra_devices"].count_documents({})
+        devices = []
+        for dev in db["pizarra_devices"].find({}, {"device_id": 1, "display_name": 1, "last_seen_at": 1, "software_version": 1, "_id": 0}):
+            devices.append({
+                "device_id": dev.get("device_id"),
+                "display_name": dev.get("display_name"),
+                "last_seen_at": str(dev.get("last_seen_at") or ""),
+                "software_version": dev.get("software_version"),
+            })
+        results["devices"] = devices
+        devices_count = len(devices)
         logs_count = db["pizarra_device_runtime_logs"].count_documents({})
         results["steps"]["count_docs_ms"] = round((time.time() - step_start) * 1000, 2)
         results["devices_count"] = devices_count
