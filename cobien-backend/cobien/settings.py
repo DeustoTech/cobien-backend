@@ -48,13 +48,12 @@ DEBUG = ENV_DEBUG
 # Keep local hosts available in development, while allowing deployment hosts from env.
 ALLOWED_HOSTS = list(dict.fromkeys(ENV_ALLOWED_HOSTS + ['localhost', '127.0.0.1']))
 
-# Application definition
+ENABLE_EMOCIONES = env_bool("COBIEN_ENABLE_EMOCIONES", False)
 
 INSTALLED_APPS = [
     # Project apps
     'apps.eventos',
     'apps.asociacion',
-    'apps.emociones',
     'apps.accounts',
     'apps.pizarra',
 
@@ -74,6 +73,9 @@ INSTALLED_APPS = [
     'rest_framework',
 
 ]
+
+if ENABLE_EMOCIONES:
+    INSTALLED_APPS.append('apps.emociones')
 
 
 

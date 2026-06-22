@@ -24,7 +24,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from apps.accounts.views import SignUpView, CustomLoginView, CustomLogoutView, ActivateAccountView
 
-ENABLE_EMOCIONES = os.getenv("COBIEN_ENABLE_EMOCIONES", "1").strip().lower() not in {"0", "false", "no", "off"}
+ENABLE_EMOCIONES = os.getenv("COBIEN_ENABLE_EMOCIONES", "0").strip().lower() not in {"0", "false", "no", "off"}
 ENABLE_ASOCIACION = os.getenv("COBIEN_ENABLE_ASOCIACION", "1").strip().lower() not in {"0", "false", "no", "off"}
 
 urlpatterns = [
