@@ -13,6 +13,14 @@ _db = _client[os.getenv("DB_NAME", "LabasAppDB")]
 col_devices = _db["devices"]
 col_user_device_access = _db["user_device_access"]
 
+try:
+    from pymongo import ASCENDING
+    col_devices.create_index("device_id", unique=True)
+    col_user_device_access.create_index([("device_id", ASCENDING), ("username", ASCENDING)], unique=True)
+    col_user_device_access.create_index("username")
+except Exception:
+    pass
+
 
 def _device_keys_from_env():
     raw = (os.getenv("COBIEN_DEVICE_VIDEOCALL_KEYS") or "").strip()
