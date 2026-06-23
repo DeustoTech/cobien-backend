@@ -85,6 +85,8 @@ try:
     )
     col_device_runtime_logs.create_index([("device_id", ASCENDING), ("updated_at", DESCENDING)])
     col_device_runtime_logs.create_index([("device_id", ASCENDING), ("log_date", DESCENDING), ("updated_at", DESCENDING)])
+    col_messages.create_index([("recipient_key", ASCENDING), ("created_at", DESCENDING)])
+    col_messages.create_index([("recipient_key", ASCENDING), ("author", ASCENDING), ("created_at", DESCENDING)])
 except Exception:
     pass
 
