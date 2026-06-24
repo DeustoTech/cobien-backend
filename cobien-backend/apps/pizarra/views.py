@@ -594,7 +594,7 @@ def _build_cobien_env_map(device_doc, request=None):
         "COBIEN_NOTIFY_API_KEY": getattr(settings, "NOTIFY_API_KEY", ""),
         "COBIEN_VIDEOCALL_DEVICE_API_KEY": get_device_videocall_key(device_id),
         "COBIEN_DEVICE_POLL_URL": f"{base_url}/pizarra/api/device/poll/",
-        "COBIEN_DEVICE_POLL_INTERVAL_SEC": "15",
+        "COBIEN_DEVICE_POLL_INTERVAL_SEC": "10",
         "COBIEN_DEVICE_HEARTBEAT_URL": f"{base_url}/pizarra/api/devices/heartbeat/",
         "COBIEN_DEVICE_HEARTBEAT_INTERVAL_SEC": "300",
         "COBIEN_PIZARRA_NOTIFY_URL": f"{base_url}/pizarra/api/notify/",
