@@ -975,7 +975,29 @@ def cancel_call(request):
         if not room_name:
             return JsonResponse({'error': 'Missing room'}, status=400)
         
-        call_monitor.cancel_call(room_name)
+        # Enqueue missed_call notification directly to Mongo Atlas to be worker-independent
+        try:
+            from apps.pizarra.device_registry import resolve_device_id_for_queue_target
+            from apps.pizarra.device_queue import enqueue_notification
+            from django.utils import timezone
+            
+            target_device_id = resolve_device_id_for_queue_target(room_name)
+            target_id = target_device_id or room_name
+            caller = data.get('caller') or (request.user.username if request.user.is_authenticated else 'admin')
+            
+            payload = {
+                "type": "missed_call",
+                "from": caller,
+                "to": target_id,
+                "room": room_name,
+                "timestamp": timezone.now().isoformat()
+            }
+            enqueue_notification(target_id, payload)
+            print(f"[VIEWS CANCEL] Enqueued missed_call directly: room={room_name}, caller={caller}, target={target_id}")
+        except Exception as ex:
+            print(f"[VIEWS CANCEL] Error enqueuing missed call directly: {ex}")
+            
+        call_monitor.complete_room(room_name)
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

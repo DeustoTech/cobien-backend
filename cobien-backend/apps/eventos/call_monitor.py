@@ -246,6 +246,23 @@ class CallMonitor:
             
         del self.active_calls[room_name]
         print(f"[CALL MONITOR] 🧹 Room retirée du tracker (annulation manuelle): {room_name}")
+
+    def complete_room(self, room_name: str):
+        """
+        Force la complétion de la room sur Twilio et la retire des appels actifs.
+        Utilisé après envoi direct de l'appel manqué desde la vue Django.
+        """
+        if not self.enabled:
+            return
+            
+        try:
+            self.twilio_client.video.rooms(room_name).update(status='completed')
+        except Exception:
+            pass
+            
+        if room_name in self.active_calls:
+            del self.active_calls[room_name]
+            print(f"[CALL MONITOR] 🧹 Room retirée du tracker (complete_room): {room_name}")
     
     def _send_missed_call_notification(self, room_name: str, caller: str, timestamp: str):
         """

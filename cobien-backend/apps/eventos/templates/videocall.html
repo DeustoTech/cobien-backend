@@ -415,7 +415,7 @@
 
     window.addEventListener('beforeunload', () => {
       if (activeRoomName && !callAnswered) {
-        navigator.sendBeacon('/api/cancel-call/', JSON.stringify({ room: activeRoomName }));
+        navigator.sendBeacon('/api/cancel-call/', JSON.stringify({ room: activeRoomName, caller: identity }));
       }
     });
     let emotionIntervalId = null;
@@ -1029,7 +1029,7 @@
             fetch('/api/cancel-call/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ room: rName })
+              body: JSON.stringify({ room: rName, caller: identity })
             }).catch(e => console.error(e));
           }
           if (typeof cleanup === 'function') {
