@@ -48,7 +48,7 @@ DEBUG = ENV_DEBUG
 # Keep local hosts available in development, while allowing deployment hosts from env.
 ALLOWED_HOSTS = list(dict.fromkeys(ENV_ALLOWED_HOSTS + ['localhost', '127.0.0.1']))
 
-ENABLE_EMOCIONES = env_bool("COBIEN_ENABLE_EMOCIONES", False)
+ENABLE_EMOCIONES = env_bool("COBIEN_ENABLE_EMOCIONES", True)
 
 INSTALLED_APPS = [
     # Project apps
