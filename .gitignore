@@ -37,6 +37,7 @@ instance/
 .scrapy/
 docs/_build/
 venv/
+.venv/
 gettext/
 .env
 *.sqlite3
