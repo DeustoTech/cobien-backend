@@ -1,3 +1,12 @@
 from django.db import models
 
-# Create your models here.
+class EmocionDiaria(models.Model):
+    dispositivo = models.CharField(max_length=100)
+    fecha_hora = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=50)
+
+    class Meta:
+        ordering = ['-fecha_hora']
+
+    def __str__(self):
+        return f"{self.dispositivo} - {self.estado} ({self.fecha_hora.strftime('%d/%m/%Y %H:%M')})"

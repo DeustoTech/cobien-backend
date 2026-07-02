@@ -1184,6 +1184,28 @@
               </details>
             </div>
             {% endif %}
+
+            {% if emociones_historial %}
+            <div class="dm-card" style="margin-top:16px;">
+              <div class="dm-card-head">
+                <h2>{% trans "Historial de Emociones" %}</h2>
+              </div>
+              <div style="max-height:280px; overflow-y:auto;">
+                {% for emo in emociones_historial %}
+                  <div class="dm-event-row">
+                    <strong>
+                      {% if emo.estado == 'Bien' %}😀
+                      {% elif emo.estado == 'Normal' %}😐
+                      {% elif emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
+                      {% endif %}
+                      {{ emo.estado }}
+                    </strong>
+                    <span style="color:#9CA3AF; white-space:nowrap; margin-left:auto;">{{ emo.fecha_hora|date:"d/m/Y H:i" }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
           </div>
           {% endif %}
 

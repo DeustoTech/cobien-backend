@@ -264,3 +264,26 @@ def finalizar_emocion_sesion(request):
 
     return JsonResponse({'success': True, 'mongo_ok': ok})
 
+@csrf_exempt
+def guardar_emocion_diaria(request):
+    """
+    Endpoint para recibir la emoción reportada directamente por el usuario (Bien, Normal, Mal)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        from .models import EmocionDiaria
+        body = json.loads(request.body)
+        device_id = body.get('device_id', 'Desconocido')
+        emocion = body.get('emocion', '')
+
+        if not emocion:
+            return JsonResponse({'error': 'Falta parámetro emocion'}, status=400)
+
+        EmocionDiaria.objects.create(dispositivo=device_id, estado=emocion)
+        return JsonResponse({'success': True})
+    except Exception as e:
+        import traceback
+        print("Error en guardar_emocion_diaria:", traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)

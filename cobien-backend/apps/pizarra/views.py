@@ -433,6 +433,13 @@ def _build_device_management_context(selected_device, show_hidden=False):
         if str(item.get("username") or "").strip()
     )
 
+    emociones_historial = []
+    try:
+        from apps.emociones.models import EmocionDiaria
+        emociones_historial = list(EmocionDiaria.objects.filter(dispositivo=selected_device).values('fecha_hora', 'estado')[:10])
+    except Exception:
+        pass
+
     return {
         "devices": devices,
         "device_ids": device_ids,
@@ -448,6 +455,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
         "event_regions": event_regions,
         "event_regions_text": "\n".join(event_regions),
         "assigned_users_text": assigned_users_text,
+        "emociones_historial": emociones_historial,
         "default_username": default_username,
         "deployment_profile_json": deployment_profile_json,
         "device_env_download_url": reverse("pizarra_api_admin_device_env", kwargs={"device_id": selected_device}) if selected_device else "",
