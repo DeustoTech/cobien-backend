@@ -908,16 +908,38 @@
                 {% csrf_token %}
                 <input type="hidden" name="device_id" value="{{ selected_device }}">
                 <button class="dm-btn dm-btn-outline" type="submit" name="action" value="force_update"
-                  onclick="return confirm('{% trans "¿Enviar comando de actualización de software al mueble?" %}')">
+                   onclick="return confirm('{% trans "¿Enviar comando de actualización de software al mueble?" %}')">
                   {% trans "Actualizar software" %}
                 </button>
                 <button class="dm-btn dm-btn-outline" type="submit" name="action" value="restart"
                   style="color:#B91C1C; border-color:#B91C1C;"
-                  onclick="return confirm('{% trans "¿Enviar comando de reinicio al mueble?" %}')">
+                   onclick="return confirm('{% trans "¿Enviar comando de reinicio al mueble?" %}')">
                   {% trans "Reiniciar mueble" %}
                 </button>
               </form>
             </div>
+
+            {% if emociones_historial %}
+            <div class="dm-card" style="margin-top:16px;">
+              <div class="dm-card-head">
+                <h2>{% trans "Historial de Emociones" %}</h2>
+              </div>
+              <div style="max-height:280px; overflow-y:auto;">
+                {% for emo in emociones_historial %}
+                  <div class="dm-event-row">
+                    <strong>
+                      {% if emo.estado == 'Bien' %}😀
+                      {% elif emo.estado == 'Normal' %}😐
+                      {% elif emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
+                      {% endif %}
+                      {{ emo.estado }}
+                    </strong>
+                    <span style="color:#9CA3AF; white-space:nowrap; margin-left:auto;">{{ emo.fecha_hora|date:"d/m/Y H:i" }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
           </div>
 
           <!-- ══ TAB: Contactos ══ -->
@@ -1184,30 +1206,7 @@
               </details>
             </div>
             {% endif %}
-
-            {% if emociones_historial %}
-            <div class="dm-card" style="margin-top:16px;">
-              <div class="dm-card-head">
-                <h2>{% trans "Historial de Emociones" %}</h2>
-              </div>
-              <div style="max-height:280px; overflow-y:auto;">
-                {% for emo in emociones_historial %}
-                  <div class="dm-event-row">
-                    <strong>
-                      {% if emo.estado == 'Bien' %}😀
-                      {% elif emo.estado == 'Normal' %}😐
-                      {% elif emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
-                      {% endif %}
-                      {{ emo.estado }}
-                    </strong>
-                    <span style="color:#9CA3AF; white-space:nowrap; margin-left:auto;">{{ emo.fecha_hora|date:"d/m/Y H:i" }}</span>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-            {% endif %}
           </div>
-          {% endif %}
 
           <!-- ══ TAB: Zona de peligro ══ -->
           <div class="dm-device-tab-pane" id="device-tab-danger">
