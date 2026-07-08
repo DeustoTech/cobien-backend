@@ -928,9 +928,11 @@
                 {% for emo in emociones_historial %}
                   <div class="dm-event-row">
                     <strong>
-                      {% if emo.estado == 'Bien' %}😀
+                      {% if emo.estado == 'Excelente' %}😄
+                      {% elif emo.estado == 'Bien' %}🙂
                       {% elif emo.estado == 'Normal' %}😐
-                      {% elif emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
+                      {% elif emo.estado == 'Regular' %}🙁
+                      {% elif emo.estado == 'Muy mal' or emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
                       {% endif %}
                       {{ emo.estado }}
                     </strong>
