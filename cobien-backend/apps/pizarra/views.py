@@ -1294,8 +1294,9 @@ def contact_image(request, filename):
     # Serve from GridFS (persistent); fall back to local filesystem for old images
     try:
         grid_out = fs_contacts.get_last_version(filename=safe_name)
-        resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
-        resp["Content-Length"] = grid_out.length
+        content = grid_out.read()
+        resp = HttpResponse(content, content_type=grid_out.content_type or "image/jpeg")
+        resp["Content-Length"] = len(content)
         resp["Cache-Control"] = "public, max-age=86400"
         return resp
     except Exception as exc:
@@ -1305,7 +1306,9 @@ def contact_image(request, filename):
     path = os.path.join(_contact_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
-    resp = FileResponse(open(path, "rb"))
+    with open(path, "rb") as f:
+        content = f.read()
+    resp = HttpResponse(content, content_type="image/jpeg")
     resp["Cache-Control"] = "public, max-age=86400"
     return resp
 
@@ -1316,8 +1319,9 @@ def directory_person_image(request, filename):
     safe_name = os.path.basename(str(filename or ""))
     try:
         grid_out = fs_people.get_last_version(filename=safe_name)
-        resp = FileResponse(grid_out, content_type=grid_out.content_type or "image/jpeg")
-        resp["Content-Length"] = grid_out.length
+        content = grid_out.read()
+        resp = HttpResponse(content, content_type=grid_out.content_type or "image/jpeg")
+        resp["Content-Length"] = len(content)
         resp["Cache-Control"] = "public, max-age=86400"
         return resp
     except Exception as exc:
@@ -1327,7 +1331,9 @@ def directory_person_image(request, filename):
     path = os.path.join(_directory_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
-    resp = FileResponse(open(path, "rb"))
+    with open(path, "rb") as f:
+        content = f.read()
+    resp = HttpResponse(content, content_type="image/jpeg")
     resp["Cache-Control"] = "public, max-age=86400"
     return resp
 
@@ -2426,14 +2432,15 @@ def pizarra_image(request, file_id: str):
         return JsonResponse({"error": "Unauthorized"}, status=401)
     try:
         grid_out = fs.get(ObjectId(file_id))
+        content = grid_out.read()
     except Exception as exc:
         import gridfs as _gridfs
         if not isinstance(exc, _gridfs.errors.NoFile):
             logger.exception("pizarra_image: GridFS error for file_id='%s'", file_id)
         raise Http404("Imagen no encontrada.")
 
-    resp = FileResponse(grid_out, content_type=grid_out.content_type or "application/octet-stream")
-    resp["Content-Length"] = grid_out.length
+    resp = HttpResponse(content, content_type=grid_out.content_type or "application/octet-stream")
+    resp["Content-Length"] = len(content)
     resp["Content-Disposition"] = f'inline; filename="{grid_out.filename}"'
     return resp
 
