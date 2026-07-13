@@ -1008,13 +1008,31 @@ def _delete_managed_contact_image(image_url):
             pass
 
 
+def _optimize_image_file(uploaded_file, max_size=(300, 300)):
+    from PIL import Image
+    import io
+    try:
+        uploaded_file.seek(0)
+        img = Image.open(uploaded_file)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        out_buf = io.BytesIO()
+        img.save(out_buf, format="JPEG", quality=85, optimize=True)
+        out_buf.seek(0)
+        return out_buf, "image/jpeg"
+    except Exception:
+        uploaded_file.seek(0)
+        return uploaded_file, getattr(uploaded_file, "content_type", None) or "image/jpeg"
+
+
 def _save_contact_image(device_id, display_name, uploaded_file):
     if not uploaded_file:
         return ""
     target_name = _contact_storage_name(device_id, display_name, uploaded_file.name)
-    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
-    uploaded_file.seek(0)
-    fs_contacts.put(uploaded_file, filename=target_name, contentType=content_type)
+    target_name = os.path.splitext(target_name)[0] + ".jpg"
+    optimized_file, content_type = _optimize_image_file(uploaded_file)
+    fs_contacts.put(optimized_file, filename=target_name, contentType=content_type)
     return _contact_media_url(target_name)
 
 
@@ -1027,9 +1045,9 @@ def _save_directory_image(display_name, uploaded_file):
     if not uploaded_file:
         return ""
     target_name = _contact_storage_name("directory", display_name, uploaded_file.name)
-    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
-    uploaded_file.seek(0)
-    fs_people.put(uploaded_file, filename=target_name, contentType=content_type)
+    target_name = os.path.splitext(target_name)[0] + ".jpg"
+    optimized_file, content_type = _optimize_image_file(uploaded_file)
+    fs_people.put(optimized_file, filename=target_name, contentType=content_type)
     return _directory_image_url(target_name)
 
 
@@ -1038,9 +1056,8 @@ def _save_user_avatar(username, uploaded_file):
         return ""
     avatar_fn = _user_avatar_filename(username)
     _gridfs_delete_by_filename(fs_people, "pizarra_people_fs", avatar_fn)
-    content_type = getattr(uploaded_file, "content_type", None) or "image/jpeg"
-    uploaded_file.seek(0)
-    fs_people.put(uploaded_file, filename=avatar_fn, contentType=content_type)
+    optimized_file, content_type = _optimize_image_file(uploaded_file)
+    fs_people.put(optimized_file, filename=avatar_fn, contentType=content_type)
     return _directory_image_url(avatar_fn)
 
 
