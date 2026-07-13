@@ -123,6 +123,8 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME', 'LabasAppDB'),
         'CLIENT': {
             'host': os.getenv('MONGO_URI', 'mongodb+srv://usuarioCoBien:passwordCoBien@clustercobienevents.j8ev5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCoBienEvents'),
+            'serverSelectionTimeoutMS': 3000,
+            'connectTimeoutMS': 3000,
         }
     }
 }
