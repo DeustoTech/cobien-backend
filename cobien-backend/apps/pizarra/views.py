@@ -370,6 +370,17 @@ def _device_icso_payload(device_id):
 
 
 def _build_device_management_context(selected_device, show_hidden=False):
+    # Batch-fetch all user device access to count assignments in memory (avoids N+1 count_documents)
+    from collections import Counter
+    assignment_counts = Counter()
+    try:
+        for doc in col_user_device_access.find({}, {"device_id": 1}):
+            did = str(doc.get("device_id") or "").strip()
+            if did:
+                assignment_counts[did] += 1
+    except Exception:
+        pass
+
     devices = []
     for item in list_known_devices():
         if item.get("hidden_in_admin") and not show_hidden:
@@ -386,7 +397,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
                 "event_visibility_scope": str(item.get("event_visibility_scope") or "all").strip() or "all",
                 "event_regions": list(item.get("event_regions") or []),
                 "contacts_count": len(normalize_contacts_list(item.get("contacts", []))),
-                "assigned_users_count": col_user_device_access.count_documents({"device_id": item.get("device_id")}),
+                "assigned_users_count": assignment_counts[str(item.get("device_id") or "").strip()],
                 "hardware_sections": _device_hardware_sections(item),
                 "hardware_reported_at": _serialize_datetime(item.get("hardware_reported_at")),
             }

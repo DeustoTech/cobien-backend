@@ -22,7 +22,6 @@ class MongoProxy:
                 connect=False,
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=5000,
-                socketTimeoutMS=10000,
             )
             self._pid = current_pid
             self._db = self._client[os.getenv("DB_NAME", "LabasAppDB")]
