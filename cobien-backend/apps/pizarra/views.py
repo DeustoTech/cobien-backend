@@ -57,32 +57,40 @@ col_icso_snapshots = CollectionProxy("pizarra_icso_snapshots")
 col_icso_events = CollectionProxy("pizarra_icso_events")
 col_device_runtime_logs = CollectionProxy("pizarra_device_runtime_logs")
 col_directory_people = CollectionProxy("pizarra_directory_people")
-try:
-    # Búsqueda rápida por usuario/estado/fecha
-    col_notifications.create_index([
-        ("to_user", ASCENDING),
-        ("read", ASCENDING),
-        ("created_at", DESCENDING),
-    ])
-    col_notifications.create_index("expire_at", expireAfterSeconds=0)
-except Exception:
-    pass
 
-try:
-    col_icso_snapshots.create_index([("device_id", ASCENDING)], unique=True)
-    col_icso_snapshots.create_index([("updated_at", DESCENDING)])
-    col_icso_events.create_index([("device_id", ASCENDING), ("logged_at", DESCENDING)])
-    col_icso_events.create_index([("created_at", DESCENDING)])
-    col_device_runtime_logs.create_index(
-        [("device_id", ASCENDING), ("log_type", ASCENDING), ("log_date", DESCENDING)],
-        unique=True,
-    )
-    col_device_runtime_logs.create_index([("device_id", ASCENDING), ("updated_at", DESCENDING)])
-    col_device_runtime_logs.create_index([("device_id", ASCENDING), ("log_date", DESCENDING), ("updated_at", DESCENDING)])
-    col_messages.create_index([("recipient_key", ASCENDING), ("created_at", DESCENDING)])
-    col_messages.create_index([("recipient_key", ASCENDING), ("author", ASCENDING), ("created_at", DESCENDING)])
-except Exception:
-    pass
+def _ensure_indexes():
+    """Create/verify all MongoDB indexes in a background thread.
+    Runs once per worker process without blocking startup.
+    """
+    try:
+        col_notifications.create_index([
+            ("to_user", ASCENDING),
+            ("read", ASCENDING),
+            ("created_at", DESCENDING),
+        ])
+        col_notifications.create_index("expire_at", expireAfterSeconds=0)
+    except Exception:
+        pass
+
+    try:
+        col_icso_snapshots.create_index([("device_id", ASCENDING)], unique=True)
+        col_icso_snapshots.create_index([("updated_at", DESCENDING)])
+        col_icso_events.create_index([("device_id", ASCENDING), ("logged_at", DESCENDING)])
+        col_icso_events.create_index([("created_at", DESCENDING)])
+        col_device_runtime_logs.create_index(
+            [("device_id", ASCENDING), ("log_type", ASCENDING), ("log_date", DESCENDING)],
+            unique=True,
+        )
+        col_device_runtime_logs.create_index([("device_id", ASCENDING), ("updated_at", DESCENDING)])
+        col_device_runtime_logs.create_index([("device_id", ASCENDING), ("log_date", DESCENDING), ("updated_at", DESCENDING)])
+        col_messages.create_index([("recipient_key", ASCENDING), ("created_at", DESCENDING)])
+        col_messages.create_index([("recipient_key", ASCENDING), ("author", ASCENDING), ("created_at", DESCENDING)])
+    except Exception:
+        pass
+
+
+import threading as _threading
+_threading.Thread(target=_ensure_indexes, daemon=True).start()
 
 
 _PALETTE = [
