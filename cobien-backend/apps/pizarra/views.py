@@ -758,6 +758,63 @@ def _build_message_author_meta(username, request=None):
     }
 
 
+def _batch_author_meta(usernames, request=None):
+    """Batch-fetch author metadata for a collection of usernames.
+
+    Uses 2 MongoDB queries total ($in) instead of 2-3 per username,
+    making it safe to call for large message lists.
+    Returns a dict mapping username -> author-meta dict.
+    """
+    unique = {str(u or "").strip() for u in usernames if u}
+    if not unique:
+        return {}
+
+    # One query for all profiles
+    try:
+        profiles_raw = list(db["auth_user"].find(
+            {"username": {"$in": list(unique)}},
+            {"username": 1, "first_name": 1, "last_name": 1},
+        ))
+    except Exception:
+        profiles_raw = []
+    profiles = {doc["username"]: doc for doc in profiles_raw}
+
+    # One query for all avatar existence checks
+    avatar_fns = {u: _user_avatar_filename(u) for u in unique}
+    try:
+        existing_avatars = set(
+            doc["filename"]
+            for doc in db["pizarra_people_fs.files"].find(
+                {"filename": {"$in": list(avatar_fns.values())}},
+                {"filename": 1},
+            )
+        )
+    except Exception:
+        existing_avatars = set()
+
+    result = {}
+    for username in unique:
+        profile = profiles.get(username)
+        author_name = _profile_display_name(profile, fallback=username) or username or "—"
+        avatar_fn = avatar_fns.get(username, "")
+        if avatar_fn and avatar_fn in existing_avatars:
+            avatar_url = _directory_image_url(avatar_fn)
+            if request is not None and str(avatar_url).startswith("/"):
+                try:
+                    avatar_url = request.build_absolute_uri(avatar_url)
+                except Exception:
+                    pass
+        else:
+            avatar_url = ""
+        result[username] = {
+            "author": username,
+            "author_name": author_name,
+            "author_avatar_url": avatar_url,
+            "author_initial": (author_name[:1] or username[:1] or "U").upper(),
+        }
+    return result
+
+
 def _notification_target_meta(username):
     username = str(username or "").strip()
     profile = _find_user_profile(username=username)
@@ -1347,20 +1404,65 @@ def pizarra_home(request):
             "is_selected": did == selected_contact,
         })
 
-    # Histórico
+    # Histórico — limit to prevent unbounded fetches
     posts = []
     if selected_contact:
         message_filter = {"recipient_key": selected_contact}
         if not is_admin:
             message_filter["author"] = request.user.username
-        cursor = col_messages.find(message_filter).sort("created_at", DESCENDING)
-        for d in cursor:
+        cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(100)
+        raw_messages = list(cursor)
+
+        # --- Batch-fetch author metadata (avoid N+1 queries) ---
+        unique_authors = {d.get("author", "") for d in raw_messages if d.get("author")}
+
+        # One query for all profiles (auth_user)
+        _profiles_raw = list(db["auth_user"].find(
+            {"username": {"$in": list(unique_authors)}},
+            {"username": 1, "first_name": 1, "last_name": 1},
+        ))
+        _profiles = {doc["username"]: doc for doc in _profiles_raw}
+
+        # One query for all avatars existence check
+        _avatar_fns = {u: _user_avatar_filename(u) for u in unique_authors if u}
+        _existing_avatars = set(
+            doc["filename"]
+            for doc in db["pizarra_people_fs.files"].find(
+                {"filename": {"$in": list(_avatar_fns.values())}},
+                {"filename": 1},
+            )
+        ) if _avatar_fns else set()
+
+        # Build per-author cache
+        def _cached_author_meta(username):
+            username = str(username or "").strip()
+            if not username:
+                return {"author": "", "author_name": "—", "author_avatar_url": "", "author_initial": "U"}
+            profile = _profiles.get(username)
+            author_name = _profile_display_name(profile, fallback=username) or username or "—"
+            avatar_fn = _avatar_fns.get(username, "")
+            if avatar_fn and avatar_fn in _existing_avatars:
+                avatar_url = _directory_image_url(avatar_fn)
+                try:
+                    avatar_url = request.build_absolute_uri(avatar_url)
+                except Exception:
+                    pass
+            else:
+                avatar_url = ""
+            return {
+                "author": username,
+                "author_name": author_name,
+                "author_avatar_url": avatar_url,
+                "author_initial": (author_name[:1] or username[:1] or "U").upper(),
+            }
+
+        for d in raw_messages:
             image_url = ""
             if d.get("image_file_id"):
                 image_url = request.build_absolute_uri(
                     reverse("pizarra_image", args=[str(d["image_file_id"])])
                 )
-            author_meta = _build_message_author_meta(d.get("author"), request=request)
+            author_meta = _cached_author_meta(d.get("author"))
             read_by = [
                 {
                     "device_id": entry.get("device_id", ""),
@@ -2125,16 +2227,19 @@ def pizarra_web_messages(request):
     if not _staff_required(request.user):
         message_filter["author"] = request.user.username
     cursor = col_messages.find(message_filter).sort("created_at", DESCENDING).limit(50)
+    raw_docs = list(cursor)
     raw_posts = []
     now = datetime.now(timezone.utc)
     single_recipient_key = recipient_keys[0] if not multi_recipient else None
-    for d in cursor:
+    # Batch-fetch all author metadata (2 queries total, not N*3)
+    _author_cache = _batch_author_meta((d.get("author") for d in raw_docs), request=request)
+    for d in raw_docs:
         image_url = ""
         if d.get("image_file_id"):
             image_url = request.build_absolute_uri(
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
-        author_meta = _build_message_author_meta(d.get("author"), request=request)
+        author_meta = _author_cache.get(str(d.get("author") or "").strip()) or _build_message_author_meta(d.get("author"), request=request)
         read_by = [
             {
                 "device_id": entry.get("device_id", ""),
@@ -2350,8 +2455,11 @@ def api_pizarra_messages(request):
     ]
 
     cursor = col_messages.find(filt).sort("created_at", DESCENDING).limit(100)
+    raw_docs = list(cursor)
+    # Batch-fetch author metadata (2 queries total)
+    _author_cache = _batch_author_meta((d.get("author") for d in raw_docs), request=request)
     items = []
-    for d in cursor:
+    for d in raw_docs:
         if d.get("deleted_from_device"):
             continue
         image_url = ""
@@ -2359,7 +2467,7 @@ def api_pizarra_messages(request):
             image_url = request.build_absolute_uri(
                 reverse("pizarra_image", args=[str(d["image_file_id"])])
             )
-        author_meta = _build_message_author_meta(d.get("author"), request=request)
+        author_meta = _author_cache.get(str(d.get("author") or "").strip()) or _build_message_author_meta(d.get("author"), request=request)
         read_by = [
             {
                 "device_id": entry.get("device_id", ""),
