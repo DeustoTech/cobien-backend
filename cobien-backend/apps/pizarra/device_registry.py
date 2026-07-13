@@ -9,13 +9,20 @@ from cobien.mongo import db
 col_devices = db["devices"]
 col_user_device_access = db["user_device_access"]
 
-try:
-    from pymongo import ASCENDING
-    col_devices.create_index("device_id", unique=True)
-    col_user_device_access.create_index([("device_id", ASCENDING), ("username", ASCENDING)], unique=True)
-    col_user_device_access.create_index("username")
-except Exception:
-    pass
+import threading as _threading
+
+
+def _ensure_device_registry_indexes():
+    try:
+        from pymongo import ASCENDING as _ASC
+        col_devices.create_index("device_id", unique=True)
+        col_user_device_access.create_index([("device_id", _ASC), ("username", _ASC)], unique=True)
+        col_user_device_access.create_index("username")
+    except Exception:
+        pass
+
+
+_threading.Thread(target=_ensure_device_registry_indexes, daemon=True).start()
 
 
 def _device_keys_from_env():
@@ -215,11 +222,28 @@ def list_known_devices():
     except Exception:
         pass
 
+    if not device_ids:
+        return []
+
+    # Batch-fetch all known device docs in ONE query (avoids N find_one calls)
+    devices_by_id = {}
+    try:
+        for doc in col_devices.find({"device_id": {"$in": list(device_ids)}}):
+            did = str(doc.get("device_id") or "").strip()
+            if did:
+                devices_by_id[did] = doc
+    except Exception:
+        pass
+
     devices = []
     for device_id in sorted(device_ids, key=str.casefold):
-        device = get_or_create_device(device_id)
-        if device:
-            devices.append(device)
+        if device_id in devices_by_id:
+            devices.append(devices_by_id[device_id])
+        else:
+            # New device not in col_devices yet — create it (rare path)
+            device = get_or_create_device(device_id)
+            if device:
+                devices.append(device)
     return devices
 
 
