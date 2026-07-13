@@ -49,20 +49,14 @@ from .device_registry import (
 from .device_queue import claim_pending_notifications, enqueue_broadcast_notification, enqueue_notification
 
 # --- Mongo / GridFS ---
-_client = MongoClient(os.getenv("MONGO_URI"))
-_dbname = os.getenv("DB_NAME", "LabasAppDB")
-db = _client[_dbname]
-fs = gridfs.GridFS(db, collection="pizarra_fs")
-fs_contacts = gridfs.GridFS(db, collection="pizarra_contacts_fs")
-fs_people = gridfs.GridFS(db, collection="pizarra_people_fs")
-col_messages = db["pizarra_messages"]
+from cobien.mongo import db, fs, fs_contacts, fs_people, col_messages, CollectionProxy
 
 # --- Notificaciones ---
-col_notifications = db["pizarra_notifications"]
-col_icso_snapshots = db["pizarra_icso_snapshots"]
-col_icso_events = db["pizarra_icso_events"]
-col_device_runtime_logs = db["pizarra_device_runtime_logs"]
-col_directory_people = db["pizarra_directory_people"]
+col_notifications = CollectionProxy("pizarra_notifications")
+col_icso_snapshots = CollectionProxy("pizarra_icso_snapshots")
+col_icso_events = CollectionProxy("pizarra_icso_events")
+col_device_runtime_logs = CollectionProxy("pizarra_device_runtime_logs")
+col_directory_people = CollectionProxy("pizarra_directory_people")
 try:
     # Búsqueda rápida por usuario/estado/fecha
     col_notifications.create_index([

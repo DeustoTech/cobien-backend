@@ -1,10 +1,7 @@
 import os
 from django.shortcuts import redirect
 from django.urls import reverse, NoReverseMatch
-from pymongo import MongoClient
-
-_client = MongoClient(os.getenv("MONGO_URI"))
-_db = _client[os.getenv("DB_NAME", "LabasAppDB")]
+from cobien.mongo import db as _db
 
 
 class ForcePasswordChangeMiddleware:

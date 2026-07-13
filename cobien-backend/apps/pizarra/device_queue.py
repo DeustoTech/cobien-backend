@@ -3,15 +3,11 @@ import os
 from datetime import datetime, timezone, timedelta
 
 from bson import ObjectId
-from pymongo import ASCENDING, MongoClient
-
+from pymongo import ASCENDING
+from cobien.mongo import db
 from .device_registry import list_known_devices
 
-
-_client = MongoClient(os.getenv("MONGO_URI"))
-_db = _client[os.getenv("DB_NAME", "LabasAppDB")]
-
-col_device_queue = _db["pizarra_device_queue"]
+col_device_queue = db["pizarra_device_queue"]
 
 try:
     col_device_queue.create_index([("device_id", ASCENDING), ("delivered", ASCENDING), ("created_at", ASCENDING)])

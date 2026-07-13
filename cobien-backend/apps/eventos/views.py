@@ -33,8 +33,7 @@ from apps.pizarra.device_registry import (
     resolve_device_id_for_queue_target,
     verify_device_videocall_key,
 )
-_client = MongoClient(os.getenv("MONGO_URI"))
-db = _client["LabasAppDB"]       
+from cobien.mongo import db
 
 # Paleta fija (elige los que quieras)
 PALETTE = [

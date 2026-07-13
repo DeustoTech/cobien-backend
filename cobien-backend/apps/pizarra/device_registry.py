@@ -4,14 +4,10 @@ import secrets
 from datetime import datetime, timezone, timedelta
 
 from django.contrib.auth.hashers import check_password
-from pymongo import MongoClient
+from cobien.mongo import db
 
-
-_client = MongoClient(os.getenv("MONGO_URI"))
-_db = _client[os.getenv("DB_NAME", "LabasAppDB")]
-
-col_devices = _db["devices"]
-col_user_device_access = _db["user_device_access"]
+col_devices = db["devices"]
+col_user_device_access = db["user_device_access"]
 
 try:
     from pymongo import ASCENDING
@@ -120,7 +116,7 @@ def normalize_event_regions(raw_regions):
 
 def _legacy_profile_for_username(username="", email=""):
     for colname in ("auth_user", "users"):
-        col = _db[colname]
+        col = db[colname]
         if username:
             doc = col.find_one({"username": username})
             if doc:
@@ -144,7 +140,7 @@ def _legacy_profile_for_device(device_id):
         ]
     }
     for colname in ("auth_user", "users"):
-        doc = _db[colname].find_one(query)
+        doc = db[colname].find_one(query)
         if doc:
             return doc
     return None
@@ -194,7 +190,7 @@ def list_known_devices():
     device_ids = set()
 
     try:
-        for doc in _db["pizarra_icso_snapshots"].find({}, {"device_id": 1}):
+        for doc in db["pizarra_icso_snapshots"].find({}, {"device_id": 1}):
             value = str(doc.get("device_id") or "").strip()
             if value:
                 device_ids.add(value)
@@ -203,7 +199,7 @@ def list_known_devices():
 
     for colname in ("auth_user", "users"):
         try:
-            for doc in _db[colname].find({}, {"target_device": 1, "default_room": 1, "linked_device": 1}):
+            for doc in db[colname].find({}, {"target_device": 1, "default_room": 1, "linked_device": 1}):
                 for field in ("target_device", "default_room", "linked_device"):
                     value = str(doc.get(field) or "").strip()
                     if value:

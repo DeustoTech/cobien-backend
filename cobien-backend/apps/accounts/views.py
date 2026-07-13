@@ -19,9 +19,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
 from django.utils.translation import activate, override, gettext as _
 
-#  Mongo 
-_client = MongoClient(os.getenv("MONGO_URI"))
-db = _client["LabasAppDB"]
+from cobien.mongo import db
 
 class SignUpView(CreateView):
     form_class = SignUpForm
