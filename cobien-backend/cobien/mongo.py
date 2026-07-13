@@ -40,7 +40,7 @@ class GridFSProxy:
         import os
         current_pid = os.getpid()
         if self._fs is None or self._pid != current_pid:
-            self._fs = gridfs.GridFS(db, collection=self._collection)
+            self._fs = gridfs.GridFS(db._get_db(), collection=self._collection)
             self._pid = current_pid
         return self._fs
 
