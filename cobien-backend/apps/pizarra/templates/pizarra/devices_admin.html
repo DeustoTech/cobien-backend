@@ -1118,11 +1118,20 @@
                           <div class="dm-log-note">{{ entry.updated_at|fecha_legible }}</div>
                         </div>
                         <div class="dm-log-viewer">
-                          <div class="dm-log-viewer-head">
+                          <div class="dm-log-viewer-head" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                             <strong>{{ entry.filename|default:"runtime.log" }}</strong>
-                            <span>{{ entry.byte_count }} bytes</span>
+                            <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                              <span>{{ entry.byte_count }} bytes</span>
+                              {% if entry.byte_count > 0 %}
+                                <button type="button" class="dm-btn dm-btn-ghost dm-btn-sm load-log-content-btn"
+                                        data-log-type="{{ group.log_type }}" data-log-date="{{ entry.log_date }}"
+                                        style="padding: 2px 8px; font-size: 0.72rem; line-height: 1.2;">
+                                  {% trans "Ver log" %}
+                                </button>
+                              {% endif %}
+                            </div>
                           </div>
-                          <pre>{{ entry.content|default:"" }}</pre>
+                          <pre class="log-pre-content" data-log-type="{{ group.log_type }}" data-log-date="{{ entry.log_date }}" style="max-height: 500px; overflow-y: auto; background:#1E293B; color:#F8FAFC; border-radius:4px; padding:10px; font-family:monospace; margin-top:8px;">{% trans "Haz clic en 'Ver log' para cargar el contenido de forma segura y rápida..." %}</pre>
                         </div>
                         <div class="dm-log-no-match">{% trans "No hay coincidencias en este log para la búsqueda actual." %}</div>
                       </div>
@@ -1428,6 +1437,41 @@
     if (searchInput) {
       searchInput.addEventListener('input', applySearch);
     }
+
+    // Fetch log content on demand via Ajax
+    document.querySelectorAll('.load-log-content-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const type = btn.dataset.logType;
+        const date = btn.dataset.logDate;
+        const pre = btn.closest('.dm-log-viewer')?.querySelector('.log-pre-content');
+        if (!pre) return;
+
+        btn.disabled = true;
+        btn.textContent = "{% trans 'Cargando...' %}";
+        pre.textContent = "{% trans 'Cargando contenido del log...' %}";
+
+        const url = "{% url 'pizarra_api_device_log_content' %}?device_id={{ selected_device }}&log_type=" + encodeURIComponent(type) + "&log_date=" + encodeURIComponent(date);
+        fetch(url)
+          .then(res => res.json())
+          .then(data => {
+            if (data.ok) {
+              pre.textContent = data.content || "{% trans 'El log está vacío.' %}";
+              btn.textContent = "{% trans 'Recargar' %}";
+              applySearch();
+            } else {
+              pre.textContent = "{% trans 'Error al cargar el log:' %} " + (data.error || 'Unknown error');
+              btn.textContent = "{% trans 'Reintentar' %}";
+            }
+          })
+          .catch(err => {
+            pre.textContent = "{% trans 'Error de conexión al cargar el log.' %}";
+            btn.textContent = "{% trans 'Reintentar' %}";
+          })
+          .finally(() => {
+            btn.disabled = false;
+          });
+      });
+    });
 
     refreshPanels();
   })();

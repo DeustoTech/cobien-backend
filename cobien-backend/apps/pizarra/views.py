@@ -227,7 +227,7 @@ def _build_device_runtime_logs_payload(device_id, days=2):
 
     cursor = (
         col_device_runtime_logs
-        .find({"device_id": device_id, "log_date": {"$gte": cutoff_date}}, {"_id": 0})
+        .find({"device_id": device_id, "log_date": {"$gte": cutoff_date}}, {"content": 0, "_id": 0})
         .sort([("log_date", DESCENDING), ("updated_at", DESCENDING)])
     )
 
@@ -254,12 +254,12 @@ def _build_device_runtime_logs_payload(device_id, days=2):
                 "log_type_label": meta.get("label") or log_type,
                 "log_date": log_date,
                 "filename": str(doc.get("filename") or "").strip(),
-                "content": str(doc.get("content") or ""),
+                "content": "",
                 "line_count": int(doc.get("line_count") or 0),
                 "byte_count": int(doc.get("byte_count") or 0),
                 "truncated": bool(doc.get("truncated")),
                 "updated_at": updated_value,
-                "empty": not bool(str(doc.get("content") or "").strip()),
+                "empty": int(doc.get("byte_count") or 0) == 0,
             }
         )
         available_types.add(log_type)
@@ -2919,6 +2919,24 @@ def api_device_delivery_diagnostic(request):
         return JsonResponse({"error": f"Queue enqueue failed: {exc}"}, status=502)
 
     return JsonResponse({"ok": True, "published": queue_payload})
+
+
+@login_required
+def api_device_log_content(request):
+    if not _staff_required(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    device_id = (request.GET.get("device_id") or "").strip()
+    log_type = (request.GET.get("log_type") or "").strip()
+    log_date = (request.GET.get("log_date") or "").strip()
+    if not device_id or not log_type or not log_date:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+
+    doc = col_device_runtime_logs.find_one(
+        {"device_id": device_id, "log_type": log_type, "log_date": log_date},
+        {"content": 1, "_id": 0}
+    )
+    content = doc.get("content", "") if doc else ""
+    return JsonResponse({"ok": True, "content": content})
 
 
 @csrf_exempt
