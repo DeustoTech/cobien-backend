@@ -1222,8 +1222,10 @@ def contact_image(request, filename):
         resp["Content-Length"] = grid_out.length
         resp["Cache-Control"] = "public, max-age=86400"
         return resp
-    except Exception:
-        pass
+    except Exception as exc:
+        import gridfs as _gridfs
+        if not isinstance(exc, _gridfs.errors.NoFile):
+            logger.exception("contact_image: GridFS error for '%s'", safe_name)
     path = os.path.join(_contact_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
@@ -1242,8 +1244,10 @@ def directory_person_image(request, filename):
         resp["Content-Length"] = grid_out.length
         resp["Cache-Control"] = "public, max-age=86400"
         return resp
-    except Exception:
-        pass
+    except Exception as exc:
+        import gridfs as _gridfs
+        if not isinstance(exc, _gridfs.errors.NoFile):
+            logger.exception("directory_person_image: GridFS error for '%s'", safe_name)
     path = os.path.join(_directory_media_dir(), safe_name)
     if not os.path.exists(path):
         raise Http404("Imagen no encontrada")
@@ -2298,7 +2302,10 @@ def pizarra_image(request, file_id: str):
         return JsonResponse({"error": "Unauthorized"}, status=401)
     try:
         grid_out = fs.get(ObjectId(file_id))
-    except Exception:
+    except Exception as exc:
+        import gridfs as _gridfs
+        if not isinstance(exc, _gridfs.errors.NoFile):
+            logger.exception("pizarra_image: GridFS error for file_id='%s'", file_id)
         raise Http404("Imagen no encontrada.")
 
     resp = FileResponse(grid_out, content_type=grid_out.content_type or "application/octet-stream")
@@ -3188,10 +3195,28 @@ def db_diagnostic(request):
         results["steps"]["count_docs_ms"] = round((time.time() - step_start) * 1000, 2)
         results["devices_count"] = devices_count
         results["runtime_logs_count"] = logs_count
-        
+
+        # --- GridFS diagnostics ---
+        step_start = time.time()
+        gridfs_info = {}
+        for col_name in ("pizarra_fs", "pizarra_contacts_fs", "pizarra_people_fs"):
+            files_col = db[f"{col_name}.files"]
+            count = files_col.count_documents({})
+            sample = list(
+                files_col.find({}, {"filename": 1, "length": 1, "uploadDate": 1, "_id": 0})
+                .sort("uploadDate", -1)
+                .limit(5)
+            )
+            for doc in sample:
+                if "uploadDate" in doc:
+                    doc["uploadDate"] = str(doc["uploadDate"])
+            gridfs_info[col_name] = {"file_count": count, "recent_files": sample}
+        results["gridfs"] = gridfs_info
+        results["steps"]["gridfs_ms"] = round((time.time() - step_start) * 1000, 2)
+
     except Exception as e:
         results["status"] = "error"
         results["errors"].append(str(e))
-        
+
     results["total_time_ms"] = round((time.time() - start_time) * 1000, 2)
     return JsonResponse(results)
