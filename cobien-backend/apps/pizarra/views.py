@@ -1084,7 +1084,7 @@ def _delete_managed_contact_image(image_url):
             pass
 
 
-def _optimize_image_file(uploaded_file, max_size=(300, 300)):
+def _optimize_image_file(uploaded_file, max_size=(1024, 1024)):
     from PIL import Image
     import io
     try:
