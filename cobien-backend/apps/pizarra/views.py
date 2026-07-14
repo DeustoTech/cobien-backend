@@ -1854,23 +1854,7 @@ def devices_admin(request):
                     {"device_id": selected_device},
                     {
                         "$set": {
-                            "num_videocalls": 0,
-                            "num_nav_home": 0,
-                            "num_nav_weather": 0,
-                            "num_nav_agenda": 0,
-                            "num_nav_board": 0,
-                            "num_nav_contacts": 0,
-                            "num_nav_emotions": 0,
-                            "num_nav_voice": 0,
-                            "num_rfid_swipes": 0,
-                            "num_voice_cmds": 0,
-                            "num_sensors_clicks": 0,
-                            "num_notifs_board": 0,
-                            "num_notifs_calendar": 0,
-                            "num_tts_plays": 0,
-                            "num_screen_wakeups": 0,
-                            "num_proximity_detections": 0,
-                            "num_imu_shakes": 0,
+                            "payload": {},
                             "updated_at": now
                         }
                     }
@@ -1892,6 +1876,12 @@ def devices_admin(request):
                     })
                     enqueue_notification(selected_device, {
                         "type": "events/reload",
+                        "to": selected_device,
+                        "from": "cobien-admin",
+                        "timestamp": now.isoformat(),
+                    })
+                    enqueue_notification(selected_device, {
+                        "type": "icso_reset",
                         "to": selected_device,
                         "from": "cobien-admin",
                         "timestamp": now.isoformat(),
