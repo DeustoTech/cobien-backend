@@ -1222,10 +1222,22 @@
 
           <!-- ══ TAB: Zona de peligro ══ -->
           <div class="dm-device-tab-pane" id="device-tab-danger">
+            <div class="dm-card" style="border-color:#FCD34D; margin-bottom: 1.5rem;">
+              <div class="dm-danger-zone">
+                <div class="dm-danger-text">
+                  <strong style="color:#D97706;">{% trans "Restablecer datos del mueble" %}</strong>
+                  <p>{% trans "Esto ocultará los mensajes de pizarra y los eventos personales del mueble, y reiniciará a 0 los contadores de telemetría y logs. Los datos históricos se conservan en la base de datos pero no se sincronizarán." %}</p>
+                </div>
+                <button type="button" class="dm-btn dm-btn-warning" id="openResetModal" style="background-color:#F59E0B; border-color:#D97706; color:#FFF;">
+                  {% trans "Restablecer datos" %}
+                </button>
+              </div>
+            </div>
+
             <div class="dm-card" style="border-color:#FECACA;">
               <div class="dm-danger-zone">
                 <div class="dm-danger-text">
-                  <strong>{% trans "Zona de peligro" %}</strong>
+                  <strong>{% trans "Eliminar este mueble" %}</strong>
                   <p>{% trans "Eliminar este mueble borrará todos sus mensajes, notificaciones, ICSO y asignaciones. Irreversible." %}</p>
                 </div>
                 <button type="button" class="dm-btn dm-btn-danger" id="openDeleteModal">
@@ -1320,6 +1332,38 @@
           <button type="submit" name="action" value="delete" id="deleteConfirmBtn"
                   class="dm-btn dm-btn-danger" disabled>
             {% trans "Eliminar definitivamente" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Confirmar restablecimiento de datos ── -->
+<div class="dm-modal-overlay" id="resetDeviceModal">
+  <div class="dm-modal-box" style="width:440px;">
+    <div class="dm-modal-head">
+      <h2 style="color:#D97706;">{% trans "Restablecer datos del mueble" %}</h2>
+      <button class="dm-modal-close" id="closeResetModal" type="button">✕</button>
+    </div>
+    <div class="dm-modal-body">
+      <div class="dm-modal-warning" style="background-color:#FEF3C7; border-color:#FCD34D; color:#92400E; padding:12px; border-radius:6px; margin-bottom:12px; font-size:.9rem;">
+        {% trans "Esta acción ocultará permanentemente los mensajes, eventos personales, logs y contadores del mueble" %} <strong>{{ selected_device }}</strong>{% trans ". Los datos no se borrarán de la base de datos pero dejarán de ser visibles en el mueble y el panel. No se puede deshacer." %}
+      </div>
+      <div class="dm-field" style="margin-bottom:16px;">
+        <label for="resetConfirmInput" style="display:block; margin-bottom:6px; font-weight:500;">
+          {% trans "Escribe" %} <strong style="font-family:monospace; color:#374151;">{{ selected_device }}</strong> {% trans "para confirmar" %}
+        </label>
+        <input type="text" id="resetConfirmInput" placeholder="{{ selected_device }}" autocomplete="off" style="width:100%; padding:8px; border:1px solid #D1D5DB; border-radius:6px;">
+      </div>
+      <form method="post" id="resetDeviceForm">
+        {% csrf_token %}
+        <input type="hidden" name="device_id" value="{{ selected_device }}">
+        <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:4px;">
+          <button class="dm-btn dm-btn-outline" type="button" id="cancelResetModal">{% trans "Cancelar" %}</button>
+          <button type="submit" name="action" value="reset_data" id="resetConfirmBtn"
+                  class="dm-btn" style="background-color:#F59E0B; border-color:#D97706; color:#FFF;" disabled>
+            {% trans "Restablecer datos" %}
           </button>
         </div>
       </form>
@@ -1489,7 +1533,7 @@
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (cancelBtn) cancelBtn.addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); closeDelete(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { document.querySelectorAll('.dm-modal-overlay').forEach(el => el.classList.remove('open')); } });
   })();
 
   // ── Modal: confirmar eliminación ────────────────────────────────
@@ -1509,6 +1553,31 @@
     if (closeBtn)  closeBtn.addEventListener('click', closeDelete);
     if (cancelBtn) cancelBtn.addEventListener('click', closeDelete);
     if (overlay)   overlay.addEventListener('click', function (e) { if (e.target === overlay) closeDelete(); });
+
+    if (input && confirmBtn) {
+      input.addEventListener('input', function () {
+        confirmBtn.disabled = (this.value.trim() !== DEVICE_ID);
+      });
+    }
+  })();
+
+  // ── Modal: confirmar restablecimiento ────────────────────────────
+  (function () {
+    const overlay   = document.getElementById('resetDeviceModal');
+    const openBtn   = document.getElementById('openResetModal');
+    const closeBtn  = document.getElementById('closeResetModal');
+    const cancelBtn = document.getElementById('cancelResetModal');
+    const input     = document.getElementById('resetConfirmInput');
+    const confirmBtn = document.getElementById('resetConfirmBtn');
+    const DEVICE_ID = '{{ selected_device|escapejs }}';
+
+    function openReset()  { if (overlay) { overlay.classList.add('open'); if (input) { input.value = ''; input.focus(); confirmBtn.disabled = true; } } }
+    function closeReset() { if (overlay) { overlay.classList.remove('open'); } }
+
+    if (openBtn)   openBtn.addEventListener('click', openReset);
+    if (closeBtn)  closeBtn.addEventListener('click', closeReset);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeReset);
+    if (overlay)   overlay.addEventListener('click', function (e) { if (e.target === overlay) closeReset(); });
 
     if (input && confirmBtn) {
       input.addEventListener('input', function () {

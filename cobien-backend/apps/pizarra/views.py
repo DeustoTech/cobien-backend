@@ -227,7 +227,7 @@ def _build_device_runtime_logs_payload(device_id, days=2):
 
     cursor = (
         col_device_runtime_logs
-        .find({"device_id": device_id, "log_date": {"$gte": cutoff_date}}, {"content": 0, "_id": 0})
+        .find({"device_id": device_id, "log_date": {"$gte": cutoff_date}, "hidden": {"$ne": True}}, {"content": 0, "_id": 0})
         .sort([("log_date", DESCENDING), ("updated_at", DESCENDING)])
     )
 
@@ -1593,7 +1593,14 @@ def icso_dashboard(request):
                 "payload_count": len(payload) if isinstance(payload, dict) else 0,
             }
 
-        cursor = col_icso_events.find({"device_id": selected_device}).sort("logged_at", DESCENDING).limit(100)
+        dev_doc = col_devices.find_one({"device_id": selected_device}) or {}
+        reset_at = dev_doc.get("telemetry_reset_at")
+        
+        events_filter = {"device_id": selected_device}
+        if reset_at:
+            events_filter["logged_at"] = {"$gt": reset_at}
+
+        cursor = col_icso_events.find(events_filter).sort("logged_at", DESCENDING).limit(100)
         for doc in cursor:
             item = _serialize_doc(doc)
             src = item.get("source", "") or "icso"
@@ -1628,7 +1635,14 @@ def icso_download_events(request):
     if not device_id:
         return HttpResponse("Falta el parámetro device_id.", status=400, content_type="text/plain")
 
-    cursor = col_icso_events.find({"device_id": device_id}).sort("logged_at", DESCENDING).limit(5000)
+    dev_doc = col_devices.find_one({"device_id": device_id}) or {}
+    reset_at = dev_doc.get("telemetry_reset_at")
+    
+    events_filter = {"device_id": device_id}
+    if reset_at:
+        events_filter["logged_at"] = {"$gt": reset_at}
+
+    cursor = col_icso_events.find(events_filter).sort("logged_at", DESCENDING).limit(5000)
     events = []
     for doc in cursor:
         item = _serialize_doc(doc)
@@ -1796,6 +1810,96 @@ def devices_admin(request):
                 enqueue_notification(selected_device, command_payload)
                 label = "reinicio" if action == "restart" else "actualización forzada"
                 messages.success(request, f"Comando de {label} enviado a {selected_device}.")
+            elif action == "reset_data":
+                if not selected_device:
+                    raise ValueError("Selecciona un dispositivo para restablecer sus datos.")
+                
+                now = datetime.now(timezone.utc)
+                
+                # 1. Ocultar mensajes de la pizarra: establecer sync_until al momento actual
+                col_messages.update_many(
+                    {
+                        "recipient_key": selected_device,
+                        "$or": [
+                            {"sync_until": {"$exists": False}},
+                            {"sync_until": None},
+                            {"sync_until": {"$gt": now}}
+                        ]
+                    },
+                    {"$set": {"sync_until": now}}
+                )
+                
+                # 2. Ocultar notificaciones y vaciar la cola de comandos pendientes
+                col_notifications.delete_many({"$or": [{"to_user": selected_device}, {"from_device": selected_device}]})
+                db["pizarra_device_queue"].delete_many({"device_id": selected_device})
+                
+                # 3. Ocultar eventos personales: marcar eventos asignados a este dispositivo como hidden=True
+                db["eventos"].update_many(
+                    {
+                        "audience": "device",
+                        "$or": [
+                            {"target_device": selected_device},
+                            {"target_devices": selected_device}
+                        ]
+                    },
+                    {"$set": {"hidden": True}}
+                )
+                
+                # 4. Telemetría ICSO: restablecer contadores a 0 en el snapshot y guardar la fecha de reseteo en el dispositivo
+                col_devices.update_one(
+                    {"device_id": selected_device},
+                    {"$set": {"telemetry_reset_at": now}}
+                )
+                col_icso_snapshots.update_one(
+                    {"device_id": selected_device},
+                    {
+                        "$set": {
+                            "num_videocalls": 0,
+                            "num_nav_home": 0,
+                            "num_nav_weather": 0,
+                            "num_nav_agenda": 0,
+                            "num_nav_board": 0,
+                            "num_nav_contacts": 0,
+                            "num_nav_emotions": 0,
+                            "num_nav_voice": 0,
+                            "num_rfid_swipes": 0,
+                            "num_voice_cmds": 0,
+                            "num_sensors_clicks": 0,
+                            "num_notifs_board": 0,
+                            "num_notifs_calendar": 0,
+                            "num_tts_plays": 0,
+                            "num_screen_wakeups": 0,
+                            "num_proximity_detections": 0,
+                            "num_imu_shakes": 0,
+                            "updated_at": now
+                        }
+                    }
+                )
+                
+                # 5. Logs de ejecución (runtime logs): marcar todos los logs anteriores como hidden=True
+                col_device_runtime_logs.update_many(
+                    {"device_id": selected_device, "hidden": {"$ne": True}},
+                    {"$set": {"hidden": True}}
+                )
+                
+                # 6. Notificar al mueble vía cola de comandos para que recargue sus datos locales
+                try:
+                    enqueue_notification(selected_device, {
+                        "type": "board/reload",
+                        "to": selected_device,
+                        "from": "cobien-admin",
+                        "timestamp": now.isoformat(),
+                    })
+                    enqueue_notification(selected_device, {
+                        "type": "events/reload",
+                        "to": selected_device,
+                        "from": "cobien-admin",
+                        "timestamp": now.isoformat(),
+                    })
+                except Exception:
+                    pass
+                
+                messages.success(request, f"Datos del mueble '{selected_device}' restablecidos con éxito en el portal y ocultados del dispositivo.")
             elif action == "delete":
                 if not selected_device:
                     raise ValueError("Selecciona un dispositivo para eliminar.")
@@ -2943,7 +3047,7 @@ def api_device_log_content(request):
         return JsonResponse({"error": "Missing parameters"}, status=400)
 
     doc = col_device_runtime_logs.find_one(
-        {"device_id": device_id, "log_type": log_type, "log_date": log_date},
+        {"device_id": device_id, "log_type": log_type, "log_date": log_date, "hidden": {"$ne": True}},
         {"content": 1, "_id": 0}
     )
     content = doc.get("content", "") if doc else ""
@@ -3137,6 +3241,10 @@ def api_icso_events(request):
         filt = {}
         if device_id:
             filt["device_id"] = device_id
+            dev_doc = col_devices.find_one({"device_id": device_id}) or {}
+            reset_at = dev_doc.get("telemetry_reset_at")
+            if reset_at:
+                filt["logged_at"] = {"$gt": reset_at}
         if source:
             filt["source"] = source
 
@@ -3235,6 +3343,7 @@ def api_device_events(request):
 
         # Fetch public events and personal events for this device
         query = {
+            "hidden": {"$ne": True},
             "$or": [
                 {
                     "$or": [

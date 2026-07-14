@@ -314,6 +314,9 @@ def lista_eventos(request):
                 {"audience": "all"},
             ]})
 
+    if not requested_admin_mode:
+        condiciones.append({"hidden": {"$ne": True}})
+
     filtro_final = {"$and": condiciones} if condiciones else {}
     region_map = _get_region_map()
 
