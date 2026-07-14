@@ -2187,7 +2187,9 @@ def pizarra_create(request):
     file_id = None
     img = cleaned.get("image")
     if img:
-        file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
+        optimized_file, content_type = _optimize_image_file(img, max_size=(1024, 1024))
+        target_name = os.path.splitext(img.name)[0] + ".jpg"
+        file_id = fs.put(optimized_file, filename=target_name, contentType=content_type)
 
     quick_replies = []
     for i in range(1, 6):
@@ -2355,7 +2357,9 @@ def pizarra_send_multi(request):
             multi_quick_replies.append(opt)
     file_id = None
     if img:
-        file_id = fs.put(img.file, filename=img.name, contentType=getattr(img, "content_type", None))
+        optimized_file, content_type = _optimize_image_file(img, max_size=(1024, 1024))
+        target_name = os.path.splitext(img.name)[0] + ".jpg"
+        file_id = fs.put(optimized_file, filename=target_name, contentType=content_type)
     now = datetime.now(timezone.utc)
     for rk in recipients:
         doc = {
