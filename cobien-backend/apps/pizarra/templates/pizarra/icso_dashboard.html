@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n cobien_filters %}
 
 {% block title %}CoBien · ICSO{% endblock %}
 {% block page_class %}pizarra{% endblock %}
@@ -230,7 +230,7 @@
       {% if snapshot %}
       <span class="icso-stat">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        {% trans "Snapshot" %}:&nbsp;<strong>{{ snapshot.updated_at }}</strong>
+        {% trans "Snapshot" %}:&nbsp;<strong>{{ snapshot.updated_at|fecha_legible }}</strong>
       </span>
       {% if snapshot.payload_count %}
       <span class="icso-stat">
@@ -261,9 +261,9 @@
           <div class="snapshot-meta">
             <strong>{{ snapshot.device_id }}</strong>
             {% if snapshot.captured_at %}
-            <span>{% trans "Capturado" %}: <strong>{{ snapshot.captured_at }}</strong></span>
+            <span>{% trans "Capturado" %}: <strong>{{ snapshot.captured_at|fecha_legible }}</strong></span>
             {% endif %}
-            <span>{% trans "Actualizado" %}: <strong>{{ snapshot.updated_at }}</strong></span>
+            <span>{% trans "Actualizado" %}: <strong>{{ snapshot.updated_at|fecha_legible }}</strong></span>
           </div>
           {% else %}
           <p class="lead-text" style="margin-top:6px;">{% trans "Todavía no hay snapshot para el dispositivo seleccionado." %}</p>

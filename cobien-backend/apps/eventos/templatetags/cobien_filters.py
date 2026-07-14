@@ -5,7 +5,7 @@ from django import template
 
 register = template.Library()
 
-_TZ = ZoneInfo("Europe/Paris")
+_TZ = ZoneInfo("Europe/Madrid")
 
 _MONTHS = [
     "", "enero", "febrero", "marzo", "abril", "mayo", "junio",

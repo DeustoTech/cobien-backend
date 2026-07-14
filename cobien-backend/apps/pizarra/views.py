@@ -181,7 +181,7 @@ def _read_api_payload(request):
 
 def _serialize_datetime(value):
     if isinstance(value, datetime):
-        return value.isoformat()
+        return _ensure_aware_utc(value).isoformat()
     return value
 
 
@@ -2521,7 +2521,8 @@ def fecha_chat(value):
         "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
         "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
     ]
-    dt = value.astimezone(timezone.utc).astimezone()
+    from zoneinfo import ZoneInfo as _ZI
+    dt = _ensure_aware_utc(value).astimezone(_ZI("Europe/Madrid"))
     return f"{dt.day} de {months[dt.month]} a las {dt.strftime('%H:%M')}"
 
 def pizarra_image(request, file_id: str):
