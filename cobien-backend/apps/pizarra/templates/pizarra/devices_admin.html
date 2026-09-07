@@ -707,6 +707,12 @@
           <!-- Top-level tabs -->
           <nav class="dm-device-tabs-nav" role="tablist">
             <button class="dm-device-tab-btn is-active" type="button" data-device-tab="config" aria-selected="true">{% trans "Configuración" %}</button>
+            <button class="dm-device-tab-btn" type="button" data-device-tab="emotions" aria-selected="false">
+              {% trans "Emociones" %}
+              {% if emociones_historial %}
+                <span style="margin-left:5px; font-size:.72rem; font-weight:600; padding:1px 6px; border-radius:8px; background:#EEF2FF; color:#4F46E5;">{{ emociones_historial|length }}</span>
+              {% endif %}
+            </button>
             <button class="dm-device-tab-btn" type="button" data-device-tab="contacts" aria-selected="false">
               {% trans "Contactos" %}
               <span style="margin-left:5px; font-size:.72rem; font-weight:600; padding:1px 6px; border-radius:8px; background:#EEF2FF; color:#4F46E5;">{{ contact_rows|length }}</span>
@@ -919,29 +925,84 @@
               </form>
             </div>
 
-            {% if emociones_historial %}
-            <div class="dm-card" style="margin-top:16px;">
+          </div>
+
+          <!-- ══ TAB: Emociones ══ -->
+          <div class="dm-device-tab-pane" id="device-tab-emotions">
+            <div class="dm-card">
               <div class="dm-card-head">
                 <h2>{% trans "Historial de Emociones" %}</h2>
+                <div style="display:flex; align-items:center; gap:8px; font-size:.82rem; color:#6B7280;">
+                  <span>{% trans "Total registros" %}: <strong>{{ emociones_historial|length }}</strong></span>
+                </div>
               </div>
-              <div style="max-height:280px; overflow-y:auto;">
-                {% for emo in emociones_historial %}
-                  <div class="dm-event-row">
-                    <strong>
-                      {% if emo.estado == 'Excelente' %}😄
-                      {% elif emo.estado == 'Bien' %}🙂
-                      {% elif emo.estado == 'Normal' %}😐
-                      {% elif emo.estado == 'Regular' %}🙁
-                      {% elif emo.estado == 'Muy mal' or emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
+              <p style="font-size:.84rem; color:#6B7280; margin:0 0 16px;">
+                {% trans "Registros del estado de ánimo y respuestas a las preguntas contextuales (mañana y noche) seleccionadas en el mueble." %}
+              </p>
+
+              {% if emociones_historial %}
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  {% for emo in emociones_historial %}
+                    <div style="display:flex; flex-direction:column; gap:8px; padding:14px 16px; border-radius:10px; background:var(--surface-muted,#F9FAFB); border:1px solid var(--border,#E5E7EB);">
+                      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                          <!-- Estado de ánimo Badge -->
+                          <span style="display:inline-flex; align-items:center; gap:5px; font-size:.85rem; font-weight:700; padding:3px 10px; border-radius:8px;
+                            {% if emo.estado == 'Excelente' %}background:#ECFDF5; color:#065F46; border:1px solid #A7F3D0;
+                            {% elif emo.estado == 'Bien' %}background:#F0FDF4; color:#166534; border:1px solid #BBF7D0;
+                            {% elif emo.estado == 'Normal' %}background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;
+                            {% elif emo.estado == 'Regular' %}background:#FFFBEB; color:#B45309; border:1px solid #FDE68A;
+                            {% elif emo.estado == 'Muy mal' or emo.estado == 'Mal' or emo.estado == 'Triste' %}background:#FEF2F2; color:#991B1B; border:1px solid #FECACA;
+                            {% else %}background:#F3F4F6; color:#374151; border:1px solid #E5E7EB;{% endif %}">
+                            {% if emo.estado == 'Excelente' %}😄
+                            {% elif emo.estado == 'Bien' %}🙂
+                            {% elif emo.estado == 'Normal' %}😐
+                            {% elif emo.estado == 'Regular' %}🙁
+                            {% elif emo.estado == 'Muy mal' or emo.estado == 'Mal' or emo.estado == 'Triste' %}😢
+                            {% endif %}
+                            {{ emo.estado }}
+                          </span>
+
+                          <!-- Momento del día / Período Badge -->
+                          <span style="display:inline-flex; align-items:center; gap:4px; font-size:.78rem; font-weight:600; padding:3px 9px; border-radius:8px;
+                            {% if emo.periodo == 'morning' %}background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;
+                            {% elif emo.periodo == 'night' %}background:#EDE9FE; color:#5B21B6; border:1px solid #DDD6FE;
+                            {% else %}background:#F3F4F6; color:#4B5563; border:1px solid #E5E7EB;{% endif %}">
+                            {{ emo.periodo_icon }} {{ emo.periodo_label }}
+                          </span>
+                        </div>
+
+                        <!-- Fecha y Hora -->
+                        <span style="font-size:.82rem; font-weight:500; color:#6B7280; display:flex; align-items:center; gap:4px;">
+                          🕒 {{ emo.fecha_hora|date:"d/m/Y H:i" }}
+                        </span>
+                      </div>
+
+                      <!-- Statements / Afirmaciones seleccionadas -->
+                      {% if emo.statements %}
+                        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
+                          {% for stmt in emo.statements %}
+                            <span style="display:inline-flex; align-items:center; gap:5px; font-size:.78rem; font-weight:500; padding:3px 10px; border-radius:6px; background:#FFFFFF; color:#374151; border:1px solid #D1D5DB; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                              <span style="color:#6366F1; font-weight:700;">✓</span> {{ stmt }}
+                            </span>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <div style="font-size:.78rem; color:#9CA3AF; font-style:italic;">
+                          {% trans "Sin afirmaciones adicionales seleccionadas" %}
+                        </div>
                       {% endif %}
-                      {{ emo.estado }}
-                    </strong>
-                    <span style="color:#9CA3AF; white-space:nowrap; margin-left:auto;">{{ emo.fecha_hora|date:"d/m/Y H:i" }}</span>
-                  </div>
-                {% endfor %}
-              </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div style="text-align:center; padding:48px 20px; color:#6B7280; background:var(--surface-muted,#F9FAFB); border-radius:10px; border:1px dashed var(--border,#E5E7EB);">
+                  <div style="font-size:2.2rem; margin-bottom:8px;">💭</div>
+                  <strong style="display:block; font-size:.95rem; color:#374151; margin-bottom:4px;">{% trans "No hay registros de emociones todavía" %}</strong>
+                  <span style="font-size:.82rem;">{% trans "Cuando el usuario responda a las preguntas de estado de ánimo en el mueble, aparecerán aquí con sus frases seleccionadas." %}</span>
+                </div>
+              {% endif %}
             </div>
-            {% endif %}
           </div>
 
           <!-- ══ TAB: Contactos ══ -->

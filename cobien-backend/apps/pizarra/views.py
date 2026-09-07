@@ -449,7 +449,55 @@ def _build_device_management_context(selected_device, show_hidden=False):
     emociones_historial = []
     try:
         from apps.emociones.models import EmocionDiaria
-        emociones_historial = list(EmocionDiaria.objects.filter(dispositivo=selected_device).values('fecha_hora', 'estado')[:10])
+        raw_emociones = list(
+            EmocionDiaria.objects.filter(dispositivo=selected_device)
+            .values('fecha_hora', 'estado', 'periodo', 'statements')[:50]
+        )
+        statement_map = {
+            'slept_well': "He dormido bien esta noche",
+            'feel_rested': "Me siento descansado",
+            'felt_loved': "Hoy me he sentido querido",
+            'felt_accompanied': "Hoy me he sentido acompañado",
+            'good_day': "Hoy ha sido un buen día para mí",
+        }
+        for item in raw_emociones:
+            periodo = (item.get('periodo') or '').lower().strip()
+            if not periodo and item.get('fecha_hora'):
+                hour = item['fecha_hora'].hour
+                if hour < 14:
+                    periodo = 'morning'
+                elif hour >= 20:
+                    periodo = 'night'
+                else:
+                    periodo = 'standard'
+
+            raw_stmts = item.get('statements') or []
+            if isinstance(raw_stmts, str):
+                try:
+                    raw_stmts = json.loads(raw_stmts)
+                except Exception:
+                    raw_stmts = [raw_stmts] if raw_stmts.strip() else []
+
+            formatted_stmts = [statement_map.get(s, str(s)) for s in raw_stmts if s]
+
+            if periodo == 'morning':
+                periodo_label = "Mañana"
+                periodo_icon = "🌅"
+            elif periodo == 'night':
+                periodo_label = "Noche"
+                periodo_icon = "🌙"
+            else:
+                periodo_label = "Estándar"
+                periodo_icon = "☀️"
+
+            emociones_historial.append({
+                'fecha_hora': item.get('fecha_hora'),
+                'estado': item.get('estado') or '',
+                'periodo': periodo,
+                'periodo_label': periodo_label,
+                'periodo_icon': periodo_icon,
+                'statements': formatted_stmts,
+            })
     except Exception:
         pass
 

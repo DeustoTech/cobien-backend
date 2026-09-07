@@ -277,11 +277,23 @@ def guardar_emocion_diaria(request):
         body = json.loads(request.body)
         device_id = body.get('device_id', 'Desconocido')
         emocion = body.get('emocion', '')
+        periodo = body.get('period') or body.get('periodo') or ''
+        statements = body.get('statements') or []
+        if isinstance(statements, str):
+            try:
+                statements = json.loads(statements)
+            except Exception:
+                statements = [statements] if statements.strip() else []
 
         if not emocion:
             return JsonResponse({'error': 'Falta parámetro emocion'}, status=400)
 
-        EmocionDiaria.objects.create(dispositivo=device_id, estado=emocion)
+        EmocionDiaria.objects.create(
+            dispositivo=device_id,
+            estado=emocion,
+            periodo=periodo,
+            statements=statements
+        )
         return JsonResponse({'success': True})
     except Exception as e:
         import traceback
