@@ -462,8 +462,11 @@ def _build_device_management_context(selected_device, show_hidden=False):
         }
         for item in raw_emociones:
             periodo = (item.get('periodo') or '').lower().strip()
-            if not periodo and item.get('fecha_hora'):
-                hour = item['fecha_hora'].hour
+            fh = item.get('fecha_hora')
+            fh_aware = _ensure_aware_utc(fh) if isinstance(fh, datetime) else fh
+            if not periodo and fh_aware and isinstance(fh_aware, datetime):
+                from zoneinfo import ZoneInfo
+                hour = fh_aware.astimezone(ZoneInfo("Europe/Madrid")).hour
                 if hour < 14:
                     periodo = 'morning'
                 elif hour >= 20:
@@ -491,7 +494,7 @@ def _build_device_management_context(selected_device, show_hidden=False):
                 periodo_icon = "☀️"
 
             emociones_historial.append({
-                'fecha_hora': item.get('fecha_hora'),
+                'fecha_hora': fh_aware,
                 'estado': item.get('estado') or '',
                 'periodo': periodo,
                 'periodo_label': periodo_label,
@@ -1543,7 +1546,7 @@ def pizarra_home(request):
                 "recipient_key": d.get("recipient_key"),
                 "content": d.get("content", ""),
                 "image_url": image_url,
-                "created_at": d.get("created_at"),
+                "created_at": _serialize_datetime(d.get("created_at")),
                 "created_at_human": fecha_chat(d.get("created_at")),
                 "read_by": read_by,
                 "quick_replies": list(d.get("quick_replies") or []),
@@ -1567,7 +1570,7 @@ def pizarra_home(request):
             "to_user": d.get("to_user") or "",
             "kind": d.get("kind", "call_ready"),
             "message": d.get("message", "Disponible para llamada"),
-            "created_at": d.get("created_at"),
+            "created_at": _serialize_datetime(d.get("created_at")),
             "read": d.get("read", False),
         })
 
@@ -2361,7 +2364,7 @@ def pizarra_create(request):
             "to": doc["recipient_key"],
             "text": doc.get("content", ""),
             "image_url": image_url,
-            "timestamp": doc["created_at"].isoformat()
+            "timestamp": _serialize_datetime(doc["created_at"])
         })
         enqueue_notification(doc["recipient_key"], json.loads(payload))
     except Exception:
@@ -2417,7 +2420,7 @@ def pizarra_web_messages(request):
             "content": d.get("content", ""),
             "image_url": image_url,
             "created_at_human": fecha_chat(created_at),
-            "created_at": created_at,
+            "created_at": _serialize_datetime(created_at),
             "_created_at_ts": created_at.timestamp() if isinstance(created_at, datetime) else 0,
             "_is_read": is_read,
             "recipient_key": d.get("recipient_key", ""),
@@ -2642,10 +2645,7 @@ def api_pizarra_messages(request):
             if isinstance(entry, dict)
         ]
         created_at_val = d.get("created_at")
-        if isinstance(created_at_val, datetime):
-            created_at_iso = created_at_val.isoformat()
-        else:
-            created_at_iso = str(created_at_val) if created_at_val else ""
+        created_at_iso = _serialize_datetime(created_at_val) if created_at_val else ""
         _ts = created_at_val.timestamp() if isinstance(created_at_val, datetime) else 0
         _is_read = any(e.get("device_id") == recipient for e in read_by)
 
@@ -3185,7 +3185,7 @@ def api_notifications(request):
             **target_meta,
             "kind": d.get("kind"),
             "message": d.get("message"),
-            "created_at": d.get("created_at").isoformat(),
+            "created_at": _serialize_datetime(d.get("created_at")),
             "read": d.get("read", False),
         })
 

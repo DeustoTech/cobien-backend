@@ -335,7 +335,7 @@
           <div class="notif-item" data-event-source="{{ event.source }}">
             <div class="notif-meta">
               <span class="event-source-pill" data-src="{{ event.source }}">{{ event.source }}</span>
-              <span class="notif-time">{{ event.logged_at }}</span>
+              <span class="notif-time">{{ event.logged_at|fecha_legible }}</span>
             </div>
             <div class="notif-message-text">{{ event.message }}</div>
           </div>

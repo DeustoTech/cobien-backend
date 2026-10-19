@@ -761,6 +761,31 @@
     allowMutations: false,
   };
 
+  function parseIsoDate(iso) {
+    if (!iso) return null;
+    let s = String(iso).trim();
+    if (!s.endsWith('Z') && !/[+-]\d{2}(:?\d{2})?$/.test(s)) {
+      s += 'Z';
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function fmtChatDate(iso, fallback) {
+    if (!iso) return fallback || '—';
+    const d = parseIsoDate(iso);
+    if (!d) return fallback || iso;
+    const lang = '{{ LANGUAGE_CODE|default:"es" }}';
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    try {
+      const datePart = d.toLocaleDateString(lang, { day: 'numeric', month: 'long' });
+      return `${datePart} {% trans "a las" %} ${h}:${m}`;
+    } catch (_) {
+      return fallback || `${h}:${m}`;
+    }
+  }
+
   // ── Toast ──────────────────────────────────────────────────────
   let _toastTimer;
   function showToast(msg, isError) {
@@ -935,7 +960,7 @@
           ${currentHistoryContext.allowMutations ? `<button class="pz-bubble-del" title="{% trans 'Eliminar' %}" data-del="${post.id}">✕</button>` : '<span></span>'}
         </div>
         <div class="pz-bubble-meta">
-          <span class="pz-bubble-time">${post.created_at_human}</span>
+          <span class="pz-bubble-time">${fmtChatDate(post.created_at, post.created_at_human)}</span>
           <span style="display:flex;gap:6px;align-items:center;">
             ${deletedBadgeHtml}
             ${expiryHtml}
@@ -1030,8 +1055,8 @@
       const post = currentRenderedPosts.find(function (item) { return item.id === bubble.dataset.id; });
       const cb = bubble.querySelector('.pz-bubble-cb');
       if (!post || !cb) return;
-      const createdAt = new Date(post.created_at);
-      const shouldSelect = !Number.isNaN(createdAt.getTime()) && createdAt <= cutoff;
+      const createdAt = parseIsoDate(post.created_at);
+      const shouldSelect = !!createdAt && createdAt <= cutoff;
       cb.checked = shouldSelect;
       bubble.classList.toggle('is-selected', shouldSelect);
       if (shouldSelect) {
@@ -1364,9 +1389,9 @@
 
   function fmtDate(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d)) return iso;
-    return d.toLocaleDateString('{{ LANGUAGE_CODE }}', { day:'numeric', month:'short', year:'numeric' })
+    const d = parseIsoDate(iso);
+    if (!d) return iso;
+    return d.toLocaleDateString('{{ LANGUAGE_CODE|default:"es" }}', { day:'numeric', month:'short', year:'numeric' })
       + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   }
 

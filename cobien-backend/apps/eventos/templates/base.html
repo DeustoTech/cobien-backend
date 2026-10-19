@@ -267,14 +267,30 @@
       const list  = document.getElementById('notifBellList');
       if (!bell) return;
 
+      function parseIsoDate(iso) {
+        if (!iso) return null;
+        let s = String(iso).trim();
+        if (!s.endsWith('Z') && !/[+-]\d{2}(:?\d{2})?$/.test(s)) {
+          s += 'Z';
+        }
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      }
+
       function fmtDate(iso) {
         if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d)) return iso;
-        const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-        const h = String(d.getHours()).padStart(2,'0');
-        const m = String(d.getMinutes()).padStart(2,'0');
-        return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()} a las ${h}:${m}`;
+        const d = parseIsoDate(iso);
+        if (!d) return iso;
+        const lang = '{{ LANGUAGE_CODE|default:"es" }}';
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        try {
+          const datePart = d.toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
+          return `${datePart} {% trans "a las" %} ${h}:${m}`;
+        } catch (_) {
+          const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+          return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()} a las ${h}:${m}`;
+        }
       }
 
       function kindLabel(kind) {

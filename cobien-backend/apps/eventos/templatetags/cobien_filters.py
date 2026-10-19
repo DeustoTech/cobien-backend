@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from django import template
@@ -25,6 +25,8 @@ def fecha_legible(value):
             return value
     if not isinstance(value, datetime):
         return str(value)
+    if value.tzinfo is None or value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone.utc)
     dt = value.astimezone(_TZ)
     return (
         f"{dt.day} de {_MONTHS[dt.month]} de {dt.year} "
